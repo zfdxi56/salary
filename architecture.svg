@@ -1,0 +1,131 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 820 760" width="100%" height="100%">
+  <!-- 背景色設定 -->
+  <rect width="100%" height="100%" fill="#0d1117" />
+  
+  <defs>
+    <!-- 實心青色箭頭 -->
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#00e5ff" />
+    </marker>
+    <!-- 透明度稍微降點的箭頭 (給讀取資料流用) -->
+    <marker id="arrow-read" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#00e5ff" opacity="0.6" />
+    </marker>
+  </defs>
+
+  <!-- ==== 箭頭與連線標籤 ==== -->
+  <g id="edges" stroke="#00e5ff" stroke-width="2" fill="none" font-family="monospace">
+    
+    <!-- 1. init() -> bindEvents() -->
+    <path d="M 400 110 L 400 170" marker-end="url(#arrow)" />
+    
+    <!-- 2. init() -> renderApp() [首次渲染] -->
+    <path d="M 300 80 L 260 80 L 260 560 L 300 560" marker-end="url(#arrow)" />
+    <text x="245" y="320" fill="#00e5ff" font-size="12" stroke="none" transform="rotate(-90 245 320)" text-anchor="middle">首次觸發</text>
+    
+    <!-- 3. bindEvents() -> DOM UI -->
+    <path d="M 300 200 L 120 200 L 120 350" marker-end="url(#arrow)" />
+    <text x="160" y="190" fill="#00e5ff" font-size="12" stroke="none">綁定監聽</text>
+    
+    <!-- 4. DOM UI -> Event Handlers -->
+    <path d="M 220 380 L 300 380" marker-end="url(#arrow)" />
+    <text x="260" y="372" fill="#00e5ff" font-size="12" stroke="none" text-anchor="middle">觸發</text>
+    
+    <!-- 5. Event Handlers -> records 狀態 -->
+    <path d="M 500 365 L 530 365 L 530 260 L 580 260" marker-end="url(#arrow)" />
+    <text x="536" y="310" fill="#00e5ff" font-size="12" stroke="none">更新</text>
+    
+    <!-- 6. Event Handlers -> saveData() -->
+    <path d="M 500 395 L 555 395 L 555 440 L 580 440" marker-end="url(#arrow)" />
+    <text x="562" y="420" fill="#00e5ff" font-size="12" stroke="none">呼叫</text>
+    
+    <!-- 7. Event Handlers -> renderApp() -->
+    <path d="M 400 410 L 400 530" marker-end="url(#arrow)" />
+    <text x="408" y="475" fill="#00e5ff" font-size="12" stroke="none">更新畫面</text>
+    
+    <!-- 8. saveData() -> localStorage -->
+    <path d="M 730 410 L 730 110" marker-end="url(#arrow)" />
+    <text x="738" y="270" fill="#00e5ff" font-size="12" stroke="none">寫入儲存</text>
+    
+    <!-- 9. localStorage -> records 狀態 -->
+    <path d="M 680 110 L 680 230" marker-end="url(#arrow)" />
+    <text x="690" y="175" fill="#00e5ff" font-size="12" stroke="none">啟動載入</text>
+    
+    <!-- 10. records 狀態 -> renderApp() -->
+    <path d="M 580 280 L 515 280 L 515 540 L 500 540" stroke-width="1.5" stroke-dasharray="4,4" opacity="0.8" marker-end="url(#arrow-read)" />
+    <text x="508" y="460" fill="#00e5ff" font-size="12" stroke="none" opacity="0.8" text-anchor="end">讀取資料</text>
+    
+    <!-- 11. renderApp() -> renderDashboard() -->
+    <path d="M 400 590 L 400 620 L 250 620 L 250 650" marker-end="url(#arrow)" />
+    
+    <!-- 12. renderApp() -> renderRecordsList() -->
+    <path d="M 400 590 L 400 620 L 550 620 L 550 650" marker-end="url(#arrow)" />
+
+  </g>
+
+  <!-- ==== 節點框體 ==== -->
+  <g id="nodes" fill="rgba(0, 229, 255, 0.08)" stroke="#00e5ff" stroke-width="2">
+    <!-- 主流程節點 -->
+    <rect x="300" y="50" width="200" height="60" rx="8" />     <!-- Init -->
+    <rect x="300" y="170" width="200" height="60" rx="8" />    <!-- Bind -->
+    <rect x="300" y="350" width="200" height="60" rx="8" />    <!-- Actions -->
+    <rect x="300" y="530" width="200" height="60" rx="8" />    <!-- Render -->
+    
+    <!-- 子渲染節點 -->
+    <rect x="130" y="650" width="240" height="60" rx="8" />    <!-- Dashboard -->
+    <rect x="430" y="650" width="240" height="60" rx="8" />    <!-- List -->
+
+    <!-- 左側輔助節點 (DOM) -->
+    <rect x="20" y="350" width="200" height="60" rx="8" />     <!-- UI -->
+
+    <!-- 右側輔助節點 (Data) -->
+    <rect x="580" y="50" width="200" height="60" rx="8" />     <!-- LS -->
+    <rect x="580" y="230" width="200" height="60" rx="8" />    <!-- State -->
+    <rect x="580" y="410" width="200" height="60" rx="8" />    <!-- Save -->
+  </g>
+
+  <!-- ==== 節點文字 ==== -->
+  <g id="texts" fill="#00e5ff" font-family="monospace" text-anchor="middle">
+    
+    <!-- init() -->
+    <text x="400" y="74" font-size="16" font-weight="bold">init()</text>
+    <text x="400" y="96" font-size="13" opacity="0.8">初始化應用程式</text>
+
+    <!-- bindEvents() -->
+    <text x="400" y="194" font-size="16" font-weight="bold">bindEvents()</text>
+    <text x="400" y="216" font-size="13" opacity="0.8">綁定 DOM 監聽</text>
+
+    <!-- Event Handlers -->
+    <text x="400" y="374" font-size="16" font-weight="bold">Event Handlers</text>
+    <text x="400" y="396" font-size="13" opacity="0.8">處理 CRUD 與資料變更</text>
+
+    <!-- renderApp() -->
+    <text x="400" y="554" font-size="16" font-weight="bold">renderApp()</text>
+    <text x="400" y="576" font-size="13" opacity="0.8">觸發重新渲染畫面</text>
+
+    <!-- UI & Forms -->
+    <text x="120" y="374" font-size="16" font-weight="bold">UI &amp; Forms</text>
+    <text x="120" y="396" font-size="13" opacity="0.8">使用者操作介面輸入</text>
+
+    <!-- localStorage -->
+    <text x="680" y="74" font-size="16" font-weight="bold">localStorage</text>
+    <text x="680" y="96" font-size="13" opacity="0.8">瀏覽器本地儲存</text>
+
+    <!-- records (State) -->
+    <text x="680" y="254" font-size="16" font-weight="bold">[] records</text>
+    <text x="680" y="276" font-size="13" opacity="0.8">維持應用的記憶體狀態</text>
+
+    <!-- saveData() -->
+    <text x="680" y="434" font-size="16" font-weight="bold">saveData()</text>
+    <text x="680" y="456" font-size="13" opacity="0.8">同步狀態至儲存層</text>
+
+    <!-- renderDashboard() -->
+    <text x="250" y="674" font-size="16" font-weight="bold">renderDashboard()</text>
+    <text x="250" y="696" font-size="13" opacity="0.8">運算與渲染數據統計</text>
+
+    <!-- renderRecordsList() -->
+    <text x="550" y="674" font-size="16" font-weight="bold">renderRecordsList()</text>
+    <text x="550" y="696" font-size="13" opacity="0.8">過濾與渲染紀錄清單</text>
+
+  </g>
+</svg>
