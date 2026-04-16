@@ -9,195 +9,162 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0"
     rel="stylesheet" />
+  <!-- Google API Component -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <script src="https://apis.google.com/js/api.js"></script>
 </head>
 
 <body>
-  <!-- Header -->
   <header class="app-header">
     <div class="header-title">
       <span class="material-symbols-outlined icon">nature_people</span>
       <h1>果園時薪計帳</h1>
     </div>
+    <div class="user-controls">
+      <button id="authBtn" class="btn btn-outline" style="display: none;">Google 登入</button>
+      <div id="userInfo" style="display:none; align-items:center; gap:8px;">
+        <span id="userEmailText" class="text-sm text-muted"></span>
+        <button id="logoutBtn" class="btn btn-icon" title="登出並清除存取權"><span
+            class="material-symbols-outlined">logout</span></button>
+      </div>
+    </div>
   </header>
 
-  <!-- Main Content -->
   <main class="app-container">
+    <!-- Initial Loading / Login State -->
+    <div id="authSection" class="glass card text-center">
+      <h2>請先登入與授權</h2>
+      <p>點擊下方按鈕登入含有試算表權限的 Google 帳號。</p>
+    </div>
 
-    <!-- Dashboard Section -->
-    <section class="dashboard card glass">
-      <h2>年度儀表板 (<span id="currentYearDisplay"></span>)</h2>
-      <div class="stats-grid">
-        <div class="stat-box warning">
-          <span class="stat-label">未支付總額</span>
-          <span class="stat-value" id="totalUnpaid">$0</span>
-        </div>
-        <div class="stat-box success">
-          <span class="stat-label">已支付總額</span>
-          <span class="stat-value" id="totalPaid">$0</span>
-        </div>
-      </div>
+    <!-- Main Workspace (Hidden until logged in) -->
+    <div id="workspace" style="display: none;">
 
-      <div class="dashboard-summaries">
-        <div class="worker-summary">
-          <h3>未付總結 (點擊姓名查看明細)</h3>
-          <ul id="workerSummaryList" class="summary-list">
-            <!-- Dynamically populated -->
-          </ul>
+      <!-- User Form: Add Record -->
+      <section class="form-section card glass" id="formSection">
+        <div class="form-header">
+          <h2>新增工時紀錄</h2>
+          <span class="role-badge" id="currentRoleBadge">使用者模式</span>
         </div>
-        <div class="category-summary">
-          <h3>年度總項目 (各分類成本/含已付)</h3>
-          <div id="categoryChartArea" class="chart-area">
-            <!-- Dynamically populated -->
+        <form id="recordForm">
+          <input type="hidden" id="recordId">
+          <div class="form-group row">
+            <div class="input-wrap">
+              <label for="workDate">日期 *</label>
+              <input type="date" id="workDate" required>
+            </div>
+            <div class="input-wrap">
+              <label for="workerName">工人姓名 *</label>
+              <!-- Populated from Settings -->
+              <input type="text" id="workerName" list="workerList" required placeholder="選擇或輸入姓名">
+              <datalist id="workerList"></datalist>
+            </div>
+          </div>
+
+          <div class="form-group row">
+            <div class="input-wrap">
+              <label for="mainCategory">主類別 *</label>
+              <select id="mainCategory" required>
+                <!-- Populated from settings -->
+                <option value="工人" selected>工人</option>
+              </select>
+            </div>
+            <div class="input-wrap">
+              <label for="subCategory">工作項目 *</label>
+              <select id="subCategory" required>
+                <!-- Populated from settings -->
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group row">
+            <div class="input-wrap">
+              <label for="workHours">時數/天數 *</label>
+              <input type="number" id="workHours" step="0.5" min="0" required placeholder="如: 4 或 1">
+            </div>
+            <div class="input-wrap">
+              <label for="hourlyRate">時薪/日薪 *</label>
+              <input type="number" id="hourlyRate" step="10" min="0" required placeholder="如: 200 或 1500">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <div class="input-wrap">
+              <label for="notes">備註</label>
+              <input type="text" id="notes" placeholder="如: 借支、提早下班、包含午餐等">
+            </div>
+          </div>
+
+          <div class="form-actions">
+            <button type="button" class="btn btn-secondary" id="resetFormBtn">清除</button>
+            <button type="submit" class="btn btn-primary" id="saveBtn">儲存紀錄</button>
+          </div>
+        </form>
+      </section>
+
+      <!-- Copy to Line Utility -->
+      <section class="copy-section card glass">
+        <h3>複製小幫手 <span class="material-symbols-outlined text-sm">content_copy</span></h3>
+        <div class="input-wrap" style="margin-bottom: 1rem;">
+          <label>指定日期產生明細</label>
+          <div style="display: flex; gap: 0.5rem;">
+            <input type="date" id="copyDate">
+            <button class="btn btn-primary" id="copyToLineBtn">產生並複製</button>
           </div>
         </div>
-      </div>
-    </section>
+        <textarea id="copyPreview" rows="4" readonly hidden
+          style="width: 100%; border-radius: 8px; padding: 8px; font-size: 0.9em;"></textarea>
+      </section>
 
-    <!-- Form Section -->
-    <section class="form-section card glass" id="formSection">
-      <div class="form-header">
-        <h2 id="formTitle">新增紀錄</h2>
-        <button type="button" class="btn-icon" id="resetFormBtn" title="清除表單">
-          <span class="material-symbols-outlined">restart_alt</span>
-        </button>
-      </div>
-      <form id="recordForm">
-        <input type="hidden" id="recordId">
-
-        <div class="form-group row">
-          <div class="input-wrap">
-            <label for="workerName">姓名 *</label>
-            <input type="text" id="workerName" required placeholder="如: 王小明">
+      <!-- Admin Settings Section (Hidden by default) -->
+      <section class="admin-section card glass" id="adminSection" style="display: none;">
+        <h2><span class="material-symbols-outlined text-warning">settings</span> 管理員設定 (同步至 Google Sheets)</h2>
+        <div class="settings-grid">
+          <div class="settings-box">
+            <label>新增常用工人</label>
+            <div style="display:flex; gap:0.5rem;">
+              <input type="text" id="newWorkerInput" placeholder="如: 王大明">
+              <button class="btn btn-secondary" onclick="addSetting('Worker', 'newWorkerInput')">新增</button>
+            </div>
           </div>
-          <div class="input-wrap">
-            <label for="workDate">日期 *</label>
-            <input type="date" id="workDate" required>
+          <div class="settings-box">
+            <label>新主類別</label>
+            <div style="display:flex; gap:0.5rem;">
+              <input type="text" id="newMainCatInput" placeholder="如: 其他">
+              <button class="btn btn-secondary" onclick="addSetting('MainCategory', 'newMainCatInput')">新增</button>
+            </div>
           </div>
-        </div>
-
-        <div class="form-group">
-          <div class="input-wrap">
-            <label>分類 (可複選) *</label>
-            <div class="checkbox-group" id="workCategoryGroup">
-              <label class="cb-label"><input type="checkbox" value="採收" checked> 採收</label>
-              <label class="cb-label"><input type="checkbox" value="包裝"> 包裝</label>
-              <label class="cb-label"><input type="checkbox" value="除草"> 除草</label>
-              <label class="cb-label"><input type="checkbox" value="疏果"> 疏果</label>
-              <label class="cb-label"><input type="checkbox" value="剪枝"> 剪枝</label>
-              <label class="cb-label"><input type="checkbox" value="套袋"> 套袋</label>
-              <label class="cb-label"><input type="checkbox" value="其他"> 其他</label>
+          <div class="settings-box">
+            <label>新增工作項目(次類別)</label>
+            <div style="display:flex; gap:0.5rem;">
+              <input type="text" id="newSubCatInput" placeholder="如: 疏果">
+              <button class="btn btn-secondary" onclick="addSetting('SubCategory', 'newSubCatInput')">新增</button>
             </div>
           </div>
         </div>
+      </section>
 
-        <div class="form-group">
-          <div class="input-wrap">
-            <label>計薪方式 *</label>
-            <div class="radio-group" id="wageTypeGroup">
-              <label class="radio-btn">
-                <input type="radio" name="wageType" value="hourly" checked>
-                <span>時薪</span>
-              </label>
-              <label class="radio-btn">
-                <input type="radio" name="wageType" value="daily">
-                <span>日薪</span>
-              </label>
-            </div>
-          </div>
+      <!-- Records View -->
+      <section class="records-section">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <h2 style="margin:0;">近期紀錄</h2>
+          <button class="btn btn-icon" id="refreshBtn" title="重新載入資料"><span
+              class="material-symbols-outlined">refresh</span></button>
         </div>
+        <div id="recordsList" class="records-list mt-2">
+          <!-- Populated by JS -->
+        </div>
+      </section>
 
-        <!-- Hourly inputs -->
-        <div class="form-group row" id="hourlyGroup">
-          <div class="input-wrap">
-            <label for="workHours">時數 *</label>
-            <input type="number" id="workHours" step="0.5" min="0" required placeholder="如: 4">
-          </div>
-          <div class="input-wrap">
-            <label for="hourlyRate">時薪 *</label>
-            <input type="number" id="hourlyRate" step="10" min="0" required placeholder="如: 200">
-          </div>
-        </div>
-
-        <!-- Daily input -->
-        <div class="form-group row" id="dailyGroup" style="display: none;">
-          <div class="input-wrap" style="grid-column: 1 / -1;">
-            <label for="dailyWage">日薪總額 *</label>
-            <input type="number" id="dailyWage" step="10" min="0" placeholder="如: 1500">
-          </div>
-        </div>
-
-        <div class="form-group row">
-          <div class="input-wrap checkbox-wrap">
-            <label class="toggle-container">
-              <span class="toggle-label">包含午餐補貼 ($100)</span>
-              <input type="checkbox" id="hasLunchAllowance">
-              <span class="toggle-slider"></span>
-            </label>
-          </div>
-          <div class="input-wrap checkbox-wrap">
-            <label class="toggle-container">
-              <span class="toggle-label">薪資「已支付」?</span>
-              <input type="checkbox" id="isPaid">
-              <span class="toggle-slider"></span>
-            </label>
-          </div>
-        </div>
-
-        <div class="form-actions">
-          <button type="submit" class="btn btn-primary" id="saveBtn">儲存紀錄</button>
-        </div>
-      </form>
-    </section>
-
-    <!-- Controls Section -->
-    <section class="controls glass card" id="recordsSection">
-      <div class="filter-group">
-        <div class="input-wrap">
-          <label>姓名</label>
-          <input type="text" id="filterName" placeholder="搜尋姓名...">
-        </div>
-        <div class="input-wrap">
-          <label>狀態</label>
-          <select id="filterStatus">
-            <option value="all">全部</option>
-            <option value="unpaid">未支付</option>
-            <option value="paid">已支付</option>
-          </select>
-        </div>
-        <div class="input-wrap">
-          <label>分類包含</label>
-          <select id="filterCategory">
-            <option value="all">全部</option>
-            <option value="採收">採收</option>
-            <option value="包裝">包裝</option>
-            <option value="除草">除草</option>
-            <option value="疏果">疏果</option>
-            <option value="剪枝">剪枝</option>
-            <option value="套袋">套袋</option>
-            <option value="其他">其他</option>
-          </select>
-        </div>
-        <div class="input-wrap">
-          <label>排序 (日期)</label>
-          <select id="sortDate">
-            <option value="desc">新到舊</option>
-            <option value="asc">舊到新</option>
-          </select>
-        </div>
-      </div>
-    </section>
-
-    <!-- Records List -->
-    <section class="records-section">
-      <div class="records-header">
-        <h2>工作紀錄</h2>
-      </div>
-      <div id="recordsList" class="records-list">
-        <!-- Dynamically populated -->
-      </div>
-    </section>
-
+    </div>
   </main>
+
+  <!-- Loading overlay -->
+  <div id="loader" class="loader-overlay" style="display:none;">
+    <div class="spinner"></div>
+    <div style="color:white; margin-top:1rem;" id="loaderMsg">處理中...</div>
+  </div>
+
   <script src="app.js"></script>
 </body>
 

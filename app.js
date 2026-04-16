@@ -1,458 +1,363 @@
+// ==========================================
+// 1. 系統設定參數 (請在此處填寫您的專案資訊)
+// ==========================================
+const SPREADSHEET_ID = '1rjVEG9x9ZJ6f3BSuC4CL_wYRATFvbGiZAGkwkzDP168'; // 從試算表網址列複製，例如 /d/ 這個_1234567890_後面/ 
+const CLIENT_ID = '647415610600-eio0d6dqpu80j80gki4l9m5qfemmlkab.apps.googleusercontent.com'; // Google Cloud Platform 中取得
+const API_KEY = '[ENCRYPTION_KEY]'; // Google Cloud Platform 中取得
+
+// 限制抓取的範圍
+const DISCOVERY_DOC = 'https://sheets.googleapis.com/$discovery/rest?version=v4';
+const SCOPES = 'https://www.googleapis.com/auth/spreadsheets';
+
+// ==========================================
+// 全域狀態管理
+// ==========================================
+let tokenClient;
+let gapiInited = false;
+let gisInited = false;
+let isAdmin = false;
+
+// 資料暫存
+let recordsData = [];
+let settingsData = {
+  Workers: [],
+  MainCategories: [],
+  SubCategories: []
+};
+
+// ==========================================
+// 2. Google API 初始化與身分驗證
+// ==========================================
 document.addEventListener('DOMContentLoaded', () => {
-  // DOM Elements
-  const currentYearDisplay = document.getElementById('currentYearDisplay');
-  const totalUnpaidDisplay = document.getElementById('totalUnpaid');
-  const totalPaidDisplay = document.getElementById('totalPaid');
-  const workerSummaryList = document.getElementById('workerSummaryList');
-  const categoryChartArea = document.getElementById('categoryChartArea');
-  const recordsList = document.getElementById('recordsList');
+  // 當畫面載入完畢，等待外部 script 載入 gapi 與 google.accounts
+});
 
-  // Filters
-  const filterName = document.getElementById('filterName');
-  const filterStatus = document.getElementById('filterStatus');
-  const filterCategory = document.getElementById('filterCategory');
-  const sortDate = document.getElementById('sortDate');
+// 當 gapi 載入完成時由 index.html 的 async 觸發 (或者輪詢)
+function gapiLoaded() {
+  gapi.load('client', initializeGapiClient);
+}
 
-  // Form Section
-  const formSection = document.getElementById('formSection');
-  const recordForm = document.getElementById('recordForm');
-  const formTitle = document.getElementById('formTitle');
-  const resetFormBtn = document.getElementById('resetFormBtn');
+async function initializeGapiClient() {
+  await gapi.client.init({
+    apiKey: API_KEY,
+    discoveryDocs: [DISCOVERY_DOC],
+  });
+  gapiInited = true;
+  maybeEnableButtons();
+}
 
-  // Form Inputs
-  const recordIdInput = document.getElementById('recordId');
-  const workerNameInput = document.getElementById('workerName');
-  const workDateInput = document.getElementById('workDate');
-  const wageTypeInputs = document.querySelectorAll('input[name="wageType"]');
-  const isPaidInput = document.getElementById('isPaid');
+function gisLoaded() {
+  tokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: CLIENT_ID,
+    scope: SCOPES,
+    callback: '', // defined later
+  });
+  gisInited = true;
+  maybeEnableButtons();
+}
 
-  function getWageType() {
-    const checked = document.querySelector('input[name="wageType"]:checked');
-    return checked ? checked.value : 'hourly';
+// 實作簡易的等待與輪詢檢查機制
+const checkInterval = setInterval(() => {
+  if (typeof gapi !== 'undefined' && typeof google !== 'undefined') {
+    clearInterval(checkInterval);
+    gapiLoaded();
+    gisLoaded();
   }
+}, 100);
 
-  function setWageType(val) {
-    const input = document.querySelector(`input[name="wageType"][value="${val}"]`);
-    if (input) input.checked = true;
+function maybeEnableButtons() {
+  if (gapiInited && gisInited) {
+    document.getElementById('authBtn').style.display = 'inline-flex';
+    document.getElementById('authBtn').onclick = handleAuthClick;
   }
-  const hasLunchAllowanceInput = document.getElementById('hasLunchAllowance');
+}
 
-  // Hourly Group
-  const hourlyGroup = document.getElementById('hourlyGroup');
-  const workHoursInput = document.getElementById('workHours');
-  const hourlyRateInput = document.getElementById('hourlyRate');
-
-  // Daily Group
-  const dailyGroup = document.getElementById('dailyGroup');
-  const dailyWageInput = document.getElementById('dailyWage');
-
-  // App State
-  let records = JSON.parse(localStorage.getItem('orchard_records')) || [];
-
-  // Initialize App
-  function init() {
-    const currentYear = new Date().getFullYear();
-    currentYearDisplay.textContent = currentYear;
-
-    resetForm();
-    bindEvents();
-    renderApp();
-  }
-
-  // Bind Event Listeners
-  function bindEvents() {
-    recordForm.addEventListener('submit', handleSaveRecord);
-    resetFormBtn.addEventListener('click', resetForm);
-
-    // Toggle Wage Type fields
-    wageTypeInputs.forEach(input => input.addEventListener('change', handleWageTypeToggle));
-
-    // Auto-filter when inputs change
-    filterName.addEventListener('input', renderApp);
-    filterStatus.addEventListener('change', renderApp);
-    filterCategory.addEventListener('change', renderApp);
-    sortDate.addEventListener('change', renderApp);
-  }
-
-  function handleWageTypeToggle() {
-    if (getWageType() === 'hourly') {
-      hourlyGroup.style.display = 'grid'; // CSS grid is used for desktop
-      dailyGroup.style.display = 'none';
-
-      workHoursInput.required = true;
-      hourlyRateInput.required = true;
-      dailyWageInput.required = false;
-    } else {
-      hourlyGroup.style.display = 'none';
-      dailyGroup.style.display = 'grid';
-
-      workHoursInput.required = false;
-      hourlyRateInput.required = false;
-      dailyWageInput.required = true;
+function handleAuthClick() {
+  tokenClient.callback = async (resp) => {
+    if (resp.error !== undefined) {
+      throw (resp);
     }
+    // 登入成功，顯示主畫面並開始抓取資料
+    document.getElementById('authBtn').style.display = 'none';
+    document.getElementById('authSection').style.display = 'none';
+    document.getElementById('workspace').style.display = 'block';
+    document.getElementById('switchRoleBtn').style.display = 'inline-flex';
+
+    // 預設當天日期
+    document.getElementById('workDate').valueAsDate = new Date();
+    document.getElementById('copyDate').valueAsDate = new Date();
+
+    await fetchAllData();
+  };
+
+  if (gapi.client.getToken() === null) {
+    // 提示使用者登入
+    tokenClient.requestAccessToken({ prompt: 'consent' });
+  } else {
+    // 已經有 token 則直接跳過此步驟
+    tokenClient.requestAccessToken({ prompt: '' });
   }
+}
 
-  // --- CRUD Operations ---
+// ==========================================
+// 3. 資料讀寫與商業邏輯
+// ==========================================
 
-  function handleSaveRecord(e) {
-    e.preventDefault();
+function showLoader(msg = '處理中...') {
+  document.getElementById('loaderMsg').textContent = msg;
+  document.getElementById('loader').style.display = 'flex';
+}
+function hideLoader() { document.getElementById('loader').style.display = 'none'; }
+function generateUUID() {
+  return Date.now().toString(36) + Math.random().toString(36).substring(2);
+}
 
-    const id = recordIdInput.value;
-    const name = workerNameInput.value.trim();
-    const date = workDateInput.value;
-    const wageType = getWageType();
-    const isPaid = isPaidInput.checked;
-    const hasLunchAllowance = hasLunchAllowanceInput.checked;
-
-    // Get selected categories
-    const categoryCheckboxes = document.querySelectorAll('#workCategoryGroup input[type="checkbox"]:checked');
-    const selectedCategories = Array.from(categoryCheckboxes).map(cb => cb.value);
-
-    if (selectedCategories.length === 0) {
-      alert('請至少選擇一個分類');
-      return;
-    }
-
-    let hours = 0;
-    let rate = 0;
-    let dailyWage = 0;
-
-    if (wageType === 'hourly') {
-      hours = parseFloat(workHoursInput.value);
-      rate = parseFloat(hourlyRateInput.value);
-      if (isNaN(hours) || isNaN(rate)) return alert('請填寫完整時薪資訊');
-    } else {
-      dailyWage = parseFloat(dailyWageInput.value);
-      if (isNaN(dailyWage)) return alert('請填寫完整日薪資訊');
-    }
-
-    if (!name || !date) {
-      alert('請填寫完整姓名與日期');
-      return;
-    }
-
-    const recordData = {
-      id: id ? id : Date.now().toString(),
-      name,
-      date,
-      category: selectedCategories,
-      wageType,
-      hours,
-      rate,
-      dailyWage,
-      hasLunchAllowance,
-      isPaid
-    };
-
-    if (id) {
-      // Edit
-      const index = records.findIndex(r => r.id === id);
-      if (index !== -1) records[index] = recordData;
-    } else {
-      // Add
-      records.push(recordData);
-    }
-
-    saveData();
-    resetForm();
-    renderApp();
-  }
-
-  window.editRecord = function (id) {
-    const record = records.find(r => r.id === id);
-    if (!record) return;
-
-    formTitle.textContent = '編輯紀錄';
-    recordIdInput.value = record.id;
-    workerNameInput.value = record.name;
-    workDateInput.value = record.date;
-    setWageType(record.wageType || 'hourly'); // Fallback for old data
-    isPaidInput.checked = record.isPaid;
-    hasLunchAllowanceInput.checked = !!record.hasLunchAllowance;
-
-    // Set categories
-    const rCategories = Array.isArray(record.category) ? record.category : [record.category];
-    const categoryCheckboxes = document.querySelectorAll('#workCategoryGroup input[type="checkbox"]');
-    categoryCheckboxes.forEach(cb => {
-      cb.checked = rCategories.includes(cb.value);
+async function fetchAllData() {
+  showLoader('正在同步試算表...');
+  try {
+    // 1. 抓取 Settings
+    const resSettings = await gapi.client.sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: 'Settings!A2:B',
     });
 
-    if (wageTypeInput.value === 'hourly') {
-      workHoursInput.value = record.hours || '';
-      hourlyRateInput.value = record.rate || '';
-    } else {
-      dailyWageInput.value = record.dailyWage || '';
+    // 整理 Settings
+    const rowsS = resSettings.result.values;
+    settingsData = { Workers: [], MainCategories: [], SubCategories: [] };
+    if (rowsS && rowsS.length > 0) {
+      rowsS.forEach(row => {
+        const type = row[0];
+        const val = row[1];
+        if (type === 'Worker') settingsData.Workers.push(val);
+        if (type === 'MainCategory') settingsData.MainCategories.push(val);
+        if (type === 'SubCategory') settingsData.SubCategories.push(val);
+      });
     }
+    populateSelects();
 
-    handleWageTypeToggle();
+    // 2. 抓取 Records
+    const resRecords = await gapi.client.sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: 'Records!A2:I',
+    });
 
-    // Scroll to form smoothly
-    formSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  };
-
-  window.deleteRecord = function (id) {
-    if (confirm('確定要刪除這筆工作紀錄嗎？此動作無法復原。')) {
-      records = records.filter(r => r.id !== id);
-      saveData();
-      renderApp();
-    }
-  };
-
-  window.togglePaidStatus = function (id) {
-    const record = records.find(r => r.id === id);
-    if (record) {
-      record.isPaid = !record.isPaid;
-      saveData();
-      renderApp();
-    }
-  };
-
-  window.filterByWorker = function (name) {
-    filterName.value = name;
-    filterStatus.value = 'unpaid';
-    renderRecordsList();
-
-    // Scroll to records section
-    document.getElementById('recordsSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
-  };
-
-  function saveData() {
-    localStorage.setItem('orchard_records', JSON.stringify(records));
-  }
-
-  // --- UI Interactions ---
-
-  function resetForm() {
-    formTitle.textContent = '新增紀錄';
-    recordIdInput.value = '';
-    workerNameInput.value = '';
-    workDateInput.valueAsDate = new Date();
-    setWageType('hourly');
-
-    // Reset Categories (default to 採收)
-    const categoryCheckboxes = document.querySelectorAll('#workCategoryGroup input[type="checkbox"]');
-    categoryCheckboxes.forEach(cb => cb.checked = false);
-    const defaultCb = document.querySelector('#workCategoryGroup input[value="採收"]');
-    if (defaultCb) defaultCb.checked = true;
-
-    // Default wages
-    workHoursInput.value = '';
-    hourlyRateInput.value = '200';
-    dailyWageInput.value = '1500';
-
-    isPaidInput.checked = false;
-    hasLunchAllowanceInput.checked = false;
-
-    // Update view based on explicit reset
-    handleWageTypeToggle();
-  }
-
-  // Helpers
-  function calculateAmount(record) {
-    let baseAmount = 0;
-    if (record.wageType === 'daily') {
-      baseAmount = record.dailyWage || 0;
-    } else {
-      baseAmount = (record.hours || 0) * (record.rate || 0);
-    }
-    return baseAmount + (record.hasLunchAllowance ? 100 : 0);
-  }
-
-  // --- Rendering & Logic ---
-
-  function renderApp() {
-    renderDashboard();
-    renderRecordsList();
-  }
-
-  function renderDashboard() {
-    const currentYear = new Date().getFullYear();
-
-    // Filter records by current year
-    const yearRecords = records.filter(r => new Date(r.date).getFullYear() === currentYear);
-
-    let unpaidTotal = 0;
-    let paidTotal = 0;
-    const workerUnpaidMap = {};
-    const categoryTotalMap = {}; // Tracks overall total per category
-
-    yearRecords.forEach(r => {
-      const amount = calculateAmount(r);
-
-      if (r.isPaid) {
-        paidTotal += amount;
-      } else {
-        unpaidTotal += amount;
-
-        // Group by user (only UNPAID)
-        if (!workerUnpaidMap[r.name]) workerUnpaidMap[r.name] = 0;
-        workerUnpaidMap[r.name] += amount;
-      }
-
-      // Group by category (ALL statuses)
-      const categories = Array.isArray(r.category) ? r.category : [r.category];
-      const validCategories = categories.filter(c => c); // remove any empty
-      if (validCategories.length > 0) {
-        // Splitting amount evenly amongst selected categories for accurate total
-        const splitAmount = amount / validCategories.length;
-        validCategories.forEach(cat => {
-          if (!categoryTotalMap[cat]) categoryTotalMap[cat] = 0;
-          categoryTotalMap[cat] += splitAmount;
+    recordsData = [];
+    const rowsR = resRecords.result.values;
+    if (rowsR && rowsR.length > 0) {
+      rowsR.forEach(row => {
+        recordsData.push({
+          id: row[0],
+          date: row[1],
+          worker: row[2],
+          mainCat: row[3],
+          subCat: row[4],
+          hours: row[5],
+          rate: row[6],
+          notes: row[7],
+          timestamp: row[8]
         });
-      }
+      });
+    }
+    renderRecords();
+
+  } catch (err) {
+    console.error(err);
+    alert('讀取失敗，請確認試算表 ID 與工作表名稱是否正確且已授權！');
+  }
+  hideLoader();
+}
+
+function populateSelects() {
+  // Workers Datalist
+  const workerList = document.getElementById('workerList');
+  workerList.innerHTML = '';
+  settingsData.Workers.forEach(w => {
+    workerList.innerHTML += `<option value="${w}">`;
+  });
+
+  // Main Category
+  const mainCat = document.getElementById('mainCategory');
+  mainCat.innerHTML = '';
+  settingsData.MainCategories.forEach(c => {
+    mainCat.innerHTML += `<option value="${c}">${c}</option>`;
+  });
+  if (settingsData.MainCategories.length === 0) mainCat.innerHTML = `<option value="工人">工人</option>`;
+
+  // Sub Category
+  const subCat = document.getElementById('subCategory');
+  subCat.innerHTML = '';
+  settingsData.SubCategories.forEach(c => {
+    subCat.innerHTML += `<option value="${c}">${c}</option>`;
+  });
+}
+
+// 綁定儲存按鈕
+document.getElementById('recordForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+
+  const id = generateUUID();
+  const date = document.getElementById('workDate').value;
+  const worker = document.getElementById('workerName').value;
+  const mainCat = document.getElementById('mainCategory').value;
+  const subCat = document.getElementById('subCategory').value;
+  const hours = document.getElementById('workHours').value;
+  const rate = document.getElementById('hourlyRate').value;
+  const notes = document.getElementById('notes').value;
+  const timestamp = new Date().toISOString();
+
+  const appendData = [id, date, worker, mainCat, subCat, hours, rate, notes, timestamp];
+
+  showLoader('儲存中...');
+  try {
+    await gapi.client.sheets.spreadsheets.values.append({
+      spreadsheetId: SPREADSHEET_ID,
+      range: 'Records!A:I',
+      valueInputOption: 'USER_ENTERED',
+      resource: { values: [appendData] }
     });
 
-    totalUnpaidDisplay.textContent = `$${unpaidTotal.toLocaleString()}`;
-    totalPaidDisplay.textContent = `$${paidTotal.toLocaleString()}`;
+    // 為了反應快速，手動更新暫存並渲染
+    recordsData.push({
+      id, date, worker, mainCat, subCat, hours, rate, notes, timestamp
+    });
 
-    // Render Summary List (Worker Unpaid)
-    workerSummaryList.innerHTML = '';
-    const workerEntries = Object.entries(workerUnpaidMap).sort((a, b) => b[1] - a[1]);
+    document.getElementById('notes').value = '';
+    renderRecords();
+    alert('儲存成功！');
+  } catch (err) {
+    console.error(err);
+    alert('發生錯誤。');
+  }
+  hideLoader();
+});
 
-    if (workerEntries.length === 0) {
-      workerSummaryList.innerHTML = '<li style="text-align:center; color:var(--text-muted); font-size:0.875rem; padding-top:1rem;">目前無未支付款項</li>';
+// 管理者介面切換
+document.getElementById('switchRoleBtn').addEventListener('click', () => {
+  if (!isAdmin) {
+    const pwd = prompt('請輸入管理員密碼：');
+    if (pwd === 'admin123') {
+      isAdmin = true;
+      document.getElementById('adminSection').style.display = 'block';
+      document.getElementById('currentRoleBadge').className = 'role-badge admin';
+      document.getElementById('currentRoleBadge').textContent = '管理員模式';
+      alert('已切換為管理員');
     } else {
-      workerEntries.forEach(([name, amount]) => {
-        const li = document.createElement('li');
-        li.className = 'summary-item clickable';
-        li.title = `點擊查看 ${name} 的未付明細`;
-        li.onclick = () => filterByWorker(name);
-        li.innerHTML = `
-          <span class="name">${name}</span>
-          <span class="amount">$${amount.toLocaleString()}</span>
-        `;
-        workerSummaryList.appendChild(li);
-      });
+      alert('密碼錯誤！');
     }
+  } else {
+    isAdmin = false;
+    document.getElementById('adminSection').style.display = 'none';
+    document.getElementById('currentRoleBadge').className = 'role-badge';
+    document.getElementById('currentRoleBadge').textContent = '使用者模式';
+    alert('已切換回使用者');
+  }
+});
 
-    // Render Category Chart (All statuses)
-    categoryChartArea.innerHTML = '';
-    const catEntries = Object.entries(categoryTotalMap).sort((a, b) => b[1] - a[1]);
+// 重置表單
+document.getElementById('resetFormBtn').addEventListener('click', () => {
+  document.getElementById('recordForm').reset();
+  document.getElementById('workDate').valueAsDate = new Date();
+});
 
-    if (catEntries.length === 0) {
-      categoryChartArea.innerHTML = '<div style="text-align:center; color:var(--text-muted); font-size:0.875rem; padding-top:1rem;">目前無項目資料</div>';
-    } else {
-      const maxAmount = Math.max(...catEntries.map(e => e[1]));
+// 重新載入
+document.getElementById('refreshBtn').addEventListener('click', fetchAllData);
 
-      catEntries.forEach(([cat, amount]) => {
-        const percentage = maxAmount > 0 ? (amount / maxAmount) * 100 : 0;
+// 渲染近期紀錄清單 (以日期降冪排列顯示最後 20 筆)
+function renderRecords() {
+  const list = document.getElementById('recordsList');
+  list.innerHTML = '';
 
-        const row = document.createElement('div');
-        row.className = 'chart-row';
-        row.innerHTML = `
-          <div class="chart-labels">
-            <span>${cat}</span>
-            <span class="val">$${Math.round(amount).toLocaleString()}</span>
-          </div>
-          <div class="chart-bar-bg">
-            <div class="chart-bar-fill" style="width: 0%" data-target-width="${percentage}%"></div>
-          </div>
-        `;
-        categoryChartArea.appendChild(row);
-      });
-
-      // Animate bars after rendering
-      requestAnimationFrame(() => {
-        setTimeout(() => {
-          document.querySelectorAll('.chart-bar-fill').forEach(bar => {
-            bar.style.width = bar.getAttribute('data-target-width');
-          });
-        }, 50);
-      });
-    }
+  if (recordsData.length === 0) {
+    list.innerHTML = '<div class="empty-state"><span class="material-symbols-outlined">inbox</span><p>暫無紀錄</p></div>';
+    return;
   }
 
-  function renderRecordsList() {
-    // 1. Get filter values
-    const filterTxt = filterName.value.toLowerCase().trim();
-    const statusVal = filterStatus.value;
-    const catVal = filterCategory.value;
-    const sortVal = sortDate.value;
+  // 排序 : 新 -> 舊
+  const sorted = [...recordsData].sort((a, b) => new Date(b.date) - new Date(a.date));
+  const recent = sorted.slice(0, 20); // 只顯示最近
 
-    // 2. Filter
-    let filtered = records.filter(r => {
-      const matchName = r.name.toLowerCase().includes(filterTxt);
-      const matchStatus = statusVal === 'all'
-        ? true
-        : (statusVal === 'paid' ? r.isPaid : !r.isPaid);
+  recent.forEach(r => {
+    const total = (parseFloat(r.hours) * parseFloat(r.rate)).toLocaleString();
+    const div = document.createElement('div');
+    div.className = 'record-card';
+    div.innerHTML = `
+      <div class="record-main" style="align-items:center;">
+        <div>
+          <strong style="fontSize:1.1rem; color:var(--text-main);">${r.worker}</strong>
+          <span class="text-sm" style="color:var(--text-muted); margin-left:8px;">${r.date}</span>
+          <br>
+          <span class="badge category">${r.mainCat} - ${r.subCat}</span>
+          ${r.notes ? `<span class="badge" style="background:#fef08a;">${r.notes}</span>` : ''}
+        </div>
+        <div style="text-align:right;">
+          <strong style="font-size:1.2rem;">$${total}</strong>
+          <br>
+          <span class="text-sm" style="color:var(--text-muted);">${r.hours} <small>時/天</small> x $${r.rate}</span>
+        </div>
+      </div>
+    `;
+    list.appendChild(div);
+  });
+}
 
-      const categories = Array.isArray(r.category) ? r.category : [r.category];
-      const matchCat = catVal === 'all' ? true : categories.includes(catVal);
+// 管理員：新增設定
+window.addSetting = async function (type, inputId) {
+  const val = document.getElementById(inputId).value.trim();
+  if (!val) return;
 
-      return matchName && matchStatus && matchCat;
+  showLoader('更新設定...');
+  try {
+    await gapi.client.sheets.spreadsheets.values.append({
+      spreadsheetId: SPREADSHEET_ID,
+      range: 'Settings!A:B',
+      valueInputOption: 'USER_ENTERED',
+      resource: { values: [[type, val]] }
     });
 
-    // 3. Sort
-    filtered.sort((a, b) => {
-      const dateA = new Date(a.date).getTime();
-      const dateB = new Date(b.date).getTime();
-      return sortVal === 'desc' ? dateB - dateA : dateA - dateB;
-    });
+    // 更新本地
+    if (type === 'Worker') settingsData.Workers.push(val);
+    if (type === 'MainCategory') settingsData.MainCategories.push(val);
+    if (type === 'SubCategory') settingsData.SubCategories.push(val);
 
-    // 4. Render
-    recordsList.innerHTML = '';
-
-    if (filtered.length === 0) {
-      recordsList.innerHTML = `
-        <div class="empty-state">
-          <span class="material-symbols-outlined">inbox</span>
-          <p>沒有符合的工作紀錄</p>
-        </div>
-      `;
-      return;
-    }
-
-    filtered.forEach(r => {
-      const totalAmount = calculateAmount(r);
-      const statusBadge = r.isPaid
-        ? `<span class="badge paid">已支付</span>`
-        : `<span class="badge unpaid">未支付</span>`;
-
-      const btnToggleTxt = r.isPaid ? '標示為未支付' : '標示為已支付';
-
-      // Multiple categories badges
-      const rCategories = Array.isArray(r.category) ? r.category : [r.category];
-      const categoryBadges = rCategories.filter(c => c).map(c => `<span class="badge category">${c}</span>`).join('');
-
-      const lunchBadge = r.hasLunchAllowance ? `<span class="badge" style="background:#fef08a; color:#854d0e;">午餐+$100</span>` : '';
-
-      let rateText = '';
-      if (r.wageType === 'daily') {
-        rateText = `日薪: $${r.dailyWage}`;
-      } else {
-        rateText = `${r.hours} 小時 x $${r.rate}/h`;
-      }
-
-      const card = document.createElement('div');
-      card.className = 'record-card';
-      card.innerHTML = `
-        <div class="record-main">
-          <div class="record-info-left">
-            <strong>${r.name}</strong>
-            <span class="record-date">工作日: ${r.date}</span>
-            <div class="record-tags">
-              ${categoryBadges}
-              ${lunchBadge}
-              ${statusBadge}
-            </div>
-          </div>
-          <div class="record-financials">
-            <span class="record-total">$${totalAmount.toLocaleString()}</span>
-            <span class="record-rate">${rateText}</span>
-          </div>
-        </div>
-        <div class="record-actions">
-          <button class="btn btn-icon ${r.isPaid ? 'btn-secondary' : 'btn-primary'}" onclick="togglePaidStatus('${r.id}')" title="${btnToggleTxt}">
-            <span class="material-symbols-outlined">${r.isPaid ? 'undo' : 'payments'}</span>
-          </button>
-          <button class="btn btn-edit" onclick="editRecord('${r.id}')">編輯</button>
-          <button class="btn btn-danger" onclick="deleteRecord('${r.id}')">刪除</button>
-        </div>
-      `;
-      recordsList.appendChild(card);
-    });
+    populateSelects();
+    document.getElementById(inputId).value = '';
+    alert('選項新增成功！');
+  } catch (err) {
+    console.error(err);
+    alert('選項新增失敗！');
   }
+  hideLoader();
+};
 
-  // Go!
-  init();
+// ==========================================
+// 4. LINE 複製小幫手
+// ==========================================
+document.getElementById('copyToLineBtn').addEventListener('click', () => {
+  const cDate = document.getElementById('copyDate').value;
+  if (!cDate) return alert('請選擇日期');
+
+  const daily = recordsData.filter(r => r.date === cDate);
+  if (daily.length === 0) return alert('該日期沒有任何紀錄。');
+
+  let text = `📅 【工資明細】 ${cDate}\n`;
+  let sum = 0;
+
+  daily.forEach(r => {
+    let sub = parseFloat(r.hours) * parseFloat(r.rate);
+    sum += sub;
+    text += `\n🧑‍🌾 ${r.worker} (${r.subCat})`;
+    if (r.notes) text += ` [${r.notes}]`;
+    text += `\n└ ${r.hours} x ${r.rate} = $${sub.toLocaleString()}`;
+  });
+
+  text += `\n\n💵 今日總發出：$${sum.toLocaleString()}`;
+
+  navigator.clipboard.writeText(text).then(() => {
+    alert('✅ 已複製到剪貼簿，可以直接去 LINE 貼上了！');
+  }).catch(err => {
+    alert('自動複製失敗，已將明細產生於下方，請手動複製。');
+    const ta = document.getElementById('copyPreview');
+    ta.hidden = false;
+    ta.value = text;
+  });
 });
