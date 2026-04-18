@@ -3,7 +3,7 @@
 // ==========================================
 const SPREADSHEET_ID = '1rjVEG9x9ZJ6f3BSuC4CL_wYRATFvbGiZAGkwkzDP168'; // 從試算表網址列複製，例如 /d/ 這個_1234567890_後面/ 
 const CLIENT_ID = '647415610600-eio0d6dqpu80j80gki4l9m5qfemmlkab.apps.googleusercontent.com'; // Google Cloud Platform 中取得
-const API_KEY = '[ENCRYPTION_KEY]'; // Google Cloud Platform 中取得
+// const API_KEY = ''; // 已移除，改以 OAuth 登入驗證取代
 
 // 限制抓取的範圍
 const DISCOVERY_DOC = 'https://sheets.googleapis.com/$discovery/rest?version=v4';
@@ -25,6 +25,12 @@ let settingsData = {
   SubCategories: []
 };
 
+const PREDEFINED_CATEGORIES = {
+  '工人薪資': ['檢枝', '除草', '疏果', '剪枝', '套袋', '包裝', '採收'],
+  '肥料': ['骨粉', '海鳥糞', '堆肥', '豆粕', '苦土石灰', '蘇力菌 (B.t.)', '苦楝油', '葵無露', '石灰硫磺合劑', '亞磷酸'],
+  '包裝材料': ['水果紙箱', '泡棉網套 (舒果網)', '塑膠內袋', '封箱膠帶', '蔬果標籤貼紙']
+};
+
 // ==========================================
 // 2. Google API 初始化與身分驗證
 // ==========================================
@@ -38,12 +44,16 @@ function gapiLoaded() {
 }
 
 async function initializeGapiClient() {
-  await gapi.client.init({
-    apiKey: API_KEY,
-    discoveryDocs: [DISCOVERY_DOC],
-  });
-  gapiInited = true;
-  maybeEnableButtons();
+  try {
+    // 使用 load 來載入 API，這樣就不會強制要求 apiKey
+    gapi.client.load('sheets', 'v4', () => {
+      gapiInited = true;
+      maybeEnableButtons();
+    });
+  } catch (error) {
+    console.error('Google API 初始化失敗:', error);
+    alert('Google API 初始化失敗，請檢查主控台。');
+  }
 }
 
 function gisLoaded() {
@@ -159,6 +169,7 @@ async function fetchAllData() {
       });
     }
     renderRecords();
+    renderSettingsAdmin(); // 更新管理員介面的選單列表
 
   } catch (err) {
     console.error(err);
@@ -178,58 +189,191 @@ function populateSelects() {
   // Main Category
   const mainCat = document.getElementById('mainCategory');
   mainCat.innerHTML = '';
-  settingsData.MainCategories.forEach(c => {
+  
+  // Combine predefined and settings main categories
+  const allMainCats = new Set([...Object.keys(PREDEFINED_CATEGORIES), ...settingsData.MainCategories]);
+  allMainCats.forEach(c => {
     mainCat.innerHTML += `<option value="${c}">${c}</option>`;
   });
-  if (settingsData.MainCategories.length === 0) mainCat.innerHTML = `<option value="工人">工人</option>`;
+  
+  if (allMainCats.size === 0) mainCat.innerHTML = `<option value="工人薪資">工人薪資</option>`;
 
-  // Sub Category
+  // Update Sub Categories when Main Category changes
+  mainCat.addEventListener('change', updateSubCategoriesAndUI);
+  
+  // Initial UI trigger
+  updateSubCategoriesAndUI();
+}
+
+function updateSubCategoriesAndUI() {
+  const mainCatVal = document.getElementById('mainCategory').value;
   const subCat = document.getElementById('subCategory');
+  const hoursLabel = document.getElementById('hoursLabel');
+  const rateLabel = document.getElementById('rateLabel');
   subCat.innerHTML = '';
-  settingsData.SubCategories.forEach(c => {
+
+  // Get subs for current main, combine with custom from settings
+  let subs = PREDEFINED_CATEGORIES[mainCatVal] || [];
+  const allSubs = new Set([...subs, ...settingsData.SubCategories]);
+  
+  allSubs.forEach(c => {
     subCat.innerHTML += `<option value="${c}">${c}</option>`;
   });
+
+  // UI Toggles
+  const workerWrap = document.getElementById('workerNameWrap');
+  const workerInput = document.getElementById('workerName');
+  const lunchWrap = document.getElementById('lunchCheckWrap');
+  const includeLunch = document.getElementById('includeLunch');
+
+  if (mainCatVal === '工人薪資') {
+    workerWrap.style.display = 'block';
+    workerInput.required = true;
+    lunchWrap.style.display = 'flex';
+    hoursLabel.innerText = '時數/天數 *';
+    rateLabel.innerText = '時薪/日薪 *';
+  } else {
+    workerWrap.style.display = 'none';
+    workerInput.required = false;
+    workerInput.value = ''; // clear value
+    lunchWrap.style.display = 'none';
+    includeLunch.checked = false;
+    hoursLabel.innerText = '數量 *';
+    rateLabel.innerText = '單價 *';
+  }
 }
 
 // 綁定儲存按鈕
 document.getElementById('recordForm').addEventListener('submit', async (e) => {
   e.preventDefault();
 
-  const id = generateUUID();
+  const existingId = document.getElementById('recordId').value;
+  const id = existingId || generateUUID();
   const date = document.getElementById('workDate').value;
-  const worker = document.getElementById('workerName').value;
+  let worker = document.getElementById('workerName').value || '-';
   const mainCat = document.getElementById('mainCategory').value;
   const subCat = document.getElementById('subCategory').value;
   const hours = document.getElementById('workHours').value;
   const rate = document.getElementById('hourlyRate').value;
-  const notes = document.getElementById('notes').value;
+  let notes = document.getElementById('notes').value;
+  
+  const includeLunch = document.getElementById('includeLunch').checked;
+  // 如果備註中已經有 [含午餐$100]，先移除它以免重疊
+  notes = notes.replace(/\[含午餐\$100\]\s*/g, '');
+  if (includeLunch && mainCat === '工人薪資') {
+    notes = notes ? `[含午餐$100] ${notes}` : '[含午餐$100]';
+  }
+  
   const timestamp = new Date().toISOString();
+  const rowData = [id, date, worker, mainCat, subCat, hours, rate, notes, timestamp];
 
-  const appendData = [id, date, worker, mainCat, subCat, hours, rate, notes, timestamp];
-
-  showLoader('儲存中...');
+  showLoader(existingId ? '更新中...' : '儲存中...');
   try {
-    await gapi.client.sheets.spreadsheets.values.append({
-      spreadsheetId: SPREADSHEET_ID,
-      range: 'Records!A:I',
-      valueInputOption: 'USER_ENTERED',
-      resource: { values: [appendData] }
-    });
+    if (existingId) {
+      // 編輯模式：找到該筆紀錄在試算表中的位置
+      // 注意：這裡假設 Records!A:I 的順序沒有變動
+      const rowIndex = recordsData.findIndex(r => r.id === existingId) + 2; // +2 因為從 A2 開始且 1-indexed
+      await gapi.client.sheets.spreadsheets.values.update({
+        spreadsheetId: SPREADSHEET_ID,
+        range: `Records!A${rowIndex}:I${rowIndex}`,
+        valueInputOption: 'USER_ENTERED',
+        resource: { values: [rowData] }
+      });
+      // 更新本地資料
+      const idx = recordsData.findIndex(r => r.id === existingId);
+      recordsData[idx] = { id, date, worker, mainCat, subCat, hours, rate, notes, timestamp };
+    } else {
+      // 新增模式
+      await gapi.client.sheets.spreadsheets.values.append({
+        spreadsheetId: SPREADSHEET_ID,
+        range: 'Records!A:I',
+        valueInputOption: 'USER_ENTERED',
+        resource: { values: [rowData] }
+      });
+      recordsData.push({ id, date, worker, mainCat, subCat, hours, rate, notes, timestamp });
+    }
 
-    // 為了反應快速，手動更新暫存並渲染
-    recordsData.push({
-      id, date, worker, mainCat, subCat, hours, rate, notes, timestamp
-    });
-
-    document.getElementById('notes').value = '';
+    resetForm();
     renderRecords();
-    alert('儲存成功！');
+    alert(existingId ? '更新成功！' : '儲存成功！');
   } catch (err) {
     console.error(err);
-    alert('發生錯誤。');
+    alert('發生錯誤：' + err.message);
   }
   hideLoader();
 });
+
+function resetForm() {
+  document.getElementById('recordForm').reset();
+  document.getElementById('recordId').value = '';
+  document.getElementById('saveBtn').innerText = '儲存紀錄';
+  document.getElementById('workDate').valueAsDate = new Date();
+  updateSubCategoriesAndUI();
+}
+
+window.editRecord = function(id) {
+  const r = recordsData.find(item => item.id === id);
+  if (!r) return;
+
+  document.getElementById('recordId').value = r.id;
+  document.getElementById('workDate').value = r.date;
+  document.getElementById('mainCategory').value = r.mainCat;
+  updateSubCategoriesAndUI(); // 先更新連動選單
+  document.getElementById('subCategory').value = r.subCat;
+  document.getElementById('workerName').value = r.worker === '-' ? '' : r.worker;
+  document.getElementById('workHours').value = r.hours;
+  document.getElementById('hourlyRate').value = r.rate;
+  
+  // 檢查備註中是否有午餐標記
+  if (r.notes && r.notes.includes('[含午餐$100]')) {
+    document.getElementById('includeLunch').checked = true;
+    document.getElementById('notes').value = r.notes.replace(/\[含午餐\$100\]\s*/g, '');
+  } else {
+    document.getElementById('includeLunch').checked = false;
+    document.getElementById('notes').value = r.notes || '';
+  }
+
+  document.getElementById('saveBtn').innerText = '更新紀錄';
+  document.getElementById('formSection').scrollIntoView({ behavior: 'smooth' });
+};
+
+window.deleteRecord = async function(id) {
+  if (!confirm('確定要刪除這筆紀錄嗎？')) return;
+
+  const rowIndex = recordsData.findIndex(r => r.id === id) + 2;
+  showLoader('刪除中...');
+  try {
+    // 取得 Records 工作表的 sheetId
+    const ss = await gapi.client.sheets.spreadsheets.get({ spreadsheetId: SPREADSHEET_ID });
+    const sheet = ss.result.sheets.find(s => s.properties.title === 'Records');
+    const sheetId = sheet ? sheet.properties.sheetId : null;
+
+    // Google Sheets API 刪除行需要使用 batchUpdate
+    await gapi.client.sheets.spreadsheets.batchUpdate({
+      spreadsheetId: SPREADSHEET_ID,
+      resource: {
+        requests: [{
+          deleteDimension: {
+            range: {
+              sheetId: sheetId,
+              dimension: 'ROWS',
+              startIndex: rowIndex - 1,
+              endIndex: rowIndex
+            }
+          }
+        }]
+      }
+    });
+    // 更新本地資料
+    recordsData = recordsData.filter(r => r.id !== id);
+    renderRecords();
+    alert('刪除成功！');
+  } catch (err) {
+    console.error(err);
+    alert('刪除失敗，請檢查權限。');
+  }
+  hideLoader();
+};
 
 // 管理者介面切換
 document.getElementById('switchRoleBtn').addEventListener('click', () => {
@@ -254,10 +398,7 @@ document.getElementById('switchRoleBtn').addEventListener('click', () => {
 });
 
 // 重置表單
-document.getElementById('resetFormBtn').addEventListener('click', () => {
-  document.getElementById('recordForm').reset();
-  document.getElementById('workDate').valueAsDate = new Date();
-});
+document.getElementById('resetFormBtn').addEventListener('click', resetForm);
 
 // 重新載入
 document.getElementById('refreshBtn').addEventListener('click', fetchAllData);
@@ -277,13 +418,16 @@ function renderRecords() {
   const recent = sorted.slice(0, 20); // 只顯示最近
 
   recent.forEach(r => {
-    const total = (parseFloat(r.hours) * parseFloat(r.rate)).toLocaleString();
+    let rawTotal = parseFloat(r.hours) * parseFloat(r.rate);
+    let isLunch = r.notes && r.notes.includes('[含午餐$100]');
+    if (isLunch) rawTotal += 100;
+    const total = rawTotal.toLocaleString();
     const div = document.createElement('div');
     div.className = 'record-card';
     div.innerHTML = `
       <div class="record-main" style="align-items:center;">
         <div>
-          <strong style="fontSize:1.1rem; color:var(--text-main);">${r.worker}</strong>
+          <strong style="fontSize:1.1rem; color:var(--text-main);">${r.worker !== '-' ? r.worker : r.mainCat}</strong>
           <span class="text-sm" style="color:var(--text-muted); margin-left:8px;">${r.date}</span>
           <br>
           <span class="badge category">${r.mainCat} - ${r.subCat}</span>
@@ -292,8 +436,12 @@ function renderRecords() {
         <div style="text-align:right;">
           <strong style="font-size:1.2rem;">$${total}</strong>
           <br>
-          <span class="text-sm" style="color:var(--text-muted);">${r.hours} <small>時/天</small> x $${r.rate}</span>
+          <span class="text-sm" style="color:var(--text-muted);">${r.hours} <small>單位</small> x $${r.rate}</span>
         </div>
+      </div>
+      <div class="record-actions" style="display:flex; gap:8px; margin-top:8px; justify-content:flex-end; border-top:1px solid #eee; padding-top:8px;">
+        <button class="btn btn-icon btn-sm" onclick="editRecord('${r.id}')" title="編輯"><span class="material-symbols-outlined" style="font-size:18px;">edit</span></button>
+        <button class="btn btn-icon btn-sm text-danger" onclick="deleteRecord('${r.id}')" title="刪除"><span class="material-symbols-outlined" style="font-size:18px;">delete</span></button>
       </div>
     `;
     list.appendChild(div);
@@ -320,11 +468,96 @@ window.addSetting = async function (type, inputId) {
     if (type === 'SubCategory') settingsData.SubCategories.push(val);
 
     populateSelects();
+    renderSettingsAdmin();
     document.getElementById(inputId).value = '';
     alert('選項新增成功！');
   } catch (err) {
     console.error(err);
     alert('選項新增失敗！');
+  }
+  hideLoader();
+};
+
+function renderSettingsAdmin() {
+  const renderList = (id, list, type) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.innerHTML = '';
+    list.forEach(val => {
+      const div = document.createElement('div');
+      div.style = 'display:flex; justify-content:space-between; align-items:center; padding:4px 0; border-bottom:1px solid #eee;';
+      div.innerHTML = `
+        <span>${val}</span>
+        <button class="btn btn-icon btn-sm text-danger" onclick="deleteSetting('${type}', '${val}')">
+          <span class="material-symbols-outlined" style="font-size:16px;">delete</span>
+        </button>
+      `;
+      el.appendChild(div);
+    });
+  };
+
+  renderList('workerListAdmin', settingsData.Workers, 'Worker');
+  renderList('mainCatListAdmin', settingsData.MainCategories, 'MainCategory');
+  renderList('subCatListAdmin', settingsData.SubCategories, 'SubCategory');
+}
+
+window.deleteSetting = async function(type, value) {
+  if (!confirm(`確定要刪除「${value}」嗎？`)) return;
+
+  // 1. 找到該設定在 Settings!A:B 的哪一行
+  // 先重新抓取 Settings 確保行號正確 (或在本地算，但為了安全重新抓取一次並比對)
+  showLoader('刪除設定中...');
+  try {
+    const res = await gapi.client.sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: 'Settings!A:B',
+    });
+    const rows = res.result.values;
+    let rowIndex = -1;
+    if (rows) {
+      for (let i = 0; i < rows.length; i++) {
+        if (rows[i][0] === type && rows[i][1] === value) {
+          rowIndex = i + 1; // 1-indexed
+          break;
+        }
+      }
+    }
+
+    if (rowIndex === -1) throw new Error('找不到該設定。');
+
+    // 2. 取得 Settings 工作表的 sheetId
+    const ss = await gapi.client.sheets.spreadsheets.get({ spreadsheetId: SPREADSHEET_ID });
+    const sheet = ss.result.sheets.find(s => s.properties.title === 'Settings');
+    const sheetId = sheet ? sheet.properties.sheetId : null;
+
+    // 3. 刪除該行
+    await gapi.client.sheets.spreadsheets.batchUpdate({
+      spreadsheetId: SPREADSHEET_ID,
+      resource: {
+        requests: [{
+          deleteDimension: {
+            range: {
+              sheetId: sheetId,
+              dimension: 'ROWS',
+              startIndex: rowIndex - 1,
+              endIndex: rowIndex
+            }
+          }
+        }]
+      }
+    });
+
+    // 4. 更新本地狀態
+    if (type === 'Worker') settingsData.Workers = settingsData.Workers.filter(v => v !== value);
+    if (type === 'MainCategory') settingsData.MainCategories = settingsData.MainCategories.filter(v => v !== value);
+    if (type === 'SubCategory') settingsData.SubCategories = settingsData.SubCategories.filter(v => v !== value);
+
+    populateSelects();
+    renderSettingsAdmin();
+    alert('刪除成功！');
+  } catch (err) {
+    console.error(err);
+    alert('刪除失敗：' + err.message);
   }
   hideLoader();
 };
@@ -344,13 +577,20 @@ document.getElementById('copyToLineBtn').addEventListener('click', () => {
 
   daily.forEach(r => {
     let sub = parseFloat(r.hours) * parseFloat(r.rate);
+    let lunchText = '';
+    let isLunch = r.notes && r.notes.includes('[含午餐$100]');
+    if (isLunch) {
+       sub += 100;
+       lunchText = ' (+午餐100)';
+    }
     sum += sub;
-    text += `\n🧑‍🌾 ${r.worker} (${r.subCat})`;
+    const workerDisplay = r.worker !== '-' ? `🧑‍🌾 ${r.worker}` : `📦 ${r.mainCat}`;
+    text += `\n${workerDisplay} (${r.subCat})`;
     if (r.notes) text += ` [${r.notes}]`;
-    text += `\n└ ${r.hours} x ${r.rate} = $${sub.toLocaleString()}`;
+    text += `\n└ ${r.hours} x ${r.rate}${lunchText} = $${sub.toLocaleString()}`;
   });
 
-  text += `\n\n💵 今日總發出：$${sum.toLocaleString()}`;
+  text += `\n\n💵 今日總花費：$${sum.toLocaleString()}`;
 
   navigator.clipboard.writeText(text).then(() => {
     alert('✅ 已複製到剪貼簿，可以直接去 LINE 貼上了！');

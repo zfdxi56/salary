@@ -21,7 +21,6 @@
       <h1>果園時薪計帳</h1>
     </div>
     <div class="user-controls">
-      <button id="authBtn" class="btn btn-outline" style="display: none;">Google 登入</button>
       <div id="userInfo" style="display:none; align-items:center; gap:8px;">
         <span id="userEmailText" class="text-sm text-muted"></span>
         <button id="logoutBtn" class="btn btn-icon" title="登出並清除存取權"><span
@@ -35,6 +34,9 @@
     <div id="authSection" class="glass card text-center">
       <h2>請先登入與授權</h2>
       <p>點擊下方按鈕登入含有試算表權限的 Google 帳號。</p>
+      <div style="margin-top: 1rem;">
+        <button id="authBtn" class="btn btn-outline" style="display: none;">Google 登入</button>
+      </div>
     </div>
 
     <!-- Main Workspace (Hidden until logged in) -->
@@ -53,10 +55,10 @@
               <label for="workDate">日期 *</label>
               <input type="date" id="workDate" required>
             </div>
-            <div class="input-wrap">
+            <div class="input-wrap" id="workerNameWrap">
               <label for="workerName">工人姓名 *</label>
               <!-- Populated from Settings -->
-              <input type="text" id="workerName" list="workerList" required placeholder="選擇或輸入姓名">
+              <input type="text" id="workerName" list="workerList" required>
               <datalist id="workerList"></datalist>
             </div>
           </div>
@@ -79,19 +81,23 @@
 
           <div class="form-group row">
             <div class="input-wrap">
-              <label for="workHours">時數/天數 *</label>
-              <input type="number" id="workHours" step="0.5" min="0" required placeholder="如: 4 或 1">
+              <label for="workHours" id="hoursLabel">時數/天數/數量 *</label>
+              <input type="number" id="workHours" step="0.5" min="0" required>
             </div>
             <div class="input-wrap">
-              <label for="hourlyRate">時薪/日薪 *</label>
-              <input type="number" id="hourlyRate" step="10" min="0" required placeholder="如: 200 或 1500">
+              <label for="hourlyRate" id="rateLabel">時薪/日薪/單價 *</label>
+              <input type="number" id="hourlyRate" step="10" min="0" required>
             </div>
           </div>
 
-          <div class="form-group">
-            <div class="input-wrap">
+          <div class="form-group row" style="align-items: center;">
+            <div class="input-wrap" style="flex: 1;">
               <label for="notes">備註</label>
-              <input type="text" id="notes" placeholder="如: 借支、提早下班、包含午餐等">
+              <input type="text" id="notes">
+            </div>
+            <div class="input-wrap checkbox-wrap" id="lunchCheckWrap" style="flex: 0 0 auto; margin-top: 1.5rem; display: flex; align-items: center; gap: 8px;">
+              <input type="checkbox" id="includeLunch" style="width: auto; height: 18px; margin: 0;">
+              <label for="includeLunch" style="margin: 0; font-weight: normal; cursor: pointer;">包含午餐 (+$100)</label>
             </div>
           </div>
 
@@ -123,23 +129,26 @@
           <div class="settings-box">
             <label>新增常用工人</label>
             <div style="display:flex; gap:0.5rem;">
-              <input type="text" id="newWorkerInput" placeholder="如: 王大明">
+              <input type="text" id="newWorkerInput">
               <button class="btn btn-secondary" onclick="addSetting('Worker', 'newWorkerInput')">新增</button>
             </div>
+            <div id="workerListAdmin" class="mt-1" style="font-size: 0.9em; max-height: 100px; overflow-y: auto;"></div>
           </div>
           <div class="settings-box">
             <label>新主類別</label>
             <div style="display:flex; gap:0.5rem;">
-              <input type="text" id="newMainCatInput" placeholder="如: 其他">
+              <input type="text" id="newMainCatInput">
               <button class="btn btn-secondary" onclick="addSetting('MainCategory', 'newMainCatInput')">新增</button>
             </div>
+            <div id="mainCatListAdmin" class="mt-1" style="font-size: 0.9em; max-height: 100px; overflow-y: auto;"></div>
           </div>
           <div class="settings-box">
             <label>新增工作項目(次類別)</label>
             <div style="display:flex; gap:0.5rem;">
-              <input type="text" id="newSubCatInput" placeholder="如: 疏果">
+              <input type="text" id="newSubCatInput">
               <button class="btn btn-secondary" onclick="addSetting('SubCategory', 'newSubCatInput')">新增</button>
             </div>
+            <div id="subCatListAdmin" class="mt-1" style="font-size: 0.9em; max-height: 100px; overflow-y: auto;"></div>
           </div>
         </div>
       </section>
