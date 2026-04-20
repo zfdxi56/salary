@@ -4,54 +4,6 @@
 // ============================================================
 
 // ============================================================
-// 測試資料生成
-// ============================================================
-window.generateTestData = async function() {
-  if (!confirm('將建置 3 筆收入與 3 筆支出測試資料，是否繼續？')) return;
-  showLoader('建置測試資料中...');
-  try {
-    const todayStr = today();
-    
-    // 收入測試資料
-    const incomeRows = [
-      [generateId(), todayStr, '甜柿', '示範資料', JSON.stringify([{等級:'5A',斤數:120,箱數:12}]), '120', '12', '7200', '60', '0', '自動生成測試', 'TRUE', now(), now()],
-      [generateId(), todayStr, '水蜜桃', '示範資料', JSON.stringify([{等級:'3A',斤數:45,箱數:5}]), '45', '5', '4500', '100', '150', '自動生成測試', 'FALSE', now(), now()],
-      [generateId(), todayStr, '橘子', '示範資料', JSON.stringify([{等級:'4A',斤數:200,箱數:20}]), '200', '20', '6000', '30', '400', '自動生成測試', 'TRUE', now(), now()],
-    ];
-
-    await gapi.client.sheets.spreadsheets.values.append({
-      spreadsheetId: SPREADSHEET_ID,
-      range: `${SHEET.INCOME}!A:N`,
-      valueInputOption: 'USER_ENTERED',
-      resource: { values: incomeRows }
-    });
-
-    // 支出測試資料
-    const expenseRows = [
-      [generateId(), todayStr, '工人薪資', '除草', '小張', 'hourly', '8', '200', '1600', 'FALSE', 'TRUE', '測試工時', now(), now()],
-      [generateId(), todayStr, '肥料', '骨粉', '', '', '10', '450', '4500', 'FALSE', 'TRUE', '測試採買', now(), now()],
-      [generateId(), todayStr, '工人薪資', '疏果', '阿明', 'daily', '1', '1500', '1600', 'TRUE', 'FALSE', '測試日薪(含補貼)', now(), now()],
-    ];
-
-    await gapi.client.sheets.spreadsheets.values.append({
-      spreadsheetId: SPREADSHEET_ID,
-      range: `${SHEET.EXPENSE}!A:N`,
-      valueInputOption: 'USER_ENTERED',
-      resource: { values: expenseRows }
-    });
-
-    await fetchIncome();
-    await fetchExpense();
-    renderAll();
-    showToast('✓ 測試資料建置完成');
-  } catch (e) {
-    console.error(e);
-    showToast('建置失敗', 'error');
-  }
-  hideLoader();
-};
-
-// ============================================================
 // 1. 全域設定
 // ============================================================
 const SPREADSHEET_ID = '1rjVEG9x9ZJ6f3BSuC4CL_wYRATFvbGiZAGkwkzDP168';
@@ -61,7 +13,10 @@ const SCOPES = 'https://www.googleapis.com/auth/spreadsheets';
 // 工作表名稱（全部使用繁體中文）
 const SHEET = {
   USERS: '使用者',
-  SETTINGS: '設定',
+  INCOME_CATS: '設定_品種',
+  EXPENSE_CATS: '設定_支出類別',
+  WORKERS: '設定_工人名單',
+  UNITS: '設定_單位清單',
   INCOME: '收入',
   EXPENSE: '支出',
 };
@@ -82,9 +37,10 @@ let usersData = [];    // 使用者清單
 
 // Settings 資料
 let settings = {
-  incomeMainCats: [],    // [{ id, 名稱 }]
-  expenseMainCats: [],   // [{ id, 名稱, 類型: 'worker'|'material'|'meal', 次類別: [{id, 名稱, 預設金額}] }]
-  workers: [],           // [{ id, 姓名, 預設時薪, 預設日薪 }]
+  incomeMainCats: [],    // [{ 名稱 }]
+  expenseMainCats: [],   // [{ 名稱, 類型, 次類別: [{名稱, 預設金額}] }]
+  workers: [],           // [{ 姓名, 預設時薪, 預設日薪 }]
+  units: [],             // [名稱]
 };
 
 // 篩選/排序狀態
@@ -246,10 +202,9 @@ async function afterLogin() {
     // 更新 header
     const currentName = userRow?.nickname || email.split('@')[0];
     document.getElementById('userNameDisplay').textContent = currentName;
-    document.getElementById('userNameDisplay').style.display = 'inline';
     document.getElementById('userRoleBadge').textContent = isAdmin ? '管理員' : '使用者';
     document.getElementById('userRoleBadge').className = `role-badge${isAdmin ? ' admin' : ''}`;
-    document.getElementById('userRoleBadge').style.display = 'inline';
+    document.getElementById('userInfo').style.display = 'flex';
     document.getElementById('logoutBtn').style.display = 'inline-flex';
 
     if (isAdmin) {
@@ -339,20 +294,32 @@ async function ensureSheetsExist() {
 async function initSheetHeaders() {
   const ranges = [
     {
-      range: `${SHEET.USERS}!A1:D1`,
-      values: [['別稱', 'Email', '角色', '更新時間']]
+      range: `${SHEET.INCOME_CATS}!A1:B1`,
+      values: [['品種名稱', '備用']]
     },
     {
-      range: `${SHEET.SETTINGS}!A1:E1`,
-      values: [['類型', '名稱', '父類別', '預設金額', '備用']]
+      range: `${SHEET.EXPENSE_CATS}!A1:D1`,
+      values: [['主類別', '次類別', '類型', '預設金額']]
+    },
+    {
+      range: `${SHEET.WORKERS}!A1:C1`,
+      values: [['姓名', '預設時薪', '預設日薪']]
+    },
+    {
+      range: `${SHEET.UNITS}!A1:A1`,
+      values: [['單位名稱']]
     },
     {
       range: `${SHEET.INCOME}!A1:N1`,
       values: [['編號', '日期', '主類別', '其他備註', '等級資料(JSON)', '總重(斤)', '箱數', '總價', '盤商價', '運費', '附註', '價格已確認', '建立時間', '最後更新']]
     },
     {
-      range: `${SHEET.EXPENSE}!A1:N1`,
-      values: [['編號', '日期', '主類別', '次類別', '工人姓名', '計薪方式', '數量', '單價', '總額', '含午餐', '已支付', '附註', '建立時間', '最後更新']]
+      range: `${SHEET.EXPENSE}!A1:O1`,
+      values: [['編號', '日期', '主類別', '次類別', '工人姓名', '計薪方式', '數量', '單位', '單價', '總額', '含午餐', '已支付', '附註', '建立時間', '最後更新']]
+    },
+    {
+      range: `${SHEET.USERS}!A1:D1`,
+      values: [['別稱', 'Email', '角色', '更新時間']]
     },
   ];
   for (const r of ranges) {
@@ -398,46 +365,56 @@ async function fetchUsers() {
 
 async function fetchSettings() {
   try {
-    const res = await gapi.client.sheets.spreadsheets.values.get({
-      spreadsheetId: SPREADSHEET_ID,
-      range: `${SHEET.SETTINGS}!A2:E`,
+    const [resInc, resExp, resWork, resUnit] = await Promise.all([
+      gapi.client.sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: `${SHEET.INCOME_CATS}!A2:B` }),
+      gapi.client.sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: `${SHEET.EXPENSE_CATS}!A2:D` }),
+      gapi.client.sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: `${SHEET.WORKERS}!A2:C` }),
+      gapi.client.sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: `${SHEET.UNITS}!A2:A` }),
+    ]);
+
+    settings = { incomeMainCats: [], expenseMainCats: [], workers: [], units: [] };
+
+    // 品種
+    (resInc.result.values || []).forEach(r => {
+      if (r[0]) settings.incomeMainCats.push({ 名稱: r[0] });
     });
-    const rows = res.result.values || [];
-
-    settings = { incomeMainCats: [], expenseMainCats: [], workers: [] };
-
-    rows.forEach(r => {
-      const type = r[0] || '';
-      const name = r[1] || '';
-      const parent = r[2] || '';
-      const defaultAmt = r[3] || '';
-
-      if (type === '收入主類別') {
-        settings.incomeMainCats.push({ 名稱: name });
-      } else if (type === '支出主類別') {
-        settings.expenseMainCats.push({ 名稱: name, 類型: r[4] || 'material', 次類別: [] });
-      } else if (type === '支出次類別') {
-        const parent_cat = settings.expenseMainCats.find(c => c.名稱 === parent);
-        if (parent_cat) {
-          parent_cat.次類別.push({ 名稱: name, 預設金額: defaultAmt });
-        }
-      } else if (type === '工人') {
-        settings.workers.push({ 姓名: name, 預設時薪: r[3] || '190', 預設日薪: r[4] || '1500' });
+    // 支出類別
+    (resExp.result.values || []).forEach(r => {
+      const main = r[0], sub = r[1], rawType = r[2] || 'material', amt = r[3] || '';
+      // 支援中文類型標籤連動
+      let type = rawType;
+      if (rawType === '勞工') type = 'worker';
+      if (rawType === '成本') type = 'material';
+      if (rawType === '開銷') type = 'meal';
+      
+      let cat = settings.expenseMainCats.find(c => c.名稱 === main);
+      if (!cat) {
+        cat = { 名稱: main, 類型: type, 次類別: [] };
+        settings.expenseMainCats.push(cat);
       }
+      if (sub) cat.次類別.push({ 名稱: sub, 預設金額: amt });
+    });
+    // 工人
+    (resWork.result.values || []).forEach(r => {
+      if (r[0]) settings.workers.push({ 姓名: r[0], 預設時薪: r[1] || '190', 預設日薪: r[2] || '1500' });
+    });
+    // 單位
+    (resUnit.result.values || []).forEach(r => {
+      if (r[0]) settings.units.push(r[0]);
     });
 
-    // 如果設定全空，使用預設值
-    if (settings.incomeMainCats.length === 0) {
-      settings.incomeMainCats = DEFAULT_INCOME_CATS.map(n => ({ 名稱: n }));
-    }
-    if (settings.expenseMainCats.length === 0) {
-      settings.expenseMainCats = DEFAULT_EXPENSE_CATS.map(c => ({ ...c }));
-    }
+    // 預設值備援
+    if (settings.incomeMainCats.length === 0) settings.incomeMainCats = DEFAULT_INCOME_CATS.map(n => ({ 名稱: n }));
+    if (settings.expenseMainCats.length === 0) settings.expenseMainCats = DEFAULT_EXPENSE_CATS.map(c => ({ ...c }));
+    if (settings.units.length === 0) settings.units = ['包', '罐', '箱', '件', '斤', '天', '小時'];
+    
   } catch (e) {
+    console.error('fetchSettings 失敗:', e);
     settings = {
       incomeMainCats: DEFAULT_INCOME_CATS.map(n => ({ 名稱: n })),
       expenseMainCats: DEFAULT_EXPENSE_CATS.map(c => ({ ...c })),
       workers: [],
+      units: ['包', '罐', '箱', '件', '斤', '天', '小時'],
     };
   }
 }
@@ -470,7 +447,7 @@ async function fetchExpense() {
   try {
     const res = await gapi.client.sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
-      range: `${SHEET.EXPENSE}!A2:N`,
+      range: `${SHEET.EXPENSE}!A2:O`,
     });
     expenseData = (res.result.values || []).map(r => ({
       id: r[0] || '',
@@ -480,12 +457,13 @@ async function fetchExpense() {
       工人姓名: r[4] || '',
       計薪方式: r[5] || '',
       數量: r[6] || '',
-      單價: r[7] || '',
-      總額: r[8] || '',
-      含午餐: r[9] === 'TRUE' || r[9] === true,
-      已支付: r[10] === 'TRUE' || r[10] === true,
-      附註: r[11] || '',
-      建立時間: r[12] || '',
+      單位: r[7] || '',
+      單價: r[8] || '',
+      總額: r[9] || '',
+      含午餐: r[10] === 'TRUE' || r[10] === true,
+      已支付: r[11] === 'TRUE' || r[11] === true,
+      附註: r[12] || '',
+      建立時間: r[13] || '',
     }));
   } catch (e) { expenseData = []; }
 }
@@ -555,6 +533,29 @@ function getFilteredByPeriod(data, field, period) {
   });
 }
 
+
+/* Helper: 取得類別圖示 */
+function getCategoryIcon(name) {
+  const icons = {
+    '甜柿': 'nutrition',
+    '水蜜桃': 'sound_detection_dog_barking', // 用桃子類比的圖示或通用的
+    '橘子': 'lens_blur',
+    '工人薪資': 'engineering',
+    '勞工': 'engineering',
+    '肥料': 'eco',
+    '成本': 'inventory_2',
+    '農藥': 'pest_control',
+    '包裝材料': 'package_2',
+    '開銷': 'receipt_long',
+    '菜錢': 'local_grocery_store',
+    '什支備註': 'more_horiz',
+    '其他': 'more_horiz'
+  };
+  // 模糊匹配圖示
+  const match = Object.keys(icons).find(k => name.includes(k));
+  return icons[match] || 'nest_multi_room';
+}
+
 function renderIncomeChart() {
   const period = filterState.income.period;
   const data = getFilteredByPeriod(incomeData, '日期', period);
@@ -562,24 +563,29 @@ function renderIncomeChart() {
   const catMap = {};
   settings.incomeMainCats.forEach(c => catMap[c.名稱] = { total: 0, count: 0, pending: 0 });
 
+  let grandTotal = 0;
   data.forEach(r => {
     const key = r.主類別;
     if (!catMap[key]) catMap[key] = { total: 0, count: 0, pending: 0 };
     const price = parseFloat(r.總價) || 0;
     catMap[key].total += price;
     catMap[key].count++;
+    grandTotal += price;
     if (!r.價格確認) catMap[key].pending++;
   });
 
+  // 更新總額摘要
+  document.getElementById('incomeTotalSummary').textContent = `總計：$${grandTotal.toLocaleString()}`;
+
   const bars = Object.entries(catMap).filter(([, v]) => v.count > 0);
   const maxVal = Math.max(...bars.map(([, v]) => v.total), 1);
-  const colors = ['bar-green', 'bar-yellow', 'bar-orange', 'bar-blue', 'bar-purple', 'bar-red'];
+  const colors = ['bar-green', 'bar-blue', 'bar-purple', 'bar-orange', 'bar-yellow', 'bar-red'];
 
   const area = document.getElementById('incomeChartArea');
   area.innerHTML = '';
 
   if (bars.length === 0) {
-    area.innerHTML = '<p style="color:var(--text-xs); font-size:0.82rem;">尚無資料</p>';
+    area.innerHTML = '<p style="color:var(--text-xs); font-size:0.82rem; padding: 1rem 0;">該時段尚無紀錄</p>';
     return;
   }
 
@@ -587,12 +593,18 @@ function renderIncomeChart() {
     const pct = maxVal > 0 ? (v.total / maxVal * 100) : 0;
     const row = document.createElement('div');
     row.className = 'chart-row';
+    const icon = getCategoryIcon(name);
+    
     row.innerHTML = `
       <div class="chart-label-row">
-        <span class="chart-label-name">${name}</span>
+        <span class="chart-label-name">
+          <span class="material-symbols-outlined">${icon}</span>
+          ${name}
+          <small style="opacity:0.6; font-weight:normal; margin-left:4px">(${v.count} 筆)</small>
+        </span>
         <span class="chart-label-val">
-          $${v.total.toLocaleString()}
-          ${v.pending > 0 ? `<span class="unpaid-tag">待確認 ${v.pending} 筆</span>` : ''}
+          <strong>$${v.total.toLocaleString()}</strong>
+          ${v.pending > 0 ? `<span class="unpaid-tag">待核 ${v.pending}</span>` : ''}
         </span>
       </div>
       <div class="chart-bar-bg">
@@ -601,7 +613,6 @@ function renderIncomeChart() {
     area.appendChild(row);
   });
 
-  // 觸發動畫
   requestAnimationFrame(() => {
     area.querySelectorAll('.chart-bar-fill').forEach(el => {
       el.style.width = el.dataset.pct + '%';
@@ -886,7 +897,11 @@ function renderExpenseChart() {
   const area = document.getElementById('expenseChartArea');
   area.innerHTML = '';
 
-  // 先看有無工人薪資
+  let grandTotal = 0;
+  data.forEach(r => grandTotal += calcExpenseTotal(r));
+  document.getElementById('expenseTotalSummary').textContent = `總計：$${grandTotal.toLocaleString()}`;
+
+  // 先看有沒有工人薪資
   const workerCat = settings.expenseMainCats.find(c => c.類型 === 'worker');
   const workerCatName = workerCat?.名稱 || '工人薪資';
 
@@ -895,69 +910,85 @@ function renderExpenseChart() {
   const workerMap = {};
   workerExpenses.forEach(r => {
     const name = r.工人姓名 || '未知';
-    if (!workerMap[name]) workerMap[name] = { paid: 0, unpaid: 0 };
+    if (!workerMap[name]) workerMap[name] = { paid: 0, unpaid: 0, count: 0 };
     const amt = calcExpenseTotal(r);
     if (r.已支付) workerMap[name].paid += amt;
     else workerMap[name].unpaid += amt;
+    workerMap[name].count++;
   });
 
   // 其他主類別
   const otherCats = settings.expenseMainCats.filter(c => c.類型 !== 'worker');
   const catMap = {};
-  otherCats.forEach(c => catMap[c.名稱] = 0);
+  otherCats.forEach(c => catMap[c.名稱] = { total: 0, count: 0 });
   data.filter(r => r.主類別 !== workerCatName).forEach(r => {
-    if (!catMap[r.主類別]) catMap[r.主類別] = 0;
-    catMap[r.主類別] += calcExpenseTotal(r);
+    if (!catMap[r.主類別]) catMap[r.主類別] = { total: 0, count: 0 };
+    catMap[r.主類別].total += calcExpenseTotal(r);
+    catMap[r.主類別].count++;
   });
-
-  const colorsBW = ['bar-green', 'bar-blue', 'bar-orange', 'bar-purple', 'bar-yellow', 'bar-red'];
 
   // 工人薪資區塊
   if (Object.keys(workerMap).length > 0) {
     const workerHeader = document.createElement('div');
-    workerHeader.style.cssText = 'font-size:0.78rem;font-weight:600;color:var(--text-muted);margin-bottom:4px;';
-    workerHeader.textContent = `👷 ${workerCatName}（點選姓名查看明細）`;
+    workerHeader.style.cssText = 'font-size:0.75rem; font-weight:700; color:var(--text-muted); margin: 0 0 4px 4px;';
+    workerHeader.innerHTML = `<span class="material-symbols-outlined" style="font-size:1rem; vertical-align:middle">engineering</span> ${workerCatName} (點選姓名看明細)`;
     area.appendChild(workerHeader);
 
-    const allAmt = Object.values(workerMap).reduce((s, v) => s + v.paid + v.unpaid, 0);
-    Object.entries(workerMap).forEach(([name, v], i) => {
+    const maxWorker = Math.max(...Object.values(workerMap).map(v => v.paid + v.unpaid), 1);
+    Object.entries(workerMap).sort((a,b) => (b[1].paid+b[1].unpaid) - (a[1].paid+a[1].unpaid)).forEach(([name, v], i) => {
       const total = v.paid + v.unpaid;
-      const pct = allAmt > 0 ? (total / allAmt * 100) : 0;
+      const pct = (total / maxWorker * 100);
       const row = document.createElement('div');
       row.className = 'chart-row';
       row.innerHTML = `
         <div class="chart-label-row">
-          <span class="chart-label-name" onclick="showWorkerDetail('${name}')">${name}</span>
+          <span class="chart-label-name" onclick="showWorkerDetail('${name}')">
+            <span class="material-symbols-outlined">person</span> ${name}
+            <small style="opacity:0.6; font-weight:normal; margin-left:4px">(${v.count} 筆)</small>
+          </span>
           <span class="chart-label-val">
-            $${total.toLocaleString()}
-            ${v.paid > 0 ? `<span class="paid-tag">已付 $${v.paid.toLocaleString()}</span>` : ''}
-            ${v.unpaid > 0 ? `<span class="unpaid-tag">未付 $${v.unpaid.toLocaleString()}</span>` : ''}
+            <strong>$${total.toLocaleString()}</strong>
+            ${v.unpaid > 0 ? `<span class="unpaid-tag">欠 $${v.unpaid.toLocaleString()}</span>` : ''}
+            ${v.paid > 0 ? `<span class="paid-tag">已付</span>` : ''}
           </span>
         </div>
         <div class="chart-bar-bg">
-          <div class="chart-bar-fill ${colorsBW[i % colorsBW.length]}" style="width:0%" data-pct="${pct}"></div>
+          <div class="chart-bar-fill bar-yellow" style="width:0%" data-pct="${pct}"></div>
         </div>`;
       area.appendChild(row);
     });
   }
 
   // 其他類別
-  const otherEntries = Object.entries(catMap).filter(([, v]) => v > 0);
+  const otherEntries = Object.entries(catMap).filter(([, v]) => v.count > 0);
   if (otherEntries.length > 0) {
+    if (area.children.length > 0) {
+      const divider = document.createElement('div');
+      divider.style.height = '1px';
+      divider.style.background = 'var(--border)';
+      divider.style.margin = '4px 0';
+      area.appendChild(divider);
+    }
+    
     const otherHeader = document.createElement('div');
-    otherHeader.style.cssText = 'font-size:0.78rem;font-weight:600;color:var(--text-muted);margin:8px 0 4px;';
-    otherHeader.textContent = '📦 其他支出';
+    otherHeader.style.cssText = 'font-size:0.75rem; font-weight:700; color:var(--text-muted); margin: 4px 0 4px 4px;';
+    otherHeader.innerHTML = `<span class="material-symbols-outlined" style="font-size:1rem; vertical-align:middle">category</span> 經營支出`;
     area.appendChild(otherHeader);
 
-    const maxOther = Math.max(...otherEntries.map(([, v]) => v), 1);
-    otherEntries.sort((a, b) => b[1] - a[1]).forEach(([name, val], i) => {
-      const pct = (val / maxOther * 100);
+    const maxOther = Math.max(...otherEntries.map(([, v]) => v.total), 1);
+    otherEntries.sort((a, b) => b[1].total - a[1].total).forEach(([name, v], i) => {
+      const pct = (v.total / maxOther * 100);
       const row = document.createElement('div');
       row.className = 'chart-row';
+      const icon = getCategoryIcon(name);
+      
       row.innerHTML = `
         <div class="chart-label-row">
-          <span class="chart-label-name">${name}</span>
-          <span class="chart-label-val">$${val.toLocaleString()}</span>
+          <span class="chart-label-name">
+            <span class="material-symbols-outlined">${icon}</span> ${name}
+            <small style="opacity:0.6; font-weight:normal; margin-left:4px">(${v.count} 筆)</small>
+          </span>
+          <span class="chart-label-val"><strong>$${v.total.toLocaleString()}</strong></span>
         </div>
         <div class="chart-bar-bg">
           <div class="chart-bar-fill bar-orange" style="width:0%" data-pct="${pct}"></div>
@@ -967,7 +998,7 @@ function renderExpenseChart() {
   }
 
   if (area.children.length === 0) {
-    area.innerHTML = '<p style="color:var(--text-xs); font-size:0.82rem;">尚無資料</p>';
+    area.innerHTML = '<p style="color:var(--text-xs); font-size:0.82rem; padding: 1rem 0;">該時段尚無紀錄</p>';
   }
 
   requestAnimationFrame(() => {
@@ -1158,32 +1189,32 @@ function renderExpenseTable() {
   }
   empty.style.display = 'none';
 
-  data.forEach(r => {
-    const total = calcExpenseTotal(r);
-    const paidHtml = `
-      <button class="btn-toggle-paid" onclick="togglePaid('${r.id}')" title="${r.已支付 ? '已付' : '未付'}">
-        <span class="status-badge ${r.已支付 ? 'paid' : 'unpaid'}">${r.已支付 ? '✓ 已付' : '未付'}</span>
-      </button>`;
+    data.forEach(r => {
+      const total = calcExpenseTotal(r);
+      const paidHtml = `
+        <button class="btn-toggle-paid" onclick="togglePaid('${r.id}')" title="${r.已支付 ? '已付' : '未付'}">
+          <span class="status-badge ${r.已支付 ? 'paid' : 'unpaid'}">${r.已支付 ? '✓ 已付' : '未付'}</span>
+        </button>`;
 
-    const actionHtml = `<div class="table-actions">
-      <button class="btn-table-edit" onclick="openExpenseEdit('${r.id}')" title="編輯"><span class="material-symbols-outlined">edit</span></button>
-      <button class="btn-table-del" onclick="confirmDelete('expense','${r.id}')" title="刪除"><span class="material-symbols-outlined">delete</span></button>
-    </div>`;
+      const actionHtml = `<div class="table-actions">
+        <button class="btn-table-edit" onclick="openExpenseEdit('${r.id}')" title="編輯"><span class="material-symbols-outlined">edit</span></button>
+        <button class="btn-table-del" onclick="confirmDelete('expense','${r.id}')" title="刪除"><span class="material-symbols-outlined">delete</span></button>
+      </div>`;
 
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td>${r.日期}</td>
-      <td><span class="badge-main">${r.主類別}</span></td>
-      <td style="font-size:0.78rem"><span class="badge-sub">${r.次類別 || '-'}</span></td>
-      <td>${r.工人姓名 ? `<span class="badge-worker">${r.工人姓名}</span>` : '-'}</td>
-      <td>${r.數量 ? r.數量 + (r.計薪方式 === 'hourly' ? 'h' : r.計薪方式 === 'daily' ? '天' : '') : '-'}</td>
-      <td>$${parseFloat(r.單價 || 0).toLocaleString()}</td>
-      <td class="td-amount expense">$${total.toLocaleString()}</td>
-      <td>${paidHtml}</td>
-      <td style="font-size:0.78rem;color:var(--text-muted)">${r.附註 || '-'}</td>
-      <td>${actionHtml}</td>`;
-    tbody.appendChild(tr);
-  });
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${r.日期}</td>
+        <td><span class="badge-main">${r.主類別}</span></td>
+        <td style="font-size:0.78rem"><span class="badge-sub">${r.次類別 || '-'}</span></td>
+        <td>${r.工人姓名 ? `<span class="badge-worker">${r.工人姓名}</span>` : '-'}</td>
+        <td>${r.數量 ? r.數量 + '<small style="color:var(--text-muted);margin-left:2px">' + (r.單位 || (r.計薪方式 === 'hourly' ? 'h' : r.計薪方式 === 'daily' ? '天' : '')) + '</small>' : '-'}</td>
+        <td>$${parseFloat(r.單價 || 0).toLocaleString()}</td>
+        <td class="td-amount expense">$${total.toLocaleString()}</td>
+        <td>${paidHtml}</td>
+        <td style="font-size:0.78rem;color:var(--text-muted)">${r.附註 || '-'}</td>
+        <td>${actionHtml}</td>`;
+      tbody.appendChild(tr);
+    });
 }
 
 // ============================================================
@@ -1201,6 +1232,13 @@ function openExpenseModal(record = null) {
   document.getElementById('expenseNotes').value = isEdit ? record.附註 : '';
   document.getElementById('expenseIsPaid').checked = isEdit ? record.已支付 : false;
   document.getElementById('includeLunch').checked = isEdit ? record.含午餐 : false;
+  document.getElementById('expenseUnit').value = isEdit ? (record.單位 || '') : '';
+  
+  // 更新單位下拉選單
+  const unitList = document.getElementById('unitOptions');
+  if (unitList) {
+    unitList.innerHTML = settings.units.map(u => `<option value="${u}">`).join('');
+  }
 
   // 主類別選單
   const mainSel = document.getElementById('expenseMainCat');
@@ -1228,17 +1266,28 @@ function closeExpenseModal() {
 document.getElementById('expenseMainCat').addEventListener('change', () => onExpenseMainCatChange());
 
 // 動態計算總額
-['expenseQty', 'expenseUnitPrice'].forEach(id => {
-  document.getElementById(id).addEventListener('input', updateExpenseTotal);
+['expenseQty', 'expenseUnitPrice', 'expenseTotalPrice'].forEach(id => {
+  document.getElementById(id).addEventListener('input', (e) => updateExpenseTotal(e.target.id));
 });
-document.getElementById('includeLunch').addEventListener('change', updateExpenseTotal);
+document.getElementById('includeLunch').addEventListener('change', () => updateExpenseTotal('includeLunch'));
 
-function updateExpenseTotal() {
+function updateExpenseTotal(sourceId) {
   const qty = parseFloat(document.getElementById('expenseQty').value) || 0;
-  const unit = parseFloat(document.getElementById('expenseUnitPrice').value) || 0;
+  const unitPriceInput = document.getElementById('expenseUnitPrice');
+  const totalPriceInput = document.getElementById('expenseTotalPrice');
   const lunch = document.getElementById('includeLunch').checked ? 100 : 0;
-  const total = qty * unit + lunch;
-  document.getElementById('expenseTotalAmt').textContent = `$${total.toLocaleString()}`;
+
+  if (sourceId === 'expenseTotalPrice') {
+    const total = parseFloat(totalPriceInput.value) || 0;
+    if (qty > 0) {
+      unitPriceInput.value = Math.round((total - lunch) / qty);
+    }
+  } else {
+    // 預設由數量/單價算總額
+    const unitPrice = parseFloat(unitPriceInput.value) || 0;
+    const total = Math.round(qty * unitPrice + lunch);
+    totalPriceInput.value = total;
+  }
 }
 
 function onExpenseMainCatChange(editRecord = null) {
@@ -1253,6 +1302,10 @@ function onExpenseMainCatChange(editRecord = null) {
   document.getElementById('workerSubCatWrap').style.display = isWorker ? 'block' : 'none';
   document.getElementById('generalSubCatWrap').style.display = isWorker ? 'none' : 'flex';
   document.getElementById('lunchAllowanceWrap').style.display = isWorker ? 'flex' : 'none';
+  document.getElementById('expenseUnitWrap').style.display = isWorker ? 'none' : 'flex';
+  document.getElementById('expenseBulkInputWrap').style.display = 'none'; // 切換類別時先隱藏批次輸入
+  document.getElementById('quantityPriceRow').style.display = 'grid';
+  document.getElementById('priceDetailRow').style.display = 'grid';
 
   if (isWorker) {
     // 工人下拉
@@ -1302,6 +1355,8 @@ function onExpenseMainCatChange(editRecord = null) {
     // 一般類別：次類別下拉
     const subSel = document.getElementById('expenseSubCat');
     subSel.innerHTML = '<option value="">-- 請選擇（可選）--</option>' +
+      '<option value="ADD_NEW">+ 新增此類別項目...</option>' +
+      '<option value="ADD_NEW_BULK">+ 手動批次輸入多項...</option>' +
       (cat?.次類別 || []).map(s => `<option value="${s.名稱}" ${editRecord?.次類別 === s.名稱 ? 'selected' : ''}>${s.名稱}${s.預設金額 ? ` - $${s.預設金額}` : ''}</option>`).join('');
 
     // 標籤
@@ -1332,12 +1387,33 @@ function onExpenseWorkerChange() {
   const val = document.getElementById('expenseWorker').value;
   document.getElementById('expenseCustomWorkerWrap').style.display = (val === 'ADD_NEW') ? 'flex' : 'none';
 }
-function onExpenseSubCatChange() {
-  const val = document.getElementById('expenseSubCat').value;
-  document.getElementById('expenseCustomSubCatWrap').style.display = (val === 'ADD_NEW') ? 'flex' : 'none';
-}
 document.getElementById('expenseWorker').addEventListener('change', onExpenseWorkerChange);
 document.getElementById('expenseSubCat').addEventListener('change', onExpenseSubCatChange);
+
+function onExpenseSubCatChange() {
+  const sel = document.getElementById('expenseSubCat');
+  const val = sel.value;
+  const isBulk = val === 'ADD_NEW_BULK';
+  const isNew = val === 'ADD_NEW';
+  
+  document.getElementById('expenseBulkInputWrap').style.display = isBulk ? 'block' : 'none';
+  document.getElementById('expenseCustomSubCatWrap').style.display = isNew ? 'flex' : 'none';
+  
+  // 批次輸入時隱藏數量/單價列，單筆新增時則保留
+  const hideDetails = isBulk;
+  document.getElementById('quantityPriceRow').style.display = hideDetails ? 'none' : 'grid';
+  document.getElementById('priceDetailRow').style.display = hideDetails ? 'none' : 'grid';
+  
+  if (isBulk) {
+    document.getElementById('expenseQty').required = false;
+    document.getElementById('expenseUnitPrice').required = false;
+    document.getElementById('expenseTotalPrice').required = false;
+  } else {
+    document.getElementById('expenseQty').required = true;
+    document.getElementById('expenseUnitPrice').required = true;
+    document.getElementById('expenseTotalPrice').required = true;
+  }
+}
 
 // 計薪方式切換
 document.querySelectorAll('input[name="wageType"]').forEach(radio => {
@@ -1382,80 +1458,192 @@ document.getElementById('expenseWorker').addEventListener('change', () => {
 document.getElementById('expenseForm').onsubmit = async (e) => {
   e.preventDefault();
   const id = document.getElementById('expenseRecordId').value;
+  const date = document.getElementById('expenseDate').value;
   const isEdit = !!id;
   const mainVal = document.getElementById('expenseMainCat').value;
   const cat = settings.expenseMainCats.find(c => c.名稱 === mainVal);
   const isWorker = cat?.類型 === 'worker';
+  const subCatVal = document.getElementById('expenseSubCat').value;
+  const isBulk = !isWorker && subCatVal === 'ADD_NEW_BULK';
 
-  let subCat = '';
-  if (isWorker) {
-    const activeChips = document.querySelectorAll('#workerSubCatChips .chip.active');
-    subCat = Array.from(activeChips).map(c => c.textContent).join(', ');
+  let recordsToSave = [];
+
+  if (isBulk) {
+    const bulkText = document.getElementById('expenseBulkInput').value;
+    recordsToSave = parseBulkInput(bulkText).map(item => ({
+      ...item,
+      日期: date,
+      主類別: mainVal,
+      計薪方式: '',
+      含午餐: false,
+      已支付: document.getElementById('expenseIsPaid').checked,
+      附註: document.getElementById('expenseNotes').value,
+    }));
+    if (recordsToSave.length === 0) {
+      showToast('請輸入有效的批次內容', 'error');
+      return;
+    }
   } else {
-    subCat = document.getElementById('expenseSubCat').value;
+    // 單筆模式
+    let subCat = '';
+    let workerName = '';
+    let isNewWorker = false;
+    let isNewSubCat = false;
+    let isNewUnit = false;
+
+    if (isWorker) {
+      const activeChips = document.querySelectorAll('#workerSubCatChips .chip.active');
+      subCat = Array.from(activeChips).map(c => c.textContent).join(', ');
+      workerName = document.getElementById('expenseWorker').value;
+      if (workerName === 'ADD_NEW') {
+        workerName = document.getElementById('expenseCustomWorker').value.trim();
+        if (!workerName) { showToast('請輸入姓名', 'error'); return; }
+        isNewWorker = true;
+      }
+    } else {
+      subCat = subCatVal;
+      if (subCat === 'ADD_NEW') {
+        subCat = document.getElementById('expenseCustomSubCat').value.trim();
+        if (!subCat) { showToast('請輸入次類別項目名稱', 'error'); return; }
+        isNewSubCat = true;
+      }
+    }
+
+    const unit = document.getElementById('expenseUnit').value.trim();
+    if (unit && !settings.units.includes(unit)) isNewUnit = true;
+
+    const wageType = isWorker ? document.querySelector('input[name="wageType"]:checked').value : '';
+    const qty = document.getElementById('expenseQty').value;
+    const unitPrice = document.getElementById('expenseUnitPrice').value;
+    const total = document.getElementById('expenseTotalPrice').value;
+    const lunch = isWorker && document.getElementById('includeLunch').checked;
+
+    recordsToSave.push({
+      id: id || generateId(),
+      日期: date,
+      主類別: mainVal,
+      次類別: subCat,
+      工人姓名: workerName,
+      計薪方式: wageType,
+      數量: qty,
+      單位: unit,
+      單價: unitPrice,
+      總額: total,
+      含午餐: lunch,
+      已支付: document.getElementById('expenseIsPaid').checked,
+      附註: document.getElementById('expenseNotes').value,
+      isNewWorker,
+      isNewSubCat,
+      isNewUnit
+    });
   }
-
-  const wageType = isWorker ? document.querySelector('input[name="wageType"]:checked').value : '';
-  const qty = document.getElementById('expenseQty').value;
-  const unitPrice = document.getElementById('expenseUnitPrice').value;
-  const lunch = isWorker && document.getElementById('includeLunch').checked;
-  let total = (parseFloat(qty) || 0) * (parseFloat(unitPrice) || 0) + (lunch ? 100 : 0);
-
-  const rowData = [
-    id || generateId(),
-    document.getElementById('expenseDate').value,
-    mainVal,
-    subCat,
-    isWorker ? document.getElementById('expenseWorker').value : '',
-    wageType,
-    qty,
-    unitPrice,
-    total,
-    lunch ? 'TRUE' : 'FALSE',
-    document.getElementById('expenseIsPaid').checked ? 'TRUE' : 'FALSE',
-    document.getElementById('expenseNotes').value,
-    isEdit ? (expenseData.find(r => r.id === id)?.建立時間 || now()) : now(),
-    now(),
-  ];
 
   showLoader(isEdit ? '更新中...' : '儲存中...');
   try {
-    if (isNewWorker) {
-      await appendToSheet(SHEET.SETTINGS, ['工人', worker, '', '190', '1500']); 
+    for (const r of recordsToSave) {
+      // 處理新項目 (Settings)
+      if (r.isNewWorker) {
+        await gapi.client.sheets.spreadsheets.values.append({
+          spreadsheetId: SPREADSHEET_ID, range: `${SHEET.WORKERS}!A:C`,
+          valueInputOption: 'USER_ENTERED', resource: { values: [[r.工人姓名, '190', '1500']] }
+        });
+      }
+      if (r.isNewSubCat) {
+        await gapi.client.sheets.spreadsheets.values.append({
+          spreadsheetId: SPREADSHEET_ID, range: `${SHEET.EXPENSE_CATS}!A:D`,
+          valueInputOption: 'USER_ENTERED', resource: { values: [[r.主類別, r.次類別, 'material', '']] }
+        });
+      }
+      if (r.isNewUnit) {
+        await gapi.client.sheets.spreadsheets.values.append({
+          spreadsheetId: SPREADSHEET_ID, range: `${SHEET.UNITS}!A:A`,
+          valueInputOption: 'USER_ENTERED', resource: { values: [[r.單位]] }
+        });
+      }
+      // 如果有新增 Settings 則重新讀取
+      if (r.isNewWorker || r.isNewSubCat || r.isNewUnit) await fetchSettings();
+
+      const rowData = [
+        r.id || generateId(), r.日期, r.主類別, r.次類別, r.工人姓名, r.計薪方式,
+        r.數量, r.單位, r.單價, r.總額, r.含午餐 ? 'TRUE' : 'FALSE',
+        r.已支付 ? 'TRUE' : 'FALSE', r.附註,
+        isEdit ? (expenseData.find(x => x.id === id)?.建立時間 || now()) : now(),
+        now()
+      ];
+
+      if (isEdit) {
+        const rowIdx = expenseData.findIndex(x => x.id === id) + 2;
+        await gapi.client.sheets.spreadsheets.values.update({
+          spreadsheetId: SPREADSHEET_ID, range: `${SHEET.EXPENSE}!A${rowIdx}:O${rowIdx}`,
+          valueInputOption: 'USER_ENTERED', resource: { values: [rowData] }
+        });
+      } else {
+        await gapi.client.sheets.spreadsheets.values.append({
+          spreadsheetId: SPREADSHEET_ID, range: `${SHEET.EXPENSE}!A:O`,
+          valueInputOption: 'USER_ENTERED', resource: { values: [rowData] }
+        });
+      }
     }
-    if (isNewSubCat) {
-      await appendToSheet(SHEET.SETTINGS, ['支出次類別', subCat, mainCatName, '', '']);
-    }
-    if (isNewWorker || isNewSubCat) {
-      await fetchSettings();
-    }
-    if (isEdit) {
-      const rowIdx = expenseData.findIndex(r => r.id === id) + 2;
-      await gapi.client.sheets.spreadsheets.values.update({
-        spreadsheetId: SPREADSHEET_ID,
-        range: `${SHEET.EXPENSE}!A${rowIdx}:N${rowIdx}`,
-        valueInputOption: 'USER_ENTERED',
-        resource: { values: [rowData] }
-      });
-    } else {
-      await gapi.client.sheets.spreadsheets.values.append({
-        spreadsheetId: SPREADSHEET_ID,
-        range: `${SHEET.EXPENSE}!A:N`,
-        valueInputOption: 'USER_ENTERED',
-        resource: { values: [rowData] }
-      });
-    }
+
     await fetchExpense();
     renderExpenseChart();
     renderExpenseTable();
     closeExpenseModal();
-    showToast(isEdit ? '✓ 更新成功' : '✓ 支出已記錄');
+    showToast(isEdit ? '✓ 更新成功' : `✓ 已記錄 ${recordsToSave.length} 筆項目`);
   } catch (err) {
     console.error(err);
-    showToast('儲存失敗：' + err.message, 'error');
+    showToast('儲存失敗：系統發生錯誤，請重試', 'error');
   }
   hideLoader();
 };
+
+/**
+ * 解析批次輸入
+ * 格式：項目 數量 單位 $單價 / =總額
+ */
+function parseBulkInput(text) {
+  if (!text) return [];
+  // 先依「、」或換行分割
+  const lines = text.split(/[、\n]/).map(l => l.trim()).filter(l => l);
+  const result = [];
+  
+  lines.forEach(line => {
+    // 正則：(項目) (數量) (單位) (價格標誌) (數字)
+    // 範例：農藥A 1包 $500
+    // 範例：農藥B 2包 =400
+    const match = line.match(/^(.+?)\s+([\d.]+)\s*(\S+?)\s+([$=])?\s*(\d+)$/);
+    if (match) {
+      const name = match[1];
+      const qty = parseFloat(match[2]);
+      const unit = match[3];
+      const type = match[4]; // '$' or '='
+      const priceVal = parseFloat(match[5]);
+      
+      let unitPrice = 0;
+      let total = 0;
+      
+      if (type === '=') {
+        total = priceVal;
+        unitPrice = Math.round(total / qty);
+      } else {
+        // 預設為單價 (含 $ 或無標誌)
+        unitPrice = priceVal;
+        total = Math.round(qty * unitPrice);
+      }
+      
+      result.push({
+        id: generateId(),
+        次類別: name,
+        工人姓名: '',
+        數量: qty,
+        單位: unit,
+        單價: unitPrice,
+        總額: total,
+      });
+    }
+  });
+  return result;
+}
 
 // ============================================================
 // 13. 刪除確認
@@ -1992,4 +2180,115 @@ function showToast(msg, type = 'success') {
   document.getElementById(id).addEventListener('click', function(e) {
     if (e.target === this) this.style.display = 'none';
   });
+});
+
+// ============================================================
+// 15. 歷史資料匯入 (2025)
+// ============================================================
+const HISTORICAL_DATA_2025 = {
+  "expenses": [
+    {"日期":"2024-11-01","主類別":"什支備註","次類別":"龍虎330包","工人姓名":"","數量":"330","單位":"項","單價":"200","總額":"66000","已支付":true},
+    {"日期":"2024-11-20","主類別":"肥料","次類別":"上午施甜柿有機肥330包","工人姓名":"","數量":"32","單位":"項","單價":"150","總額":"4800","已支付":true},
+    {"日期":"2024-12-06","主類別":"農藥","次類別":"8K噴除草劑27缸","工人姓名":"","數量":"33","單位":"項","單價":"150","總額":"4950","已支付":true},
+    {"日期":"2024-12-07","主類別":"農藥","次類別":"8K噴除草劑13缸","工人姓名":"","數量":"10","單位":"項","單價":"150","總額":"1500","已支付":true},
+    {"日期":"2025-01-08","主類別":"什支備註","次類別":"矽藻土","工人姓名":"","數量":"2","單位":"項","單價":"1250","總額":"2500","已支付":true},
+    {"日期":"2025-01-08","主類別":"什支備註","次類別":"大生粉","工人姓名":"","數量":"1","單位":"項","單價":"4200","總額":"4200","已支付":true},
+    {"日期":"2024-12-01","主類別":"肥料","次類別":"肥料車困於陡坡，請怪手脫困費用","工人姓名":"","數量":"1","單位":"項","單價":"4000","總額":"4000","已支付":true},
+    {"日期":"2025-02-14","主類別":"工人薪資","次類別":"撿枝","工人姓名":"其他工人","數量":"9","單位":"項","單價":"150","總額":"1350","已支付":true},
+    {"日期":"2025-02-15","主類別":"工人薪資","次類別":"撿枝","工人姓名":"其他工人","數量":"6","單位":"項","單價":"150","總額":"900","已支付":true},
+    {"日期":"2025-02-20","主類別":"肥料","次類別":"白肥","工人姓名":"","數量":"35","單位":"項","單價":"550","總額":"19250","已支付":true},
+    {"日期":"2025-02-22","主類別":"工人薪資","次類別":"撿枝","工人姓名":"其他工人","數量":"8","單位":"項","單價":"150","總額":"1200","已支付":true},
+    {"日期":"2025-02-24","主類別":"包裝材料","次類別":"白鐵線(猴網電)","工人姓名":"","數量":"1","單位":"項","單價":"130","總額":"130","已支付":true},
+    {"日期":"2025-02-24","主類別":"包裝材料","次類別":"束帶(猴網電)","工人姓名":"","數量":"1","單位":"項","單價":"140","總額":"140","已支付":true},
+    {"日期":"2025-02-24","主類別":"包裝材料","次類別":"包梨鐵線(猴網電)","工人姓名":"","數量":"1","單位":"項","單價":"75","總額":"75","已支付":true},
+    {"日期":"2025-02-24","主類別":"什支備註","次類別":"92汽油","工人姓名":"","數量":"1","單位":"項","單價":"600","總額":"600","已支付":true},
+    {"日期":"2025-02-24","主類別":"工人薪資","次類別":"撿枝","工人姓名":"其他工人","數量":"18","單位":"項","單價":"150","總額":"2700","已支付":true},
+    {"日期":"2025-02-25","主類別":"工人薪資","次類別":"撿枝","工人姓名":"其他工人","數量":"8","單位":"項","單價":"150","總額":"1200","已支付":true},
+    {"日期":"2025-03-11","主類別":"農藥","次類別":"(甜柿清園32缸)馬拉松","工人姓名":"","數量":"5","單位":"項","單價":"380","總額":"1900","已支付":true},
+    {"日期":"2025-03-11","主類別":"什支備註","次類別":"安息香酸16","工人姓名":"","數量":"16","單位":"項","單價":"60","總額":"960","已支付":true},
+    {"日期":"2025-03-11","主類別":"什支備註","次類別":"硫磺粉(巴斯夫)","工人姓名":"","數量":"1","單位":"項","單價":"2500","總額":"2500","已支付":true},
+    {"日期":"2025-03-11","主類別":"農藥","次類別":"百克敏","工人姓名":"","數量":"3","單位":"項","單價":"300","總額":"900","職位":true,"已支付":true},
+    {"日期":"2025-03-11","主類別":"什支備註","次類別":"百利普芬","工人姓名":"","數量":"4","單位":"項","單價":"700","總額":"2800","已支付":true},
+    {"日期":"2025-03-11","主類別":"什支備註","次類別":"亞磷酸","工人姓名":"","數量":"1","單位":"項","單價":"12000","總額":"12000","已支付":true},
+    {"日期":"2025-03-11","主類別":"什支備註","次類別":"微量元素","工人姓名":"","數量":"2","單位":"項","單價":"6000","總額":"12000","已支付":true},
+    {"日期":"2025-03-14","主類別":"肥料","次類別":"下白肥","工人姓名":"","數量":"8","單位":"項","單價":"150","總額":"1200","已支付":true},
+    {"日期":"2025-04-01","主類別":"什支備註","次類別":"撲滅寧","工人姓名":"","數量":"2","單位":"項","單價":"800","總額":"1600","已支付":true},
+    {"日期":"2025-04-01","主類別":"農藥","次類別":"待克利","工人姓名":"","數量":"2","單位":"項","單價":"600","總額":"1200","已支付":true},
+    {"日期":"2025-04-01","主類別":"什支備註","次類別":"大喜精","工人姓名":"","數量":"4","單位":"項","單價":"280","總額":"1120","已支付":true},
+    {"日期":"2025-04-01","主類別":"什支備註","次類別":"大生粉","工人姓名":"","數量":"6","單位":"項","單價":"450","總額":"2700","已支付":true},
+    {"日期":"2025-02-01","主類別":"什支備註","次類別":"阿義除草","工人姓名":"","數量":"1","單位":"項","單價":"20000","總額":"20000","已支付":true},
+    {"日期":"2025-05-01","主類別":"什支備註","次類別":"阿義除草","工人姓名":"","數量":"1","單位":"項","單價":"20000","總額":"20000","已支付":true},
+    {"日期":"2025-04-24","主類別":"菜錢","次類別":"阿義斷水","工人姓名":"","數量":"1","單位":"項","單價":"8000","總額":"8000","已支付":true},
+    {"日期":"2025-01-01","主類別":"什支備註","次類別":"56200+49000","工人姓名":"","數量":"1","單位":"項","單價":"105200","總額":"105200","已支付":true},
+    {"日期":"2025-04-17","主類別":"什支備註","次類別":"高磷鉀","工人姓名":"","數量":"45","單位":"項","單價":"700","總額":"31500","已支付":true},
+    {"日期":"2025-04-17","主類別":"什支備註","次類別":"甜蜜鉀","工人姓名":"","數量":"60","單位":"項","單價":"650","總額":"39000","已支付":true},
+    {"日期":"2025-05-01","主類別":"什支備註","次類別":"信生(道理)","工人姓名":"","數量":"12","單位":"項","單價":"380","總額":"4560","已支付":true},
+    {"日期":"2025-05-01","主類別":"什支備註","次類別":"撲克拉","工人姓名":"","數量":"2","單位":"項","單價":"450","總額":"900","已支付":true},
+    {"日期":"2025-05-01","主類別":"什支備註","次類別":"賽洛寧(大勝)","工人姓名":"","數量":"4","單位":"項","單價":"400","總額":"1600","已支付":true},
+    {"日期":"2025-05-01","主類別":"農藥","次類別":"馬拉松","工人姓名":"","數量":"4","單位":"項","單價":"400","總額":"1600","已支付":true},
+    {"日期":"2025-05-01","主類別":"什支備註","次類別":"信生(日產)","工人姓名":"","數量":"12","單位":"項","單價":"250","總額":"3000","已支付":true},
+    {"日期":"2025-05-01","主類別":"農藥","次類別":"待克利","工人姓名":"","數量":"2","單位":"項","單價":"600","總額":"1200","已支付":true},
+    {"日期":"2025-05-01","主類別":"什支備註","次類別":"賽速洛寧(日產)","工人姓名":"","數量":"4","單位":"項","單價":"650","總額":"2600","已支付":true},
+    {"日期":"2025-05-01","主類別":"什支備註","次類別":"阿巴丁","工人姓名":"","數量":"2","單位":"項","單價":"400","總額":"800","已支付":true},
+    {"日期":"2025-05-01","主類別":"什支備註","次類別":"得芬諾","工人姓名":"","數量":"4","單位":"項","單價":"450","總額":"1800","已支付":true},
+    {"日期":"2025-05-01","主類別":"什支備註","次類別":"大生粉","工人姓名":"","數量":"1","單位":"項","單價":"4200","總額":"4200","已支付":true},
+    {"日期":"2025-06-09","主類別":"什支備註","次類別":"丁基加保扶","工人姓名":"","數量":"4","單位":"項","單價":"700","總額":"2800","已支付":true}
+  ],
+  "income": [
+    {"日期":"2025-09-26","主類別":"甜柿","其他備註":"市場拍賣大數據匯入","總重":"136","箱數":"12","總價":"13404","價格確認":true},
+    {"日期":"2025-09-27","主類別":"甜柿","其他備註":"市場拍賣大數據匯入","總重":"160","箱數":"15","總價":"16392","價格確認":true},
+    {"日期":"2025-09-30","主類別":"甜柿","其他備註":"市場拍賣大數據匯入","總重":"420","箱數":"35","總價":"43286","價格確認":true},
+    {"日期":"2025-10-03","主類別":"甜柿","其他備註":"市場拍賣大數據匯入","總重":"349","箱數":"29","總價":"40640","價格確認":true},
+    {"日期":"2025-10-04","主類別":"甜柿","其他備註":"市場拍賣大數據匯入","總重":"494","箱數":"41","總價":"53370","價格確認":true},
+    {"日期":"2025-10-09","主類別":"甜柿","其他備註":"市場拍賣大數據匯入","總重":"558","箱數":"46","總價":"50703","價格確認":true}
+  ]
+};
+
+async function importHistoricalData2025() {
+  if (!confirm('確定要匯入 2025 年度歷史資料嗎？這將會新增多筆紀錄到試算表中。')) return;
+  
+  showLoader('匯入中...');
+  try {
+    const expRows = HISTORICAL_DATA_2025.expenses.map(r => {
+      const id = 'H2025-' + Math.random().toString(36).substr(2, 6);
+      return [id, r.日期, r.主類別, r.次類別, r.工人姓名, 'hourly', r.數量, r.單位, r.單價, r.總額, 'FALSE', r.已支付?'TRUE':'FALSE', '2025 匯入', now(), now()];
+    });
+    
+    const incRows = HISTORICAL_DATA_2025.income.map(r => {
+      const id = 'H2025I-' + Math.random().toString(36).substr(2, 6);
+      return [id, r.日期, r.主類別, r.其他備註, '{}', r.總重, r.箱數, r.總價, '0', '0', '', r.價格確認?'TRUE':'FALSE', now(), now()];
+    });
+
+    if (expRows.length > 0) {
+      await gapi.client.sheets.spreadsheets.values.append({
+        spreadsheetId: SPREADSHEET_ID,
+        range: `${SHEET.EXPENSE}!A:O`,
+        valueInputOption: 'USER_ENTERED',
+        resource: { values: expRows }
+      });
+    }
+    
+    if (incRows.length > 0) {
+      await gapi.client.sheets.spreadsheets.values.append({
+        spreadsheetId: SPREADSHEET_ID,
+        range: `${SHEET.INCOME}!A:N`,
+        valueInputOption: 'USER_ENTERED',
+        resource: { values: incRows }
+      });
+    }
+
+    await fetchAllData();
+    renderAll();
+    showToast('✓ 歷史資料匯入完成');
+  } catch (err) {
+    console.error(err);
+    showToast('匯入失敗：' + err.message, 'error');
+  }
+  hideLoader();
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  setTimeout(() => {
+    document.getElementById('import2025Btn')?.addEventListener('click', importHistoricalData2025);
+  }, 2000);
 });

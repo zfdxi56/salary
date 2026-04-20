@@ -21,8 +21,10 @@
       <span class="header-title">果園記帳</span>
     </div>
     <div class="header-right">
-      <span id="userNameDisplay" class="user-nickname" style="display:none"></span>
-      <span id="userRoleBadge" class="role-badge" style="display:none"></span>
+      <div id="userInfo" class="user-info" style="display:none">
+        <span id="userNameDisplay" class="user-nickname"></span>
+        <span id="userRoleBadge" class="role-badge"></span>
+      </div>
       <button id="logoutBtn" class="btn-icon-sm" title="登出" style="display:none">
         <span class="material-symbols-outlined">logout</span>
       </button>
@@ -71,7 +73,10 @@
         <!-- 收入統計圖表 -->
         <div class="card glass chart-card" id="incomeChartCard">
           <div class="card-header">
-            <h2><span class="material-symbols-outlined">bar_chart</span> 收入統計</h2>
+            <div class="header-main">
+              <h2><span class="material-symbols-outlined">analytics</span> 收入統計</h2>
+              <div id="incomeTotalSummary" class="chart-summary">總計：$0</div>
+            </div>
             <div class="chart-period-btns">
               <button class="period-btn active" data-period="all">全部</button>
               <button class="period-btn" data-period="year">今年</button>
@@ -139,7 +144,10 @@
         <!-- 支出統計圖表 -->
         <div class="card glass chart-card" id="expenseChartCard">
           <div class="card-header">
-            <h2><span class="material-symbols-outlined">bar_chart</span> 支出統計</h2>
+            <div class="header-main">
+              <h2><span class="material-symbols-outlined">payments</span> 支出統計</h2>
+              <div id="expenseTotalSummary" class="chart-summary">總計：$0</div>
+            </div>
             <div class="chart-period-btns">
               <button class="period-btn active" data-period="all">全部</button>
               <button class="period-btn" data-period="year">今年</button>
@@ -229,8 +237,8 @@
               <button class="btn btn-primary" id="initSystemBtn">
                 <span class="material-symbols-outlined">auto_fix_high</span> 初始化預設類別資料
               </button>
-              <button class="btn btn-secondary" onclick="generateTestData()">
-                <span class="material-symbols-outlined">analytics</span> 建置 2~3 筆測試資料
+              <button class="btn btn-secondary" id="import2025Btn">
+                <span class="material-symbols-outlined">history</span> 匯入 2025 年度歷史資料
               </button>
             </div>
           </div>
@@ -464,21 +472,35 @@
           </select>
         </div>
 
-        <!-- 數量/金額欄位 -->
+        <!-- 手動批次輸入專區 -->
+        <div class="input-wrap" id="expenseBulkInputWrap" style="display:none">
+          <label for="expenseBulkInput">批次項目輸入 <span class="hint-text">(格式：項目 數量 單位 $單價...)</span></label>
+          <textarea id="expenseBulkInput" class="form-textarea" placeholder="範例：農藥A 1包 $500、農藥B 2包 =400"></textarea>
+          <p class="field-hint">使用「、」或換行區隔，單價加 $，總額加 =</p>
+        </div>
+
+        <!-- 數量/單位/金額欄位 -->
         <div class="form-row" id="quantityPriceRow">
           <div class="input-wrap">
             <label for="expenseQty" id="expenseQtyLabel">數量 *</label>
-            <input type="number" id="expenseQty" step="0.5" min="0" required>
+            <input type="number" id="expenseQty" step="0.1" min="0" required>
           </div>
+          <div class="input-wrap" id="expenseUnitWrap">
+            <label for="expenseUnit">單位</label>
+            <input type="text" id="expenseUnit" list="unitOptions" placeholder="如：包、罐">
+            <datalist id="unitOptions"></datalist>
+          </div>
+        </div>
+
+        <div class="form-row" id="priceDetailRow">
           <div class="input-wrap">
             <label for="expenseUnitPrice" id="expenseUnitLabel">單價 *</label>
             <input type="number" id="expenseUnitPrice" step="1" min="0" required>
           </div>
-        </div>
-
-        <!-- 總額顯示 -->
-        <div class="total-preview" id="expenseTotalPreview">
-          合計：<strong id="expenseTotalAmt">$0</strong>
+          <div class="input-wrap">
+            <label for="expenseTotalPrice">總額 (合計) *</label>
+            <input type="number" id="expenseTotalPrice" step="1" min="0" required>
+          </div>
         </div>
 
         <!-- 午餐津貼（工人薪資專用） -->
