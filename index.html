@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="style.css">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🍎</text></svg>">
   <script src="https://accounts.google.com/gsi/client" async defer></script>
   <script src="https://apis.google.com/js/api.js"></script>
 </head>
@@ -20,7 +21,7 @@
       <span class="header-title">果園記帳</span>
     </div>
     <div class="header-right">
-      <span id="userEmailText" class="user-email" style="display:none"></span>
+      <span id="userNameDisplay" class="user-nickname" style="display:none"></span>
       <span id="userRoleBadge" class="role-badge" style="display:none"></span>
       <button id="logoutBtn" class="btn-icon-sm" title="登出" style="display:none">
         <span class="material-symbols-outlined">logout</span>
@@ -215,6 +216,26 @@
     <section id="page-admin" class="tab-page">
       <div class="page-inner">
 
+        <!-- 系統維護 -->
+        <div class="card glass admin-card" id="systemInitCard">
+          <div class="card-header">
+            <h2><span class="material-symbols-outlined">build</span> 系統維護</h2>
+          </div>
+          <div class="card-body" style="padding:1rem;">
+            <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:1rem;">
+              若初次使用，可進行初始化或建置示範資料以利測試。
+            </p>
+            <div style="display:flex; gap:0.75rem; flex-wrap:wrap;">
+              <button class="btn btn-primary" id="initSystemBtn">
+                <span class="material-symbols-outlined">auto_fix_high</span> 初始化預設類別資料
+              </button>
+              <button class="btn btn-secondary" onclick="generateTestData()">
+                <span class="material-symbols-outlined">analytics</span> 建置 2~3 筆測試資料
+              </button>
+            </div>
+          </div>
+        </div>
+
         <!-- 使用者權限清單 -->
         <div class="card glass admin-card">
           <div class="card-header">
@@ -311,8 +332,17 @@
           </div>
           <div class="input-wrap">
             <label for="incomeMainCat">品種 *</label>
-            <select id="incomeMainCat" required></select>
+            <select id="incomeMainCat" required>
+              <option value="">-- 請選擇 --</option>
+              <option value="ADD_NEW">+ 新增品種...</option>
+            </select>
           </div>
+        </div>
+
+        <!-- 自定義品種輸入 -->
+        <div class="input-wrap" id="incomeCustomCatWrap" style="display:none">
+          <label for="incomeCustomCat">新品種名稱 *</label>
+          <input type="text" id="incomeCustomCat" placeholder="請輸入新品種名稱">
         </div>
 
         <!-- 其他品種備註 -->
@@ -393,10 +423,16 @@
 
         <!-- 工人薪資：姓名 -->
         <div class="input-wrap" id="workerNameWrap" style="display:none">
-          <label for="expenseWorker">工人姓名 *</label>
           <select id="expenseWorker">
             <option value="">-- 請選擇 --</option>
+            <option value="ADD_NEW">+ 新增工人...</option>
           </select>
+        </div>
+
+        <!-- 自定義工人輸入 -->
+        <div class="input-wrap" id="expenseCustomWorkerWrap" style="display:none">
+          <label for="expenseCustomWorker">新工人姓名 *</label>
+          <input type="text" id="expenseCustomWorker" placeholder="請輸入新工人姓名">
         </div>
 
         <!-- 工人薪資：時薪/日薪切換 -->

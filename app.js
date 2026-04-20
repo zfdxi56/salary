@@ -4,6 +4,54 @@
 // ============================================================
 
 // ============================================================
+// 測試資料生成
+// ============================================================
+window.generateTestData = async function() {
+  if (!confirm('將建置 3 筆收入與 3 筆支出測試資料，是否繼續？')) return;
+  showLoader('建置測試資料中...');
+  try {
+    const todayStr = today();
+    
+    // 收入測試資料
+    const incomeRows = [
+      [generateId(), todayStr, '甜柿', '示範資料', JSON.stringify([{等級:'5A',斤數:120,箱數:12}]), '120', '12', '7200', '60', '0', '自動生成測試', 'TRUE', now(), now()],
+      [generateId(), todayStr, '水蜜桃', '示範資料', JSON.stringify([{等級:'3A',斤數:45,箱數:5}]), '45', '5', '4500', '100', '150', '自動生成測試', 'FALSE', now(), now()],
+      [generateId(), todayStr, '橘子', '示範資料', JSON.stringify([{等級:'4A',斤數:200,箱數:20}]), '200', '20', '6000', '30', '400', '自動生成測試', 'TRUE', now(), now()],
+    ];
+
+    await gapi.client.sheets.spreadsheets.values.append({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${SHEET.INCOME}!A:N`,
+      valueInputOption: 'USER_ENTERED',
+      resource: { values: incomeRows }
+    });
+
+    // 支出測試資料
+    const expenseRows = [
+      [generateId(), todayStr, '工人薪資', '除草', '小張', 'hourly', '8', '200', '1600', 'FALSE', 'TRUE', '測試工時', now(), now()],
+      [generateId(), todayStr, '肥料', '骨粉', '', '', '10', '450', '4500', 'FALSE', 'TRUE', '測試採買', now(), now()],
+      [generateId(), todayStr, '工人薪資', '疏果', '阿明', 'daily', '1', '1500', '1600', 'TRUE', 'FALSE', '測試日薪(含補貼)', now(), now()],
+    ];
+
+    await gapi.client.sheets.spreadsheets.values.append({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${SHEET.EXPENSE}!A:N`,
+      valueInputOption: 'USER_ENTERED',
+      resource: { values: expenseRows }
+    });
+
+    await fetchIncome();
+    await fetchExpense();
+    renderAll();
+    showToast('✓ 測試資料建置完成');
+  } catch (e) {
+    console.error(e);
+    showToast('建置失敗', 'error');
+  }
+  hideLoader();
+};
+
+// ============================================================
 // 1. 全域設定
 // ============================================================
 const SPREADSHEET_ID = '1rjVEG9x9ZJ6f3BSuC4CL_wYRATFvbGiZAGkwkzDP168';
@@ -144,6 +192,12 @@ function maybeEnableAuth() {
   if (gapiInited && gisInited) {
     document.getElementById('authBtn').style.display = 'inline-flex';
     document.getElementById('authBtn').onclick = handleLogin;
+    
+    // 嘗試自動檢查是否已授權
+    const token = gapi.client.getToken();
+    if (token) {
+      afterLogin();
+    }
   }
 }
 
@@ -171,7 +225,16 @@ async function afterLogin() {
     await fetchAllData();
 
     // 確認使用者角色
-    const userRow = usersData.find(u => u.email.toLowerCase() === email.toLowerCase());
+    let userRow = usersData.find(u => u.email.toLowerCase() === email.toLowerCase());
+    
+    // 如果系統完全沒有使用者，或者是特定條件下的首位登入者
+    if (usersData.length === 0 && !userRow) {
+      console.log('系統初始登入：自動將首位使用者設為管理員');
+      await addUserToSheet(email, 'admin');
+      await fetchUsers(); // 重新讀取名單
+      userRow = usersData.find(u => u.email.toLowerCase() === email.toLowerCase());
+    }
+
     if (!userRow) {
       // 未登記的帳號 → 當一般使用者
       currentUser = { email, role: 'user' };
@@ -181,8 +244,9 @@ async function afterLogin() {
     isAdmin = currentUser.role === 'admin';
 
     // 更新 header
-    document.getElementById('userEmailText').textContent = email;
-    document.getElementById('userEmailText').style.display = 'inline';
+    const currentName = userRow?.nickname || email.split('@')[0];
+    document.getElementById('userNameDisplay').textContent = currentName;
+    document.getElementById('userNameDisplay').style.display = 'inline';
     document.getElementById('userRoleBadge').textContent = isAdmin ? '管理員' : '使用者';
     document.getElementById('userRoleBadge').className = `role-badge${isAdmin ? ' admin' : ''}`;
     document.getElementById('userRoleBadge').style.display = 'inline';
@@ -204,6 +268,36 @@ async function afterLogin() {
   hideLoader();
 }
 
+/**
+ * 將使用者加入試算表
+ */
+async function addUserToSheet(email, role) {
+  try {
+    const defaultNickname = email.split('@')[0];
+    const row = [defaultNickname, email, role, now()];
+    await gapi.client.sheets.spreadsheets.values.append({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${SHEET.USERS}!A:D`,
+      valueInputOption: 'USER_ENTERED',
+      resource: { values: [row] }
+    });
+  } catch (e) {
+    console.error('addUserToSheet 失敗:', e);
+  }
+}
+
+/**
+ * 通用的附加資料到工作表
+ */
+async function appendToSheet(sheetName, row) {
+  await gapi.client.sheets.spreadsheets.values.append({
+    spreadsheetId: SPREADSHEET_ID,
+    range: `${sheetName}!A:E`,
+    valueInputOption: 'USER_ENTERED',
+    resource: { values: [row] }
+  });
+}
+
 document.getElementById('logoutBtn').onclick = () => {
   google.accounts.oauth2.revoke(gapi.client.getToken()?.access_token, () => {});
   gapi.client.setToken(null);
@@ -211,7 +305,7 @@ document.getElementById('logoutBtn').onclick = () => {
   isAdmin = false;
   document.getElementById('workspace').style.display = 'none';
   document.getElementById('authSection').style.display = 'flex';
-  document.getElementById('userEmailText').style.display = 'none';
+  document.getElementById('userNameDisplay').style.display = 'none';
   document.getElementById('userRoleBadge').style.display = 'none';
   document.getElementById('logoutBtn').style.display = 'none';
   document.getElementById('tab-admin').style.display = 'none';
@@ -245,8 +339,8 @@ async function ensureSheetsExist() {
 async function initSheetHeaders() {
   const ranges = [
     {
-      range: `${SHEET.USERS}!A1:C1`,
-      values: [['Email', '角色', '更新時間']]
+      range: `${SHEET.USERS}!A1:D1`,
+      values: [['別稱', 'Email', '角色', '更新時間']]
     },
     {
       range: `${SHEET.SETTINGS}!A1:E1`,
@@ -292,11 +386,12 @@ async function fetchUsers() {
   try {
     const res = await gapi.client.sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
-      range: `${SHEET.USERS}!A2:C`,
+      range: `${SHEET.USERS}!A2:D`,
     });
     usersData = (res.result.values || []).map(r => ({
-      email: r[0] || '',
-      role: r[1] || 'user',
+      nickname: r[0] || '',
+      email: r[1] || '', 
+      role: r[2] || 'user', 
     }));
   } catch (e) { usersData = []; }
 }
@@ -428,6 +523,19 @@ function renderAll() {
 
   if (isAdmin) {
     renderAdminPage();
+    // 如果已有資料，隱藏初始化區塊
+    const hasData = settings.incomeMainCats.length > DEFAULT_INCOME_CATS.length || 
+                    settings.workers.length > 0 ||
+                    settings.expenseMainCats.some(c => !DEFAULT_EXPENSE_CATS.map(dc => dc.名稱).includes(c.名稱));
+    
+    // 簡單判斷：如果 settings 工作表已有內容（除了預設那幾個），就隱藏
+    const initCard = document.getElementById('systemInitCard');
+    if (initCard) {
+      // 只要 settings.workers 有人，或者 income/expense 類別被改動過（這邊簡單檢查 workers 即可，因為預設 workers 是空的）
+      if (settings.workers.length > 0) {
+        initCard.style.display = 'none';
+      }
+    }
   }
 }
 
@@ -590,7 +698,7 @@ function renderIncomeTable() {
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td>${r.日期}</td>
-      <td><strong>${r.主類別}</strong>${r.其他備註 ? `<br><small style="color:var(--text-muted)">${r.其他備註}</small>` : ''}</td>
+      <td><span class="badge-main">${r.主類別}</span>${r.其他備註 ? `<br><small style="color:var(--text-muted)">${r.其他備註}</small>` : ''}</td>
       <td style="font-size:0.78rem">${gradeText}</td>
       <td>${r.總重 ? r.總重 + '斤' : '-'}${r.箱數 ? ' / ' + r.箱數 + '箱' : ''}</td>
       <td>${priceCell}</td>
@@ -654,13 +762,18 @@ window.openFillPriceModal = function(id) {
 
 function closeIncomeModal() {
   document.getElementById('incomeModal').style.display = 'none';
+  document.getElementById('incomeForm').reset();
+  document.getElementById('incomeOtherNoteWrap').style.display = 'none';
+  document.getElementById('incomeCustomCatWrap').style.display = 'none';
 }
 
 document.getElementById('incomeMainCat').addEventListener('change', onIncomeMainCatChange);
 function onIncomeMainCatChange() {
   const val = document.getElementById('incomeMainCat').value;
   const isOther = val === '其他';
+  const isAddNew = val === 'ADD_NEW';
   document.getElementById('incomeOtherNoteWrap').style.display = isOther ? 'flex' : 'none';
+  document.getElementById('incomeCustomCatWrap').style.display = isAddNew ? 'flex' : 'none';
 }
 
 document.getElementById('addGradeRowBtn').onclick = () => addGradeRow();
@@ -702,7 +815,14 @@ document.getElementById('incomeForm').onsubmit = async (e) => {
     }
   });
 
-  const mainCat = document.getElementById('incomeMainCat').value;
+  let mainCat = document.getElementById('incomeMainCat').value;
+  let isNewCat = false;
+  if (mainCat === 'ADD_NEW') {
+    mainCat = document.getElementById('incomeCustomCat').value.trim();
+    if (!mainCat) { showToast('請輸入新品種名稱', 'error'); return; }
+    isNewCat = true;
+  }
+
   const rowData = [
     id || generateId(),
     document.getElementById('incomeDate').value,
@@ -722,6 +842,10 @@ document.getElementById('incomeForm').onsubmit = async (e) => {
 
   showLoader(isEdit ? '更新中...' : '儲存中...');
   try {
+    if (isNewCat) {
+      await appendToSheet(SHEET.SETTINGS, ['收入主類別', mainCat, '', '', '']);
+      await fetchSettings();
+    }
     if (isEdit) {
       const rowIdx = incomeData.findIndex(r => r.id === id) + 2;
       await gapi.client.sheets.spreadsheets.values.update({
@@ -1049,9 +1173,9 @@ function renderExpenseTable() {
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td>${r.日期}</td>
-      <td>${r.主類別}</td>
-      <td style="font-size:0.78rem">${r.次類別 || '-'}</td>
-      <td>${r.工人姓名 || '-'}</td>
+      <td><span class="badge-main">${r.主類別}</span></td>
+      <td style="font-size:0.78rem"><span class="badge-sub">${r.次類別 || '-'}</span></td>
+      <td>${r.工人姓名 ? `<span class="badge-worker">${r.工人姓名}</span>` : '-'}</td>
       <td>${r.數量 ? r.數量 + (r.計薪方式 === 'hourly' ? 'h' : r.計薪方式 === 'daily' ? '天' : '') : '-'}</td>
       <td>$${parseFloat(r.單價 || 0).toLocaleString()}</td>
       <td class="td-amount expense">$${total.toLocaleString()}</td>
@@ -1096,6 +1220,9 @@ window.openExpenseEdit = openExpenseEdit;
 
 function closeExpenseModal() {
   document.getElementById('expenseModal').style.display = 'none';
+  document.getElementById('expenseForm').reset();
+  document.getElementById('expenseCustomWorkerWrap').style.display = 'none';
+  document.getElementById('expenseCustomSubCatWrap').style.display = 'none';
 }
 
 document.getElementById('expenseMainCat').addEventListener('change', () => onExpenseMainCatChange());
@@ -1129,10 +1256,12 @@ function onExpenseMainCatChange(editRecord = null) {
 
   if (isWorker) {
     // 工人下拉
-    const workerSel = document.getElementById('expenseWorker');
-    workerSel.innerHTML = '<option value="">-- 請選擇 --</option>' +
-      settings.workers.map(w => `<option value="${w.姓名}">${w.姓名}</option>`).join('');
-    if (editRecord) workerSel.value = editRecord.工人姓名;
+    const wSel = document.getElementById('expenseWorker');
+    wSel.innerHTML = '<option value="">-- 請選擇 --</option>' +
+                     '<option value="ADD_NEW">+ 新增工人...</option>' +
+                     settings.workers.map(w => `<option value="${w.姓名}">${w.姓名}</option>`).join('');
+    wSel.value = editRecord ? editRecord.工人姓名 : '';
+    onExpenseWorkerChange();
 
     // 計薪方式
     const wageType = editRecord?.計薪方式 || 'hourly';
@@ -1199,6 +1328,17 @@ function onExpenseMainCatChange(editRecord = null) {
   updateExpenseTotal();
 }
 
+function onExpenseWorkerChange() {
+  const val = document.getElementById('expenseWorker').value;
+  document.getElementById('expenseCustomWorkerWrap').style.display = (val === 'ADD_NEW') ? 'flex' : 'none';
+}
+function onExpenseSubCatChange() {
+  const val = document.getElementById('expenseSubCat').value;
+  document.getElementById('expenseCustomSubCatWrap').style.display = (val === 'ADD_NEW') ? 'flex' : 'none';
+}
+document.getElementById('expenseWorker').addEventListener('change', onExpenseWorkerChange);
+document.getElementById('expenseSubCat').addEventListener('change', onExpenseSubCatChange);
+
 // 計薪方式切換
 document.querySelectorAll('input[name="wageType"]').forEach(radio => {
   radio.addEventListener('change', () => {
@@ -1227,6 +1367,7 @@ document.querySelectorAll('input[name="wageType"]').forEach(radio => {
 // 工人選擇時更新預設薪資
 document.getElementById('expenseWorker').addEventListener('change', () => {
   const workerName = document.getElementById('expenseWorker').value;
+  if (workerName === 'ADD_NEW') return;
   const worker = settings.workers.find(w => w.姓名 === workerName);
   if (!worker) return;
   const wageType = document.querySelector('input[name="wageType"]:checked').value;
@@ -1279,6 +1420,15 @@ document.getElementById('expenseForm').onsubmit = async (e) => {
 
   showLoader(isEdit ? '更新中...' : '儲存中...');
   try {
+    if (isNewWorker) {
+      await appendToSheet(SHEET.SETTINGS, ['工人', worker, '', '190', '1500']); 
+    }
+    if (isNewSubCat) {
+      await appendToSheet(SHEET.SETTINGS, ['支出次類別', subCat, mainCatName, '', '']);
+    }
+    if (isNewWorker || isNewSubCat) {
+      await fetchSettings();
+    }
     if (isEdit) {
       const rowIdx = expenseData.findIndex(r => r.id === id) + 2;
       await gapi.client.sheets.spreadsheets.values.update({
@@ -1694,7 +1844,8 @@ window.deleteExpenseMainCat = function(catIdx) {
     settings.expenseMainCats.splice(catIdx, 1);
     rebuildAndSaveSettings('settings');
     renderExpenseMainCatAdmin();
-    renderExpenseFilterChips();
+    renderExpenseSubCatChips();
+    renderExpenseTable();
   });
 };
 window.deleteExpenseSubCat = function(catIdx, subIdx) {
@@ -1703,6 +1854,48 @@ window.deleteExpenseSubCat = function(catIdx, subIdx) {
     rebuildAndSaveSettings('settings');
     renderExpenseMainCatAdmin();
   });
+};
+
+// 系統初始化按鈕
+document.getElementById('initSystemBtn').onclick = async () => {
+  if (!confirm('將把預設類別與範例工人資料寫入試算表，是否確定？')) return;
+  
+  showLoader('系統初始化中...');
+  try {
+    // 1. 清空 settings 
+    await clearSheet(SHEET.SETTINGS);
+    
+    // 2. 寫入收入主類別
+    for (const name of DEFAULT_INCOME_CATS) {
+      await appendToSheet(SHEET.SETTINGS, ['收入主類別', name, '', '', '']);
+    }
+    
+    // 3. 寫入支出類別
+    for (const c of DEFAULT_EXPENSE_CATS) {
+      await appendToSheet(SHEET.SETTINGS, ['支出主類別', c.名稱, '', '', c.類型]);
+      for (const sub of c.次類別) {
+        await appendToSheet(SHEET.SETTINGS, ['支出次類別', sub.名稱, c.名稱, sub.預設金額, '']);
+      }
+    }
+    
+    // 4. 寫入範例工人
+    const demoWorkers = [
+      { 姓名: '阿明', 預設時薪: '190', 預設日薪: '1500' },
+      { 姓名: '小華', 預設時薪: '190', 預設日薪: '1500' }
+    ];
+    for (const w of demoWorkers) {
+      await appendToSheet(SHEET.SETTINGS, ['工人', w.姓名, '', w.預設時薪, w.預設日薪]);
+    }
+    
+    showToast('✓ 初始化完成，正在重新載入資料...');
+    await fetchSettings();
+    renderAll();
+    
+  } catch (e) {
+    console.error(e);
+    showToast('初始化失敗', 'error');
+  }
+  hideLoader();
 };
 
 function confirmAdminDelete(cb) {
