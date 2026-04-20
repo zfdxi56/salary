@@ -1,180 +1,545 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
-
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>假日果園時薪計帳</title>
+  <title>果園收支記帳</title>
+  <meta name="description" content="山上果園種植成本與收入記帳管理系統">
   <link rel="stylesheet" href="style.css">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0"
-    rel="stylesheet" />
-  <!-- Google API Component -->
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet">
   <script src="https://accounts.google.com/gsi/client" async defer></script>
   <script src="https://apis.google.com/js/api.js"></script>
 </head>
-
 <body>
+
+  <!-- 頂部 Header -->
   <header class="app-header">
-    <div class="header-title">
-      <span class="material-symbols-outlined icon">nature_people</span>
-      <h1>果園時薪計帳</h1>
+    <div class="header-left">
+      <img src="fruit-logo.svg" alt="logo" class="header-logo">
+      <span class="header-title">果園記帳</span>
     </div>
-    <div class="user-controls">
-      <div id="userInfo" style="display:none; align-items:center; gap:8px;">
-        <span id="userEmailText" class="text-sm text-muted"></span>
-        <button id="logoutBtn" class="btn btn-icon" title="登出並清除存取權"><span
-            class="material-symbols-outlined">logout</span></button>
-      </div>
+    <div class="header-right">
+      <span id="userEmailText" class="user-email" style="display:none"></span>
+      <span id="userRoleBadge" class="role-badge" style="display:none"></span>
+      <button id="logoutBtn" class="btn-icon-sm" title="登出" style="display:none">
+        <span class="material-symbols-outlined">logout</span>
+      </button>
     </div>
   </header>
 
-  <main class="app-container">
-    <!-- Initial Loading / Login State -->
-    <div id="authSection" class="glass card text-center">
-      <h2>請先登入與授權</h2>
-      <p>點擊下方按鈕登入含有試算表權限的 Google 帳號。</p>
-      <div style="margin-top: 1rem;">
-        <button id="authBtn" class="btn btn-outline" style="display: none;">Google 登入</button>
+  <!-- 登入畫面 -->
+  <div id="authSection" class="auth-screen">
+    <div class="auth-card glass">
+      <div class="auth-logo">
+        <img src="fruit-logo.svg" alt="logo" style="width:64px;height:64px;">
+      </div>
+      <h1>果園收支記帳</h1>
+      <p class="auth-desc">記錄山上種植的每一筆成本與收入</p>
+      <button id="authBtn" class="btn btn-primary btn-lg" style="display:none">
+        <span class="material-symbols-outlined">login</span>
+        Google 帳號登入
+      </button>
+      <p class="auth-hint">登入後依據帳號顯示對應權限</p>
+    </div>
+  </div>
+
+  <!-- 主工作區 -->
+  <div id="workspace" style="display:none">
+
+    <!-- Tab 導航 -->
+    <nav class="tab-nav">
+      <button class="tab-btn active" data-tab="income" id="tab-income">
+        <span class="material-symbols-outlined">trending_up</span>
+        <span>收入</span>
+      </button>
+      <button class="tab-btn" data-tab="expense" id="tab-expense">
+        <span class="material-symbols-outlined">trending_down</span>
+        <span>支出</span>
+      </button>
+      <button class="tab-btn" data-tab="admin" id="tab-admin" style="display:none">
+        <span class="material-symbols-outlined">settings</span>
+        <span>管理</span>
+      </button>
+    </nav>
+
+    <!-- ==================== 收入分頁 ==================== -->
+    <section id="page-income" class="tab-page active">
+      <div class="page-inner">
+
+        <!-- 收入統計圖表 -->
+        <div class="card glass chart-card" id="incomeChartCard">
+          <div class="card-header">
+            <h2><span class="material-symbols-outlined">bar_chart</span> 收入統計</h2>
+            <div class="chart-period-btns">
+              <button class="period-btn active" data-period="all">全部</button>
+              <button class="period-btn" data-period="year">今年</button>
+              <button class="period-btn" data-period="month">本月</button>
+            </div>
+          </div>
+          <div id="incomeChartArea" class="chart-area"></div>
+          <div class="chart-pending" id="incomePending"></div>
+        </div>
+
+        <!-- 新增收入按鈕 -->
+        <div class="section-action-row">
+          <h3 class="section-title">收入紀錄</h3>
+          <button class="btn btn-primary btn-sm" id="openIncomeFormBtn">
+            <span class="material-symbols-outlined">add</span> 新增收入
+          </button>
+        </div>
+
+        <!-- 收入篩選列 -->
+        <div class="filter-bar" id="incomeFilterBar">
+          <div class="filter-chips" id="incomeMainCatChips"></div>
+          <div class="filter-tools">
+            <button class="btn-tool" id="incomeClearFilter" title="清除篩選">
+              <span class="material-symbols-outlined">filter_alt_off</span>
+            </button>
+            <button class="btn-tool" id="incomeSortBtn" title="切換排序" data-order="desc">
+              <span class="material-symbols-outlined">sort</span>
+            </button>
+            <button class="btn-tool" id="incomeCopyBtn" title="複製明細">
+              <span class="material-symbols-outlined">content_copy</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 收入紀錄表格 -->
+        <div class="table-wrap">
+          <table class="records-table" id="incomeTable">
+            <thead>
+              <tr>
+                <th>日期</th>
+                <th>品種</th>
+                <th>等級</th>
+                <th>斤數/箱數</th>
+                <th>總價</th>
+                <th>盤商價</th>
+                <th>運費</th>
+                <th>狀態</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="incomeTableBody"></tbody>
+          </table>
+          <div id="incomeEmpty" class="empty-state" style="display:none">
+            <span class="material-symbols-outlined">inbox</span>
+            <p>尚無收入紀錄</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== 支出分頁 ==================== -->
+    <section id="page-expense" class="tab-page">
+      <div class="page-inner">
+
+        <!-- 支出統計圖表 -->
+        <div class="card glass chart-card" id="expenseChartCard">
+          <div class="card-header">
+            <h2><span class="material-symbols-outlined">bar_chart</span> 支出統計</h2>
+            <div class="chart-period-btns">
+              <button class="period-btn active" data-period="all">全部</button>
+              <button class="period-btn" data-period="year">今年</button>
+              <button class="period-btn" data-period="month">本月</button>
+            </div>
+          </div>
+          <div id="expenseChartArea" class="chart-area"></div>
+        </div>
+
+        <!-- 工人薪資詳情（點選後展開） -->
+        <div id="workerDetailPanel" class="worker-detail-panel" style="display:none">
+          <div class="panel-header">
+            <span id="workerDetailName" class="panel-title"></span>
+            <button class="btn-icon-sm" id="closeWorkerDetail">
+              <span class="material-symbols-outlined">close</span>
+            </button>
+          </div>
+          <div id="workerDetailContent"></div>
+        </div>
+
+        <!-- 新增支出按鈕 -->
+        <div class="section-action-row">
+          <h3 class="section-title">支出紀錄</h3>
+          <button class="btn btn-primary btn-sm" id="openExpenseFormBtn">
+            <span class="material-symbols-outlined">add</span> 新增支出
+          </button>
+        </div>
+
+        <!-- 支出篩選列 -->
+        <div class="filter-bar" id="expenseFilterBar">
+          <div class="filter-chips" id="expenseMainCatChips"></div>
+          <div class="filter-chips sub" id="expenseSubCatChips" style="display:none"></div>
+          <div class="filter-tools">
+            <button class="btn-tool" id="expenseClearFilter" title="清除篩選">
+              <span class="material-symbols-outlined">filter_alt_off</span>
+            </button>
+            <button class="btn-tool" id="expenseSortBtn" title="切換排序" data-order="desc">
+              <span class="material-symbols-outlined">sort</span>
+            </button>
+            <button class="btn-tool" id="expenseCopyBtn" title="複製明細">
+              <span class="material-symbols-outlined">content_copy</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 支出紀錄表格 -->
+        <div class="table-wrap">
+          <table class="records-table" id="expenseTable">
+            <thead>
+              <tr>
+                <th>日期</th>
+                <th>主類別</th>
+                <th>次類別</th>
+                <th>姓名</th>
+                <th>數量</th>
+                <th>單價</th>
+                <th>總額</th>
+                <th>已付</th>
+                <th>備註</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="expenseTableBody"></tbody>
+          </table>
+          <div id="expenseEmpty" class="empty-state" style="display:none">
+            <span class="material-symbols-outlined">inbox</span>
+            <p>尚無支出紀錄</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== 管理頁面 ==================== -->
+    <section id="page-admin" class="tab-page">
+      <div class="page-inner">
+
+        <!-- 使用者權限清單 -->
+        <div class="card glass admin-card">
+          <div class="card-header">
+            <h2><span class="material-symbols-outlined">manage_accounts</span> 使用者管理</h2>
+            <button class="btn btn-sm btn-secondary" id="addUserBtn">
+              <span class="material-symbols-outlined">person_add</span> 新增
+            </button>
+          </div>
+          <div class="table-wrap">
+            <table class="records-table">
+              <thead>
+                <tr><th>Google 帳號 Email</th><th>角色</th><th>操作</th></tr>
+              </thead>
+              <tbody id="userListBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- 收入類別管理 -->
+        <div class="card glass admin-card">
+          <div class="card-header">
+            <h2><span class="material-symbols-outlined">trending_up</span> 收入類別管理</h2>
+            <button class="btn btn-sm btn-secondary" id="addIncomeMainCatBtn">
+              <span class="material-symbols-outlined">add</span> 新增主類別
+            </button>
+          </div>
+          <div class="table-wrap">
+            <table class="records-table">
+              <thead>
+                <tr><th>主類別</th><th>次類別（等級）</th><th>操作</th></tr>
+              </thead>
+              <tbody id="incomeMainCatBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- 支出類別管理 -->
+        <div class="card glass admin-card">
+          <div class="card-header">
+            <h2><span class="material-symbols-outlined">trending_down</span> 支出類別管理</h2>
+            <button class="btn btn-sm btn-secondary" id="addExpenseMainCatBtn">
+              <span class="material-symbols-outlined">add</span> 新增主類別
+            </button>
+          </div>
+          <div class="table-wrap">
+            <table class="records-table">
+              <thead>
+                <tr><th>主類別</th><th>類型</th><th>次類別</th><th>預設金額</th><th>操作</th></tr>
+              </thead>
+              <tbody id="expenseMainCatBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- 工人名單管理 -->
+        <div class="card glass admin-card">
+          <div class="card-header">
+            <h2><span class="material-symbols-outlined">groups</span> 工人名單</h2>
+            <button class="btn btn-sm btn-secondary" id="addWorkerBtn">
+              <span class="material-symbols-outlined">person_add</span> 新增
+            </button>
+          </div>
+          <div class="table-wrap">
+            <table class="records-table">
+              <thead>
+                <tr><th>姓名</th><th>預設時薪</th><th>預設日薪</th><th>操作</th></tr>
+              </thead>
+              <tbody id="workerListBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+  </div><!-- /workspace -->
+
+  <!-- ==================== 新增/編輯收入 Modal ==================== -->
+  <div id="incomeModal" class="modal-overlay" style="display:none">
+    <div class="modal-box glass">
+      <div class="modal-header">
+        <h2 id="incomeModalTitle">新增收入</h2>
+        <button class="btn-icon-sm" id="closeIncomeModal">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
+      <form id="incomeForm" class="modal-form">
+        <input type="hidden" id="incomeRecordId">
+
+        <div class="form-row">
+          <div class="input-wrap">
+            <label for="incomeDate">日期 *</label>
+            <input type="date" id="incomeDate" required>
+          </div>
+          <div class="input-wrap">
+            <label for="incomeMainCat">品種 *</label>
+            <select id="incomeMainCat" required></select>
+          </div>
+        </div>
+
+        <!-- 其他品種備註 -->
+        <div class="input-wrap" id="incomeOtherNoteWrap" style="display:none">
+          <label for="incomeOtherNote">品種備註</label>
+          <input type="text" id="incomeOtherNote" placeholder="請填寫品種說明">
+        </div>
+
+        <!-- 等級組（可多組） -->
+        <div class="form-section-label">
+          <span>等級與數量</span>
+          <button type="button" class="btn btn-sm btn-secondary" id="addGradeRowBtn">
+            <span class="material-symbols-outlined">add</span> 新增等級
+          </button>
+        </div>
+        <div id="gradeRowsContainer"></div>
+
+        <hr class="form-divider">
+
+        <!-- 價格資訊（可後填） -->
+        <div class="form-section-label">
+          <span>價格資訊</span>
+          <span class="hint-text">（可後續補填）</span>
+        </div>
+        <div class="form-row">
+          <div class="input-wrap">
+            <label for="incomeTotalPrice">總價 (元)</label>
+            <input type="number" id="incomeTotalPrice" step="1" min="0" placeholder="待確認">
+          </div>
+          <div class="input-wrap">
+            <label for="incomeDealerPrice">盤商價 (元)</label>
+            <input type="number" id="incomeDealerPrice" step="1" min="0" placeholder="待確認">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="input-wrap">
+            <label for="incomeShippingFee">運費 (元)</label>
+            <input type="number" id="incomeShippingFee" step="1" min="0" placeholder="待確認">
+          </div>
+          <div class="input-wrap"></div>
+        </div>
+
+        <div class="input-wrap">
+          <label for="incomeNotes">備註</label>
+          <input type="text" id="incomeNotes" placeholder="補充說明">
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" class="btn btn-secondary" id="cancelIncomeBtn">取消</button>
+          <button type="submit" class="btn btn-primary" id="saveIncomeBtn">儲存</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ==================== 新增/編輯支出 Modal ==================== -->
+  <div id="expenseModal" class="modal-overlay" style="display:none">
+    <div class="modal-box glass">
+      <div class="modal-header">
+        <h2 id="expenseModalTitle">新增支出</h2>
+        <button class="btn-icon-sm" id="closeExpenseModal">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
+      <form id="expenseForm" class="modal-form">
+        <input type="hidden" id="expenseRecordId">
+
+        <div class="form-row">
+          <div class="input-wrap">
+            <label for="expenseDate">日期 *</label>
+            <input type="date" id="expenseDate" required>
+          </div>
+          <div class="input-wrap">
+            <label for="expenseMainCat">主類別 *</label>
+            <select id="expenseMainCat" required></select>
+          </div>
+        </div>
+
+        <!-- 工人薪資：姓名 -->
+        <div class="input-wrap" id="workerNameWrap" style="display:none">
+          <label for="expenseWorker">工人姓名 *</label>
+          <select id="expenseWorker">
+            <option value="">-- 請選擇 --</option>
+          </select>
+        </div>
+
+        <!-- 工人薪資：時薪/日薪切換 -->
+        <div id="wageTypeWrap" style="display:none">
+          <label class="field-label">計薪方式</label>
+          <div class="segmented-control">
+            <label class="seg-btn">
+              <input type="radio" name="wageType" value="hourly" checked>
+              <span>時薪</span>
+            </label>
+            <label class="seg-btn">
+              <input type="radio" name="wageType" value="daily">
+              <span>日薪</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- 工人：次類別複選 chips -->
+        <div id="workerSubCatWrap" style="display:none">
+          <label class="field-label">工作項目（可複選）</label>
+          <div class="chip-group" id="workerSubCatChips"></div>
+        </div>
+
+        <!-- 一般類別：次類別下拉 -->
+        <div class="input-wrap" id="generalSubCatWrap" style="display:none">
+          <label for="expenseSubCat">次類別</label>
+          <select id="expenseSubCat">
+            <option value="">-- 請選擇 --</option>
+          </select>
+        </div>
+
+        <!-- 數量/金額欄位 -->
+        <div class="form-row" id="quantityPriceRow">
+          <div class="input-wrap">
+            <label for="expenseQty" id="expenseQtyLabel">數量 *</label>
+            <input type="number" id="expenseQty" step="0.5" min="0" required>
+          </div>
+          <div class="input-wrap">
+            <label for="expenseUnitPrice" id="expenseUnitLabel">單價 *</label>
+            <input type="number" id="expenseUnitPrice" step="1" min="0" required>
+          </div>
+        </div>
+
+        <!-- 總額顯示 -->
+        <div class="total-preview" id="expenseTotalPreview">
+          合計：<strong id="expenseTotalAmt">$0</strong>
+        </div>
+
+        <!-- 午餐津貼（工人薪資專用） -->
+        <label class="checkbox-label" id="lunchAllowanceWrap" style="display:none">
+          <input type="checkbox" id="includeLunch">
+          <span>含午餐津貼 (+$100)</span>
+        </label>
+
+        <!-- 已付狀態 -->
+        <label class="checkbox-label">
+          <input type="checkbox" id="expenseIsPaid">
+          <span>已支付</span>
+        </label>
+
+        <div class="input-wrap">
+          <label for="expenseNotes">備註</label>
+          <input type="text" id="expenseNotes" placeholder="補充說明">
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" class="btn btn-secondary" id="cancelExpenseBtn">取消</button>
+          <button type="submit" class="btn btn-primary" id="saveExpenseBtn">儲存</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ==================== 管理設定 Modal ==================== -->
+  <div id="adminModal" class="modal-overlay" style="display:none">
+    <div class="modal-box glass">
+      <div class="modal-header">
+        <h2 id="adminModalTitle">新增項目</h2>
+        <button class="btn-icon-sm" id="closeAdminModal">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
+      <form id="adminForm" class="modal-form">
+        <input type="hidden" id="adminEditType">
+        <input type="hidden" id="adminEditId">
+        <div id="adminFormFields"></div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-secondary" id="cancelAdminBtn">取消</button>
+          <button type="submit" class="btn btn-primary">儲存</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ==================== 確認刪除 Modal ==================== -->
+  <div id="confirmModal" class="modal-overlay" style="display:none">
+    <div class="modal-box modal-sm glass">
+      <div class="modal-header">
+        <h2>確認刪除</h2>
+      </div>
+      <p id="confirmMsg" style="margin-bottom:1.5rem; color:var(--text-muted)"></p>
+      <div class="modal-actions">
+        <button class="btn btn-secondary" id="confirmCancel">取消</button>
+        <button class="btn btn-danger" id="confirmOk">確認刪除</button>
       </div>
     </div>
-
-    <!-- Main Workspace (Hidden until logged in) -->
-    <div id="workspace" style="display: none;">
-
-      <!-- User Form: Add Record -->
-      <section class="form-section card glass" id="formSection">
-        <div class="form-header">
-          <h2>新增工時紀錄</h2>
-          <span class="role-badge" id="currentRoleBadge">使用者模式</span>
-        </div>
-        <form id="recordForm">
-          <input type="hidden" id="recordId">
-          <div class="form-group row">
-            <div class="input-wrap">
-              <label for="workDate">日期 *</label>
-              <input type="date" id="workDate" required>
-            </div>
-            <div class="input-wrap" id="workerNameWrap">
-              <label for="workerName">工人姓名 *</label>
-              <!-- Populated from Settings -->
-              <input type="text" id="workerName" list="workerList" required>
-              <datalist id="workerList"></datalist>
-            </div>
-          </div>
-
-          <div class="form-group row">
-            <div class="input-wrap">
-              <label for="mainCategory">主類別 *</label>
-              <select id="mainCategory" required>
-                <!-- Populated from settings -->
-                <option value="工人" selected>工人</option>
-              </select>
-            </div>
-            <div class="input-wrap">
-              <label for="subCategory">工作項目 *</label>
-              <select id="subCategory" required>
-                <!-- Populated from settings -->
-              </select>
-            </div>
-          </div>
-
-          <div class="form-group row">
-            <div class="input-wrap">
-              <label for="workHours" id="hoursLabel">時數/天數/數量 *</label>
-              <input type="number" id="workHours" step="0.5" min="0" required>
-            </div>
-            <div class="input-wrap">
-              <label for="hourlyRate" id="rateLabel">時薪/日薪/單價 *</label>
-              <input type="number" id="hourlyRate" step="10" min="0" required>
-            </div>
-          </div>
-
-          <div class="form-group row" style="align-items: center;">
-            <div class="input-wrap" style="flex: 1;">
-              <label for="notes">備註</label>
-              <input type="text" id="notes">
-            </div>
-            <div class="input-wrap checkbox-wrap" id="lunchCheckWrap" style="flex: 0 0 auto; margin-top: 1.5rem; display: flex; align-items: center; gap: 8px;">
-              <input type="checkbox" id="includeLunch" style="width: auto; height: 18px; margin: 0;">
-              <label for="includeLunch" style="margin: 0; font-weight: normal; cursor: pointer;">包含午餐 (+$100)</label>
-            </div>
-          </div>
-
-          <div class="form-actions">
-            <button type="button" class="btn btn-secondary" id="resetFormBtn">清除</button>
-            <button type="submit" class="btn btn-primary" id="saveBtn">儲存紀錄</button>
-          </div>
-        </form>
-      </section>
-
-      <!-- Copy to Line Utility -->
-      <section class="copy-section card glass">
-        <h3>複製小幫手 <span class="material-symbols-outlined text-sm">content_copy</span></h3>
-        <div class="input-wrap" style="margin-bottom: 1rem;">
-          <label>指定日期產生明細</label>
-          <div style="display: flex; gap: 0.5rem;">
-            <input type="date" id="copyDate">
-            <button class="btn btn-primary" id="copyToLineBtn">產生並複製</button>
-          </div>
-        </div>
-        <textarea id="copyPreview" rows="4" readonly hidden
-          style="width: 100%; border-radius: 8px; padding: 8px; font-size: 0.9em;"></textarea>
-      </section>
-
-      <!-- Admin Settings Section (Hidden by default) -->
-      <section class="admin-section card glass" id="adminSection" style="display: none;">
-        <h2><span class="material-symbols-outlined text-warning">settings</span> 管理員設定 (同步至 Google Sheets)</h2>
-        <div class="settings-grid">
-          <div class="settings-box">
-            <label>新增常用工人</label>
-            <div style="display:flex; gap:0.5rem;">
-              <input type="text" id="newWorkerInput">
-              <button class="btn btn-secondary" onclick="addSetting('Worker', 'newWorkerInput')">新增</button>
-            </div>
-            <div id="workerListAdmin" class="mt-1" style="font-size: 0.9em; max-height: 100px; overflow-y: auto;"></div>
-          </div>
-          <div class="settings-box">
-            <label>新主類別</label>
-            <div style="display:flex; gap:0.5rem;">
-              <input type="text" id="newMainCatInput">
-              <button class="btn btn-secondary" onclick="addSetting('MainCategory', 'newMainCatInput')">新增</button>
-            </div>
-            <div id="mainCatListAdmin" class="mt-1" style="font-size: 0.9em; max-height: 100px; overflow-y: auto;"></div>
-          </div>
-          <div class="settings-box">
-            <label>新增工作項目(次類別)</label>
-            <div style="display:flex; gap:0.5rem;">
-              <input type="text" id="newSubCatInput">
-              <button class="btn btn-secondary" onclick="addSetting('SubCategory', 'newSubCatInput')">新增</button>
-            </div>
-            <div id="subCatListAdmin" class="mt-1" style="font-size: 0.9em; max-height: 100px; overflow-y: auto;"></div>
-          </div>
-        </div>
-      </section>
-
-      <!-- Records View -->
-      <section class="records-section">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-          <h2 style="margin:0;">近期紀錄</h2>
-          <button class="btn btn-icon" id="refreshBtn" title="重新載入資料"><span
-              class="material-symbols-outlined">refresh</span></button>
-        </div>
-        <div id="recordsList" class="records-list mt-2">
-          <!-- Populated by JS -->
-        </div>
-      </section>
-
-    </div>
-  </main>
-
-  <!-- Loading overlay -->
-  <div id="loader" class="loader-overlay" style="display:none;">
-    <div class="spinner"></div>
-    <div style="color:white; margin-top:1rem;" id="loaderMsg">處理中...</div>
   </div>
+
+  <!-- ==================== 複製明細 Modal ==================== -->
+  <div id="copyModal" class="modal-overlay" style="display:none">
+    <div class="modal-box glass">
+      <div class="modal-header">
+        <h2>複製明細</h2>
+        <button class="btn-icon-sm" id="closeCopyModal">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
+      <div class="input-wrap" style="margin-bottom:1rem">
+        <label>選擇日期範圍</label>
+        <div class="form-row">
+          <input type="date" id="copyDateFrom">
+          <input type="date" id="copyDateTo">
+        </div>
+      </div>
+      <textarea id="copyPreview" class="copy-textarea" readonly></textarea>
+      <div class="modal-actions">
+        <button class="btn btn-secondary" id="cancelCopyBtn">關閉</button>
+        <button class="btn btn-primary" id="doCopyBtn">
+          <span class="material-symbols-outlined">content_copy</span> 複製到剪貼簿
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Loading Overlay -->
+  <div id="loader" class="loader-overlay" style="display:none">
+    <div class="spinner"></div>
+    <div class="loader-msg" id="loaderMsg">處理中...</div>
+  </div>
+
+  <!-- Toast 通知 -->
+  <div id="toast" class="toast" style="display:none"></div>
 
   <script src="app.js"></script>
 </body>
-
 </html>
