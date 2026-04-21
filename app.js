@@ -8,7 +8,7 @@
 // ============================================================
 const SPREADSHEET_ID = '1rjVEG9x9ZJ6f3BSuC4CL_wYRATFvbGiZAGkwkzDP168';
 const CLIENT_ID = '647415610600-eio0d6dqpu80j80gki4l9m5qfemmlkab.apps.googleusercontent.com';
-const SCOPES = 'https://www.googleapis.com/auth/spreadsheets';
+const SCOPES = 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/userinfo.email openid';
 
 // 工作表名稱（全部使用繁體中文）
 const SHEET = {
@@ -181,14 +181,15 @@ async function afterLogin() {
     await fetchAllData();
 
     // 確認使用者角色
-    let userRow = usersData.find(u => u.email.toLowerCase() === email.toLowerCase());
+    const cleanEmail = email.trim().toLowerCase();
+    let userRow = usersData.find(u => u.email === cleanEmail);
     
     // 如果系統完全沒有使用者，或者是特定條件下的首位登入者
     if (usersData.length === 0 && !userRow) {
       console.log('系統初始登入：自動將首位使用者設為管理員');
       await addUserToSheet(email, 'admin');
       await fetchUsers(); // 重新讀取名單
-      userRow = usersData.find(u => u.email.toLowerCase() === email.toLowerCase());
+      userRow = usersData.find(u => u.email === cleanEmail);
     }
 
     if (!userRow) {
@@ -200,12 +201,21 @@ async function afterLogin() {
     isAdmin = currentUser.role === 'admin';
 
     // 更新 header
-    const currentName = userRow?.nickname || email.split('@')[0];
-    document.getElementById('userNameDisplay').textContent = currentName;
-    document.getElementById('userRoleBadge').textContent = isAdmin ? '管理員' : '使用者';
+    const currentName = userRow?.nickname || (email ? email.split('@')[0] : '訪客');
+    const roleDisplay = isAdmin ? '管理員' : '使用者';
+    
+    // 將別名整合進身分標籤，並隱藏原本重複的暱稱文字
+    document.getElementById('userNameDisplay').style.display = 'none'; 
+    document.getElementById('userRoleBadge').textContent = `${roleDisplay} · ${currentName}`;
     document.getElementById('userRoleBadge').className = `role-badge${isAdmin ? ' admin' : ''}`;
     document.getElementById('userInfo').style.display = 'flex';
     document.getElementById('logoutBtn').style.display = 'inline-flex';
+
+    if (email) {
+      showToast(`歡迎回來 ${currentName}！系統識別身份：${roleDisplay}`, 'success');
+    } else {
+      showToast(`登入成功，但無法抓取 Email。請確認是否已勾選權限。`, 'warning');
+    }
 
     if (isAdmin) {
       document.getElementById('tab-admin').style.display = 'flex';
@@ -356,9 +366,9 @@ async function fetchUsers() {
       range: `${SHEET.USERS}!A2:D`,
     });
     usersData = (res.result.values || []).map(r => ({
-      nickname: r[0] || '',
-      email: r[1] || '', 
-      role: r[2] || 'user', 
+      nickname: (r[0] || '').trim(),
+      email: (r[1] || '').trim().toLowerCase(), 
+      role: (r[2] || 'user').trim().toLowerCase(), 
     }));
   } catch (e) { usersData = []; }
 }
