@@ -1,0 +1,27 @@
+{
+  "name": "salary",
+  "version": "1.0.0",
+  "description": "",
+  "main": "app.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zfdxi56/salary.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/zfdxi56/salary/issues"
+  },
+  "homepage": "https://github.com/zfdxi56/salary#readme",
+  "dependencies": {
+    "chart.js": "^4.5.1"
+  }
+}

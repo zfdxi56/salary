@@ -268,6 +268,91 @@ body {
   margin-bottom: 1rem;
   box-shadow: var(--shadow);
 }
+.balance-overview-card {
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
+  margin-bottom: 1rem;
+  box-shadow: var(--shadow-lg);
+  background: white;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+.balance-overview-header {
+  display: flex;
+  justify-content: flex-end;
+}
+.balance-period-btns {
+  display: flex;
+  gap: 0.25rem;
+  background: var(--bg2);
+  padding: 4px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border);
+}
+.period-btn {
+  border: none;
+  background: transparent;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: var(--transition);
+}
+.period-btn.active {
+  background: white;
+  color: var(--text);
+  box-shadow: var(--shadow-sm);
+}
+.balance-summary-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.summary-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: #f8fafc;
+  padding: 1rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+}
+.summary-item .label {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+.summary-item .value {
+  font-size: 1.25rem;
+  font-weight: 800;
+}
+.summary-item.income-color .value { color: var(--green-dark); }
+.summary-item.expense-color .value { color: var(--red); }
+
+.balance-net-amount {
+  text-align: center;
+  margin-top: 0.5rem;
+  padding-top: 1rem;
+  border-top: 1px dashed var(--border);
+}
+.balance-net-amount .label {
+  display: block;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+.balance-net-amount .value {
+  font-size: 2.5rem;
+  font-weight: 800;
+  color: var(--text);
+  letter-spacing: -0.02em;
+}
+
 .admin-card {
   margin-bottom: 1rem;
 }

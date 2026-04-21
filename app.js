@@ -509,6 +509,8 @@ function renderAll() {
   renderExpenseTable();
   renderExpenseFilterChips();
 
+  renderBalancePage();
+
   if (isAdmin) {
     renderAdminPage();
     // 如果已有資料，隱藏初始化區塊
@@ -2302,3 +2304,148 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('import2025Btn')?.addEventListener('click', importHistoricalData2025);
   }, 2000);
 });
+
+// ============================================================
+// 16. 結餘分頁邏輯
+// ============================================================
+let balanceChartInstance = null;
+let currentBalancePeriod = 'all';
+
+document.querySelectorAll('#page-balance .period-btn').forEach(btn => {
+  btn.addEventListener('click', (e) => {
+    document.querySelectorAll('#page-balance .period-btn').forEach(b => b.classList.remove('active'));
+    e.target.classList.add('active');
+    currentBalancePeriod = e.target.dataset.period;
+    renderBalancePage();
+  });
+});
+
+function renderBalancePage() {
+  // 1. 取得過濾後的資料
+  const incData = getFilteredByPeriod(incomeData, '日期', currentBalancePeriod);
+  const expData = getFilteredByPeriod(expenseData, '日期', currentBalancePeriod);
+
+  // 2. 計算總和
+  let totalIncome = 0;
+  incData.forEach(r => totalIncome += (parseFloat(r.總價) || 0));
+  
+  let totalExpense = 0;
+  expData.forEach(r => totalExpense += calcExpenseTotal(r));
+
+  const netBalance = totalIncome - totalExpense;
+
+  // 3. 更新卡片數字
+  document.getElementById('balanceTotalIncome').textContent = `$${totalIncome.toLocaleString()}`;
+  document.getElementById('balanceTotalExpense').textContent = `$${totalExpense.toLocaleString()}`;
+  
+  const netEl = document.getElementById('balanceNetAmount');
+  netEl.textContent = `$${netBalance.toLocaleString()}`;
+  netEl.style.color = netBalance >= 0 ? 'var(--green-dark)' : 'var(--red)';
+
+  // 4. 繪製圓餅圖 (Chart.js)
+  renderBalanceChart(totalIncome, totalExpense);
+
+  // 5. 繪製各月收支明細
+  renderBalanceMonthlyTable(incData, expData);
+}
+
+function renderBalanceChart(income, expense) {
+  const ctx = document.getElementById('balancePieChart');
+  if (!ctx) return;
+
+  if (balanceChartInstance) {
+    balanceChartInstance.destroy();
+  }
+
+  // 若都為 0 則顯示灰底
+  if (income === 0 && expense === 0) {
+     balanceChartInstance = new Chart(ctx, {
+       type: 'doughnut',
+       data: {
+         labels: ['無資料'],
+         datasets: [{ data: [1], backgroundColor: ['#e2e8f0'], borderWidth: 0 }]
+       },
+       options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { enabled: false } }, cutout: '75%' }
+     });
+     return;
+  }
+
+  balanceChartInstance = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: ['收入', '支出'],
+      datasets: [{
+        data: [income, expense],
+        backgroundColor: ['#22c55e', '#ef4444'],
+        borderWidth: 0,
+        hoverOffset: 4
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      cutout: '75%',
+      plugins: {
+        legend: { position: 'bottom', labels: { usePointStyle: true, padding: 20 } },
+        tooltip: {
+          callbacks: {
+            label: function(context) {
+              let label = context.label || '';
+              if (label) { label += ': '; }
+              if (context.parsed !== null) {
+                label += '$' + context.parsed.toLocaleString();
+              }
+              return label;
+            }
+          }
+        }
+      }
+    }
+  });
+}
+
+function renderBalanceMonthlyTable(incData, expData) {
+  const tbody = document.getElementById('balanceMonthlyTableBody');
+  if (!tbody) return;
+
+  // 聚合到月份
+  const monthlyMap = {};
+  
+  // 處理收入
+  incData.forEach(r => {
+    if(!r.日期) return;
+    const month = r.日期.substring(0, 7); // YYYY-MM
+    if(!monthlyMap[month]) monthlyMap[month] = { income: 0, expense: 0 };
+    monthlyMap[month].income += (parseFloat(r.總價) || 0);
+  });
+
+  // 處理支出
+  expData.forEach(r => {
+    if(!r.日期) return;
+    const month = r.日期.substring(0, 7); // YYYY-MM
+    if(!monthlyMap[month]) monthlyMap[month] = { income: 0, expense: 0 };
+    monthlyMap[month].expense += calcExpenseTotal(r);
+  });
+
+  // 排序 (由新到舊)
+  const months = Object.keys(monthlyMap).sort((a,b) => b.localeCompare(a));
+  
+  tbody.innerHTML = '';
+  if (months.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-muted);">無資料</td></tr>';
+    return;
+  }
+
+  months.forEach(m => {
+    const stat = monthlyMap[m];
+    const net = stat.income - stat.expense;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><strong>${m}</strong></td>
+      <td style="color:var(--green-dark);">$${stat.income.toLocaleString()}</td>
+      <td style="color:var(--red);">$${stat.expense.toLocaleString()}</td>
+      <td style="font-weight:bold; color:${net >= 0 ? 'var(--green-dark)' : 'var(--red)'};">$${net.toLocaleString()}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
