@@ -62,6 +62,10 @@
         <span class="material-symbols-outlined">trending_down</span>
         <span>支出</span>
       </button>
+      <button class="tab-btn" data-tab="orders" id="tab-orders">
+        <span class="material-symbols-outlined">list_alt</span>
+        <span>客戶訂單</span>
+      </button>
       <button class="tab-btn" data-tab="balance" id="tab-balance">
         <span class="material-symbols-outlined">account_balance_wallet</span>
         <span>結餘</span>
@@ -84,19 +88,60 @@
               <button class="period-btn" data-period="month">本月</button>
             </div>
           </div>
-          <div class="balance-summary-row">
+          
+          <!-- 第一排：收支總覽 -->
+          <div class="balance-summary-row grid-3">
+             <div class="summary-item category-color">
+                <span class="label">市場收入</span>
+                <span class="value" id="balanceMarketIncome">$0</span>
+             </div>
+             <div class="summary-item income-color">
+                <span class="label">客戶銷售收入</span>
+                <span class="value" id="balanceSalesIncome">$0</span>
+             </div>
              <div class="summary-item expense-color">
                 <span class="label">總支出</span>
                 <span class="value" id="balanceTotalExpense">$0</span>
              </div>
-             <div class="summary-item income-color">
-                <span class="label">總收入</span>
-                <span class="value" id="balanceTotalIncome">$0</span>
-             </div>
           </div>
-          <div class="balance-net-amount">
+          
+          <div class="balance-net-amount" style="margin-top:0.5rem">
             <span class="label">結餘</span>
             <span class="value" id="balanceNetAmount">$0</span>
+          </div>
+
+          <hr style="border:0;border-top:1px solid var(--border);margin:1rem 0">
+
+          <!-- 第二排：生產數據 (四格) -->
+          <div class="balance-summary-row grid-4" style="gap:0.75rem">
+             <div class="summary-item default-color">
+                <span class="label">套袋數</span>
+                <span class="value" id="balanceBagCount">0</span>
+             </div>
+             <div class="summary-item default-color">
+                <span class="label">預估損耗袋數</span>
+                <span class="value" id="balanceLossBagCount">0</span>
+             </div>
+             <div class="summary-item default-color">
+                <span class="label">應採收重量 (KG)</span>
+                <span class="value" id="balanceExpectedKG">0</span>
+             </div>
+             <div class="summary-item default-color">
+                <span class="label">實際採收總重 (KG)</span>
+                <span class="value" id="balanceActualKG">0</span>
+             </div>
+          </div>
+
+          <!-- 損耗數據 -->
+          <div class="balance-summary-row grid-2" style="margin-top:0.75rem">
+             <div class="summary-item orange-color">
+                <span class="label">損耗量 (KG)</span>
+                <span class="value" id="balanceLossKG">0</span>
+             </div>
+             <div class="summary-item orange-color">
+                <span class="label">損耗百分率</span>
+                <span class="value" id="balanceLossPercent">0%</span>
+             </div>
           </div>
         </div>
 
@@ -107,11 +152,10 @@
            </div>
            <div class="chart-container" style="position: relative; height:30vh; width:100%; display:flex; justify-content:center; align-items:center;">
              <canvas id="balancePieChart"></canvas>
-             <!-- 中間文字遮罩會在 app.js 處理或者利用 Chart.js plugin -->
            </div>
         </div>
 
-        <!-- 結餘明細表 (各月) -->
+        <!-- 月度明細 -->
         <div class="card glass">
            <div class="card-header">
              <h2>月度收支明細</h2>
@@ -119,7 +163,7 @@
            <div class="table-wrap">
              <table class="records-table">
                <thead>
-                 <tr><th>期間</th><th>收入</th><th>支出</th><th>淨結餘</th></tr>
+                 <tr><th>期間</th><th>市場收入</th><th>客戶銷售</th><th>支出</th><th>淨結餘</th></tr>
                </thead>
                <tbody id="balanceMonthlyTableBody"></tbody>
              </table>
@@ -281,6 +325,52 @@
         </div>
       </div>
     </section>
+    <!-- ==================== 客戶訂單分頁 ==================== -->
+    <section id="page-orders" class="tab-page">
+      <div class="page-inner">
+        <!-- 訂單統計/動作區 -->
+        <div class="section-action-row" style="margin-top:0">
+          <h3 class="section-title">客戶訂單</h3>
+          <button class="btn btn-primary btn-sm" id="openOrderFormBtn">
+            <span class="material-symbols-outlined">add</span> 新增訂單
+          </button>
+        </div>
+
+        <div class="filter-bar" id="orderFilterBar">
+          <div class="filter-tools" style="margin-left:auto">
+            <button class="btn-tool" id="orderSortBtn" title="切換排序 (以到貨日/訂購日為準)" data-order="desc">
+              <span class="material-symbols-outlined">sort</span>
+            </button>
+            <button class="btn-tool" id="orderCopyBtn" title="複製訂單明細">
+              <span class="material-symbols-outlined">content_copy</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 訂單紀錄表格 -->
+        <div class="table-wrap">
+          <table class="records-table" id="orderTable">
+            <thead>
+              <tr>
+                <th>品種與狀態</th>
+                <th>日期(到貨/訂購)</th>
+                <th>等級/箱數</th>
+                <th>金額</th>
+                <th>寄件人</th>
+                <th>收件資訊</th>
+                <th>取貨方式</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="orderTableBody"></tbody>
+          </table>
+          <div id="orderEmpty" class="empty-state" style="display:none">
+            <span class="material-symbols-outlined">list_alt</span>
+            <p>尚無訂單紀錄</p>
+          </div>
+        </div>
+      </div>
+    </section>
 
     <!-- ==================== 管理頁面 ==================== -->
     <section id="page-admin" class="tab-page">
@@ -306,8 +396,8 @@
           </div>
         </div>
 
-        <!-- 使用者權限清單 -->
-        <div class="card glass admin-card">
+        <!-- 使用者權限清單 (依據需求暫時隱藏不顯示給一般管理員) -->
+        <div class="card glass admin-card" style="display:none">
           <div class="card-header">
             <h2><span class="material-symbols-outlined">manage_accounts</span> 使用者管理</h2>
             <button class="btn btn-sm btn-secondary" id="addUserBtn">
@@ -421,14 +511,11 @@
           <input type="text" id="incomeOtherNote" placeholder="請填寫品種說明">
         </div>
 
-        <!-- 等級組（可多組） -->
+        <!-- 等級組（根據品種自動展開所有等級） -->
         <div class="form-section-label">
-          <span>等級與數量</span>
-          <button type="button" class="btn btn-sm btn-secondary" id="addGradeRowBtn">
-            <span class="material-symbols-outlined">add</span> 新增等級
-          </button>
+          <span>等級與數量 (依品種展開)</span>
         </div>
-        <div id="gradeRowsContainer"></div>
+        <div id="gradeRowsContainer" class="grade-auto-grid"></div>
 
         <hr class="form-divider">
 
@@ -585,6 +672,138 @@
         <div class="modal-actions">
           <button type="button" class="btn btn-secondary" id="cancelExpenseBtn">取消</button>
           <button type="submit" class="btn btn-primary" id="saveExpenseBtn">儲存</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ==================== 新增/編輯客戶訂單 Modal ==================== -->
+  <div id="orderModal" class="modal-overlay" style="display:none">
+    <div class="modal-box glass">
+      <div class="modal-header">
+        <h2 id="orderModalTitle">新增訂單</h2>
+        <button class="btn-icon-sm" id="closeOrderModal">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
+      <form id="orderForm" class="modal-form">
+        <input type="hidden" id="orderRecordId">
+
+        <div class="form-row">
+          <div class="input-wrap">
+            <label for="orderDate">下定日期 *</label>
+            <input type="date" id="orderDate" required>
+          </div>
+          <div class="input-wrap">
+            <label for="orderArrivalDate">到貨日期</label>
+            <input type="date" id="orderArrivalDate">
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="input-wrap">
+            <label for="orderMainCat">訂購品種 *</label>
+            <select id="orderMainCat" required></select>
+          </div>
+          <div class="input-wrap" id="orderSubCatWrap">
+            <label for="orderSubCat">品項次類別</label>
+            <select id="orderSubCat"></select>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="input-wrap">
+            <label for="orderGrade">訂購等級</label>
+            <select id="orderGrade"></select>
+          </div>
+          <div class="input-wrap">
+            <label for="orderQuantity">訂單內容 (箱/袋數) *</label>
+            <div style="display:flex;gap:0.5rem">
+              <input type="number" id="orderQuantity" step="1" min="1" style="flex:1" required>
+              <input type="text" id="orderUnit" placeholder="單位(箱)" style="width:4rem">
+            </div>
+          </div>
+        </div>
+
+        <div class="input-wrap">
+          <label>取貨方式</label>
+          <select id="orderDeliveryType">
+            <option value="黑貓宅配">黑貓宅配</option>
+            <option value="山上自取">山上自取</option>
+            <option value="公司取">公司取</option>
+            <option value="老闆送">老闆送</option>
+          </select>
+          <small class="field-hint" style="color:var(--orange)">註：黑貓宅配無法於週日與週一到貨</small>
+        </div>
+
+        <div class="input-wrap">
+          <label>訂單總價 (由系統自動抓取金額試算) *</label>
+          <input type="number" id="orderTotalPrice" placeholder="將根據品種與等級自動試算" required>
+        </div>
+
+        <hr class="form-divider" style="margin: 1rem 0">
+
+        <!-- 寄件/收件資訊 -->
+        <div class="form-section-label">
+          <span>客戶資訊</span>
+        </div>
+
+        <div class="form-row">
+          <div class="input-wrap">
+            <label for="orderSenderName">寄件人 (客戶) *</label>
+            <input type="text" id="orderSenderName" list="customerList" placeholder="輸入名稱或從清單選取" autocomplete="off" required>
+            <datalist id="customerList"></datalist>
+          </div>
+          <div class="input-wrap">
+            <label for="orderSenderPhone">寄件人電話</label>
+            <input type="text" id="orderSenderPhone" placeholder="0912345678">
+          </div>
+        </div>
+
+        <div class="input-wrap">
+          <label class="checkbox-label" style="justify-content:flex-start; margin-bottom: 0.5rem">
+            <input type="checkbox" id="orderSameAsSender">
+            <span style="font-weight:bold; color:var(--text)">📍 收件人同寄件人</span>
+          </label>
+        </div>
+
+        <div class="form-row" id="receiverRow">
+          <div class="input-wrap">
+            <label for="orderReceiverName">收件人 *</label>
+            <input type="text" id="orderReceiverName" required>
+          </div>
+          <div class="input-wrap">
+            <label for="orderReceiverPhone">收件人電話 *</label>
+            <input type="text" id="orderReceiverPhone" required>
+          </div>
+        </div>
+        
+        <div class="input-wrap" id="receiverAddressRow">
+          <label for="orderReceiverAddress">收件人地址</label>
+          <input type="text" id="orderReceiverAddress" placeholder="輸入詳細地址">
+        </div>
+
+        <div class="form-row">
+          <div class="input-wrap">
+            <label class="checkbox-label" style="justify-content:flex-start;margin-top:0.5rem">
+              <input type="checkbox" id="orderNeedSenderRemark">
+              <span>需備註寄件人 (Y/N)</span>
+            </label>
+          </div>
+          <div class="input-wrap">
+            <label for="orderStatus">訂單狀態</label>
+            <select id="orderStatus">
+              <option value="未指定">未指定</option>
+              <option value="預定出貨">預定出貨</option>
+              <option value="已出貨">已出貨</option>
+              <option value="已指定">已指定</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" class="btn btn-secondary" id="cancelOrderBtn">取消</button>
+          <button type="submit" class="btn btn-primary" id="saveOrderBtn">儲存</button>
         </div>
       </form>
     </div>

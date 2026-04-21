@@ -14,11 +14,14 @@ const SCOPES = 'https://www.googleapis.com/auth/spreadsheets https://www.googlea
 const SHEET = {
   USERS: '使用者',
   INCOME_CATS: '設定_品種',
+  RETAIL_PRICE: '設定_對外販售金額',
   EXPENSE_CATS: '設定_支出類別',
   WORKERS: '設定_工人名單',
   UNITS: '設定_單位清單',
-  INCOME: '收入',
+  MARKET_INCOME: '市場收入',
   EXPENSE: '支出',
+  CUSTOMERS: '客戶資料',
+  ORDERS: '客戶訂單明細',
 };
 
 // ============================================================
@@ -34,10 +37,13 @@ let isAdmin = false;
 let incomeData = [];   // 收入紀錄
 let expenseData = [];  // 支出紀錄
 let usersData = [];    // 使用者清單
+let customersData = []; // 客戶資料
+let ordersData = [];    // 訂單資料
 
 // Settings 資料
 let settings = {
-  incomeMainCats: [],    // [{ 名稱 }]
+  incomeMainCats: [],    // [{ 名稱, 次類別: [], 等級: [] }]
+  retailPrices: [],      // [{ 品種, 次類別, 等級, 單位, 顆數, 售價 }]
   expenseMainCats: [],   // [{ 名稱, 類型, 次類別: [{名稱, 預設金額}] }]
   workers: [],           // [{ 姓名, 預設時薪, 預設日薪 }]
   units: [],             // [名稱]
@@ -47,6 +53,7 @@ let settings = {
 const filterState = {
   income: { mainCat: null, sortOrder: 'desc', period: 'all' },
   expense: { mainCat: null, subCat: null, sortOrder: 'desc', period: 'all' },
+  order: { sortOrder: 'desc' },
 };
 
 // ============================================================
@@ -304,12 +311,16 @@ async function ensureSheetsExist() {
 async function initSheetHeaders() {
   const ranges = [
     {
-      range: `${SHEET.INCOME_CATS}!A1:B1`,
-      values: [['品種名稱', '備用']]
+      range: `${SHEET.INCOME_CATS}!A1:F1`,
+      values: [['品種名稱', '備用', '品種次類別', '產季', '等級', '備註']]
     },
     {
-      range: `${SHEET.EXPENSE_CATS}!A1:D1`,
-      values: [['主類別', '次類別', '類型', '預設金額']]
+      range: `${SHEET.RETAIL_PRICE}!A1:G1`,
+      values: [['品種主類別', '品種次類別', '等級', '單位(箱/袋)', '顆數', '收費(已含運)', '備註']]
+    },
+    {
+      range: `${SHEET.EXPENSE_CATS}!A1:E1`,
+      values: [['主類別', '次類別', '類型', '預設金額', '備註']]
     },
     {
       range: `${SHEET.WORKERS}!A1:C1`,
@@ -320,12 +331,20 @@ async function initSheetHeaders() {
       values: [['單位名稱']]
     },
     {
-      range: `${SHEET.INCOME}!A1:N1`,
+      range: `${SHEET.MARKET_INCOME}!A1:N1`,
       values: [['編號', '日期', '主類別', '其他備註', '等級資料(JSON)', '總重(斤)', '箱數', '總價', '盤商價', '運費', '附註', '價格已確認', '建立時間', '最後更新']]
     },
     {
       range: `${SHEET.EXPENSE}!A1:O1`,
       values: [['編號', '日期', '主類別', '次類別', '工人姓名', '計薪方式', '數量', '單位', '單價', '總額', '含午餐', '已支付', '附註', '建立時間', '最後更新']]
+    },
+    {
+      range: `${SHEET.CUSTOMERS}!A1:I1`,
+      values: [['客戶編號', '客戶來源', '客戶渠道', '寄件人(客戶)', '寄件人電話', '收件人', '收件人電話', '收件人地址', '備註']]
+    },
+    {
+      range: `${SHEET.ORDERS}!A1:O1`,
+      values: [['訂購品項', '品項類別', '狀態', '下定日期', '到貨日期', '訂購等級', '訂單內容', '寄件人(客戶)', '寄件人電話', '收件人', '收件人電話', '收件人地址', '需備註寄件人', '取貨方式', '總價']]
     },
     {
       range: `${SHEET.USERS}!A1:D1`,
@@ -352,6 +371,8 @@ async function fetchAllData() {
       fetchSettings(),
       fetchIncome(),
       fetchExpense(),
+      fetchCustomers(),
+      fetchOrders()
     ]);
   } catch (e) {
     console.error(e);
@@ -375,19 +396,52 @@ async function fetchUsers() {
 
 async function fetchSettings() {
   try {
-    const [resInc, resExp, resWork, resUnit] = await Promise.all([
-      gapi.client.sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: `${SHEET.INCOME_CATS}!A2:B` }),
-      gapi.client.sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: `${SHEET.EXPENSE_CATS}!A2:D` }),
+    const [resInc, resRetail, resExp, resWork, resUnit] = await Promise.all([
+      gapi.client.sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: `${SHEET.INCOME_CATS}!A2:F` }),
+      gapi.client.sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: `${SHEET.RETAIL_PRICE}!A2:G` }),
+      gapi.client.sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: `${SHEET.EXPENSE_CATS}!A2:E` }),
       gapi.client.sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: `${SHEET.WORKERS}!A2:C` }),
       gapi.client.sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: `${SHEET.UNITS}!A2:A` }),
     ]);
 
-    settings = { incomeMainCats: [], expenseMainCats: [], workers: [], units: [] };
+    settings = { incomeMainCats: [], retailPrices: [], expenseMainCats: [], workers: [], units: [] };
 
     // 品種
     (resInc.result.values || []).forEach(r => {
-      if (r[0]) settings.incomeMainCats.push({ 名稱: r[0] });
+      const main = r[0], sub = r[2] || '', gradeStr = r[4] || '';
+      if (!main) return;
+      
+      let cat = settings.incomeMainCats.find(c => c.名稱 === main);
+      if (!cat) {
+        cat = { 名稱: main, 次類別: [], 等級: [] };
+        settings.incomeMainCats.push(cat);
+      }
+      if (sub && !cat.次類別.includes(sub)) cat.次類別.push(sub);
+      
+      // 解析逗號分隔的等級
+      if (gradeStr) {
+        gradeStr.split(/[,、]/).forEach(g => {
+          const gn = g.trim();
+          if (gn && !cat.等級.includes(gn)) cat.等級.push(gn);
+        });
+      }
     });
+
+    // 對外販售金額
+    (resRetail.result.values || []).forEach(r => {
+      if (r[0]) {
+        settings.retailPrices.push({
+          品種主類別: r[0] || '',
+          品種次類別: r[1] || '',
+          等級: r[2] || '',
+          單位: r[3] || '',
+          顆數: r[4] || '',
+          售價: r[5] || '',
+          備註: r[6] || ''
+        });
+      }
+    });
+
     // 支出類別
     (resExp.result.values || []).forEach(r => {
       const main = r[0], sub = r[1], rawType = r[2] || 'material', amt = r[3] || '';
@@ -414,14 +468,15 @@ async function fetchSettings() {
     });
 
     // 預設值備援
-    if (settings.incomeMainCats.length === 0) settings.incomeMainCats = DEFAULT_INCOME_CATS.map(n => ({ 名稱: n }));
+    if (settings.incomeMainCats.length === 0) settings.incomeMainCats = DEFAULT_INCOME_CATS.map(n => ({ 名稱: n, 次類別:[], 等級: GRADE_OPTIONS }));
     if (settings.expenseMainCats.length === 0) settings.expenseMainCats = DEFAULT_EXPENSE_CATS.map(c => ({ ...c }));
     if (settings.units.length === 0) settings.units = ['包', '罐', '箱', '件', '斤', '天', '小時'];
     
   } catch (e) {
     console.error('fetchSettings 失敗:', e);
     settings = {
-      incomeMainCats: DEFAULT_INCOME_CATS.map(n => ({ 名稱: n })),
+      incomeMainCats: DEFAULT_INCOME_CATS.map(n => ({ 名稱: n, 次類別:[], 等級: GRADE_OPTIONS })),
+      retailPrices: [],
       expenseMainCats: DEFAULT_EXPENSE_CATS.map(c => ({ ...c })),
       workers: [],
       units: ['包', '罐', '箱', '件', '斤', '天', '小時'],
@@ -433,7 +488,7 @@ async function fetchIncome() {
   try {
     const res = await gapi.client.sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
-      range: `${SHEET.INCOME}!A2:N`,
+      range: `${SHEET.MARKET_INCOME}!A2:N`,
     });
     incomeData = (res.result.values || []).map(r => ({
       id: r[0] || '',
@@ -478,6 +533,57 @@ async function fetchExpense() {
   } catch (e) { expenseData = []; }
 }
 
+async function fetchCustomers() {
+  try {
+    const res = await gapi.client.sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${SHEET.CUSTOMERS}!A2:I`,
+    });
+    customersData = (res.result.values || []).map(r => ({
+      客戶編號: r[0] || '',
+      客戶來源: r[1] || '',
+      客戶渠道: r[2] || '',
+      寄件人: r[3] || '',
+      寄件人電話: r[4] || '',
+      收件人: r[5] || '',
+      收件人電話: r[6] || '',
+      收件人地址: r[7] || '',
+      備註: r[8] || '',
+    }));
+  } catch (e) { customersData = []; }
+}
+
+async function fetchOrders() {
+  try {
+    const res = await gapi.client.sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${SHEET.ORDERS}!A2:P`,
+    });
+    ordersData = (res.result.values || []).map(r => ({
+      id: r[0] ? r[0] : `ORD_${Date.now()}_${Math.floor(Math.random()*1000)}`, // 處理如果沒編號 防護
+      訂購品項: r[0] || '', // Wait, columns: r[0] 訂購品項? No, let's look at schema!
+      // '訂購品項', '品項類別', '狀態', '下定日期', '到貨日期', '訂購等級', '訂單內容', '寄件人(客戶)', '寄件人電話', '收件人', '收件人電話', '收件人地址', '需備註寄件人', '取貨方式', '總價'
+      訂購品項: r[0] || '',
+      品項類別: r[1] || '',
+      狀態: r[2] || '',
+      下定日期: r[3] || '',
+      到貨日期: r[4] || '',
+      訂購等級: r[5] || '',
+      訂單內容: r[6] || '',
+      寄件人: r[7] || '',
+      寄件人電話: r[8] || '',
+      收件人: r[9] || '',
+      收件人電話: r[10] || '',
+      收件人地址: r[11] || '',
+      需備註寄件人: r[12] === 'TRUE' || r[12] === 'Y' || r[12] === true,
+      取貨方式: r[13] || '',
+      總價: r[14] || '',
+    }));
+    // assign unique id locally if not present in sheets for easy editing
+    ordersData.forEach((od, i) => od._localIdx = i + 2); // row index
+  } catch (e) { ordersData = []; }
+}
+
 function safeParseJSON(str, fallback) {
   try { return JSON.parse(str) || fallback; } catch { return fallback; }
 }
@@ -510,6 +616,7 @@ function renderAll() {
   renderExpenseFilterChips();
 
   renderBalancePage();
+  renderOrderTable();
 
   if (isAdmin) {
     renderAdminPage();
@@ -731,6 +838,155 @@ function renderIncomeTable() {
       <td>${actionHtml}</td>`;
     tbody.appendChild(tr);
   });
+}
+
+}
+
+// ============================================================
+// 9.5 客戶訂單處理
+// ============================================================
+// --- 事件與工具綁定 ---
+document.getElementById('orderSortBtn').onclick = () => {
+  filterState.order.sortOrder = filterState.order.sortOrder === 'desc' ? 'asc' : 'desc';
+  document.getElementById('orderSortBtn').dataset.order = filterState.order.sortOrder;
+  renderOrderTable();
+};
+
+function renderOrderTable() {
+  let data = [...ordersData];
+  
+  // 排序：預設以 到貨日期 為主，但若為空則以下定日期為主
+  data.sort((a, b) => {
+    const dateA = new Date(a.到貨日期 || a.下定日期 || 0);
+    const dateB = new Date(b.到貨日期 || b.下定日期 || 0);
+    const diff = dateA - dateB;
+    return filterState.order.sortOrder === 'desc' ? -diff : diff;
+  });
+
+  const tbody = document.getElementById('orderTableBody');
+  if(!tbody) return;
+  tbody.innerHTML = '';
+  const empty = document.getElementById('orderEmpty');
+
+  if (data.length === 0) {
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+
+  const now = new Date();
+  
+  // 建立分類儲存
+  const recentData = [];
+  const groupedData = {}; // key: 'YYYY-MM', value: data[]
+
+  data.forEach((r) => {
+    const dStr = r.到貨日期 || r.下定日期 || '';
+    const d = new Date(dStr);
+    let diffDays = 0;
+    if (dStr) {
+      diffDays = Math.abs((now - d) / (1000 * 60 * 60 * 24));
+    }
+    
+    // 超過 20 天則分組折疊
+    if (dStr && diffDays > 20) {
+      const monthKey = dStr.substring(0, 7); // YYYY-MM
+      if(!groupedData[monthKey]) groupedData[monthKey] = [];
+      groupedData[monthKey].push(r);
+    } else {
+      recentData.push(r);
+    }
+  });
+
+  const renderRow = (r, hiddenClass = '') => {
+    let statusHtml = '';
+    if (r.狀態 === '未指定') {
+      statusHtml = `<span class="status-badge pending" style="cursor:pointer" onclick="updateOrderStatus('${r.id}', '預定出貨')" title="點擊轉為預定出貨">未指定 (點改)</span>`;
+    } else if (r.狀態 === '已出貨') {
+      statusHtml = `<span class="status-badge paid">已出貨</span>`;
+    } else if (r.狀態 === '預定出貨') {
+      statusHtml = `<span class="status-badge confirmed">預定出貨</span>`;
+    } else {
+      statusHtml = `<span class="status-badge" style="background:#e2e8f0; color:#475569">${r.狀態||'未知'}</span>`;
+    }
+
+    const actionHtml = `
+      <div class="table-actions">
+        <button class="btn-table-edit" onclick="openOrderEdit('${r.id}')" title="編輯"><span class="material-symbols-outlined">edit</span></button>
+        <button class="btn-table-del" onclick="confirmDelete('order','${r.id}')" title="刪除"><span class="material-symbols-outlined">delete</span></button>
+      </div>`;
+
+    let receiverInfo = `${r.收件人} (${r.收件人電話})<br><small style="color:var(--text-muted)">${r.收件人地址}</small>`;
+
+    return `
+      <tr class="${hiddenClass}">
+        <td><span class="badge-main">${r.訂購品項}</span> ${r.品項類別? `<span class="badge-sub">${r.品項類別}</span>`:''}<br><div style="margin-top:4px">${statusHtml}</div></td>
+        <td><strong style="color:var(--orange)">${r.到貨日期 || '未填'}</strong><br><small style="color:var(--text-muted)">訂購: ${r.下定日期}</small></td>
+        <td>${r.訂購等級 || '-'}<br>${r.訂單內容 || '-'}</td>
+        <td class="td-amount income">$${parseFloat(r.總價||0).toLocaleString()}</td>
+        <td>${r.寄件人}<br><small style="color:var(--text-muted)">${r.寄件人電話}</small>${r.需備註寄件人 ? `<br><span class="unpaid-tag">需備註寄件人</span>`:''}</td>
+        <td>${receiverInfo}</td>
+        <td>${r.取貨方式}</td>
+        <td>${actionHtml}</td>
+      </tr>`;
+  };
+
+  let html = '';
+  recentData.forEach(r => html += renderRow(r));
+
+  // 繪製群組折疊列表
+  const orderMonthKeys = Object.keys(groupedData).sort((a,b) => filterState.order.sortOrder==='desc' ? b.localeCompare(a) : a.localeCompare(b));
+  orderMonthKeys.forEach(m => {
+    const list = groupedData[m];
+    const groupId = `fold-order-${m}`;
+    let groupSum = 0;
+    list.forEach(i => groupSum += (parseFloat(i.總價)||0));
+    // 加入標題列
+    html += `
+      <tr class="folder-header bg-slate-50" style="cursor:pointer; background:#f8fafc;" onclick="toggleTableGroup('${groupId}')">
+        <td colspan="8">
+           <div style="display:flex; justify-content:space-between; align-items:center;">
+             <span><span class="material-symbols-outlined" style="vertical-align:middle; font-size:1.1rem; color:var(--text-muted);">folder</span> <strong>${m}</strong> 歷史訂單 (${list.length}筆)</span>
+             <span style="color:var(--text-muted);">總計: $${groupSum.toLocaleString()}</span>
+           </div>
+        </td>
+      </tr>
+    `;
+    list.forEach(r => html += renderRow(r, groupId));
+  });
+
+  tbody.innerHTML = html;
+  
+  // 隱藏所有的 fold 項目
+  document.querySelectorAll('[class^="fold-order-"]').forEach(el => el.style.display = 'none');
+}
+
+window.toggleTableGroup = function(groupId) {
+  document.querySelectorAll(`.${groupId}`).forEach(el => {
+    el.style.display = el.style.display === 'none' ? 'table-row' : 'none';
+  });
+};
+
+async function updateOrderStatus(orderId, newStatus) {
+  const idx = ordersData.findIndex(o => o.id === orderId);
+  if (idx === -1) return;
+  ordersData[idx].狀態 = newStatus;
+  renderOrderTable();
+  
+  // 更新回 Google Sheets (這裡的 Range 是依照實際列來推斷的)
+  // ordersData 是 A2 開始，_localIdx 從 2 起跳
+  const rowNum = ordersData[idx]._localIdx;
+  try {
+    await gapi.client.sheets.spreadsheets.values.update({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${SHEET.ORDERS}!C${rowNum}:C${rowNum}`,
+      valueInputOption: 'USER_ENTERED',
+      resource: { values: [[newStatus]] }
+    });
+    showToast('訂單狀態更新成功', 'success');
+  } catch (e) {
+    showToast('更新訂單狀態失敗', 'error');
+  }
 }
 
 // ============================================================
@@ -1724,6 +1980,243 @@ async function deleteRecord(type, id) {
 }
 
 // ============================================================
+// 12. 訂單表單 Modal & 邏輯
+// ============================================================
+document.getElementById('openOrderFormBtn').onclick = () => openOrderModal();
+document.getElementById('closeOrderModal').onclick = closeOrderModal;
+document.getElementById('cancelOrderBtn').onclick = closeOrderModal;
+
+function openOrderModal(recordId = null) {
+  document.getElementById('orderForm').reset();
+  document.getElementById('orderRecordId').value = recordId || '';
+  document.getElementById('orderModalTitle').textContent = recordId ? '編輯訂單' : '新增訂單';
+  
+  // 填充下拉
+  const catSel = document.getElementById('orderMainCat');
+  catSel.innerHTML = '<option value="">--請選擇--</option>';
+  [...new Set(settings.retailPrices.map(r => r.品種主類別))].filter(Boolean).forEach(c => {
+    const opt = document.createElement('option');
+    opt.value = c; opt.textContent = c;
+    catSel.appendChild(opt);
+  });
+  
+  // 填充客源 datalist
+  const cDataList = document.getElementById('customerList');
+  cDataList.innerHTML = '';
+  // 客戶可以藉由寄件人匹配
+  let uniqueSenders = [...new Set(customersData.map(c => c.寄件人))].filter(Boolean);
+  uniqueSenders.forEach(s => {
+    const opt = document.createElement('option');
+    opt.value = s;
+    cDataList.appendChild(opt);
+  });
+
+  if (recordId) {
+    const r = ordersData.find(x => x.id === recordId);
+    if(r) {
+      document.getElementById('orderDate').value = r.下定日期;
+      document.getElementById('orderArrivalDate').value = r.到貨日期;
+      document.getElementById('orderMainCat').value = r.訂購品項;
+      triggerOrderMainCatChange();
+      document.getElementById('orderSubCat').value = r.品項類別;
+      triggerOrderGradeChange(); 
+      document.getElementById('orderGrade').value = r.訂購等級;
+      const q = r.訂單內容.match(/\d+/);
+      if(q) document.getElementById('orderQuantity').value = q[0];
+      const u = r.訂單內容.replace(/[0-9]/g, '');
+      if(u) document.getElementById('orderUnit').value = u;
+
+      document.getElementById('orderSenderName').value = r.寄件人;
+      document.getElementById('orderSenderPhone').value = r.寄件人電話;
+      document.getElementById('orderReceiverName').value = r.收件人;
+      document.getElementById('orderReceiverPhone').value = r.收件人電話;
+      document.getElementById('orderReceiverAddress').value = r.收件人地址;
+      document.getElementById('orderNeedSenderRemark').checked = r.需備註寄件人;
+      document.getElementById('orderDeliveryType').value = r.取貨方式;
+      document.getElementById('orderStatus').value = r.狀態;
+      document.getElementById('orderTotalPrice').value = r.總價;
+    }
+  } else {
+    document.getElementById('orderDate').value = today();
+    document.getElementById('orderStatus').value = '未指定';
+  }
+  
+  document.getElementById('orderModal').style.display = 'flex';
+}
+
+function closeOrderModal() { document.getElementById('orderModal').style.display = 'none'; }
+
+document.getElementById('orderMainCat').addEventListener('change', triggerOrderMainCatChange);
+document.getElementById('orderSubCat').addEventListener('change', triggerOrderGradeChange);
+
+function triggerOrderMainCatChange() {
+  const main = document.getElementById('orderMainCat').value;
+  const subSel = document.getElementById('orderSubCat');
+  subSel.innerHTML = '<option value="">--請選擇--</option>';
+  const subs = [...new Set(settings.retailPrices.filter(r => r.品種主類別 === main).map(r => r.品種次類別))].filter(Boolean);
+  subs.forEach(s => {
+    const opt = document.createElement('option');
+    opt.value = s; opt.textContent = s;
+    subSel.appendChild(opt);
+  });
+  triggerOrderGradeChange();
+}
+
+function triggerOrderGradeChange() {
+  const main = document.getElementById('orderMainCat').value;
+  const sub = document.getElementById('orderSubCat').value;
+  const gradeSel = document.getElementById('orderGrade');
+  gradeSel.innerHTML = '<option value="">--無等級--</option>';
+  
+  const options = settings.retailPrices.filter(r => r.品種主類別 === main && (sub === '' || r.品種次類別 === sub));
+  const grades = [...new Set(options.map(r => r.等級))].filter(Boolean);
+  grades.forEach(g => {
+    const opt = document.createElement('option');
+    opt.value = g; opt.textContent = g;
+    gradeSel.appendChild(opt);
+  });
+  
+  // 嘗試填入單位 (如果只有一種)
+  const units = [...new Set(options.map(r => r.單位))].filter(Boolean);
+  if(units.length === 1) document.getElementById('orderUnit').value = units[0];
+  calculateOrderPrice();
+}
+
+['orderMainCat', 'orderSubCat', 'orderGrade', 'orderQuantity'].forEach(id => {
+  document.getElementById(id).addEventListener('input', calculateOrderPrice);
+});
+
+function calculateOrderPrice() {
+  const main = document.getElementById('orderMainCat').value;
+  const sub = document.getElementById('orderSubCat').value;
+  const grade = document.getElementById('orderGrade').value;
+  const qtyStr = document.getElementById('orderQuantity').value;
+  const qty = parseFloat(qtyStr);
+  
+  if(!main || !qty || isNaN(qty)) return;
+
+  const match = settings.retailPrices.find(r => r.品種主類別 === main && r.品種次類別 === sub && r.等級 === grade);
+  if (match && match.售價) {
+    const unitPrice = parseFloat(match.售價);
+    document.getElementById('orderTotalPrice').value = unitPrice * qty;
+    if(match.單位) document.getElementById('orderUnit').value = match.單位;
+  }
+}
+
+document.getElementById('orderSenderName').addEventListener('input', (e) => {
+  const val = e.target.value.trim();
+  const cus = customersData.find(c => c.寄件人 === val);
+  if (cus) {
+    document.getElementById('orderSenderPhone').value = cus.寄件人電話 || '';
+  }
+});
+
+document.getElementById('orderSameAsSender').addEventListener('change', (e) => {
+  if(e.target.checked) {
+    document.getElementById('orderReceiverName').value = document.getElementById('orderSenderName').value;
+    document.getElementById('orderReceiverPhone').value = document.getElementById('orderSenderPhone').value;
+  }
+});
+
+// 黑貓到貨日防呆：不允許選擇禮拜日與禮拜一
+document.getElementById('orderDeliveryType').addEventListener('change', (e) => {
+  if (e.target.value === '黑貓宅配') {
+    checkBlackCatDate();
+  }
+});
+document.getElementById('orderArrivalDate').addEventListener('change', checkBlackCatDate);
+
+function checkBlackCatDate() {
+  const dt = document.getElementById('orderDeliveryType').value;
+  const arr = document.getElementById('orderArrivalDate').value;
+  if (dt === '黑貓宅配' && arr) {
+    const d = new Date(arr).getDay();
+    if (d === 0 || d === 1) {
+      showToast('⚠️ 黑貓宅配於週日/週一無法配送到貨，請重新選擇到貨日！', 'warning');
+      document.getElementById('orderArrivalDate').value = '';
+    }
+  }
+}
+
+// 儲存訂單
+document.getElementById('orderForm').onsubmit = async (e) => {
+  e.preventDefault();
+  const id = document.getElementById('orderRecordId').value;
+  const isEdit = !!id;
+
+  const sender = document.getElementById('orderSenderName').value.trim();
+  const receiver = document.getElementById('orderReceiverName').value.trim();
+  
+  const orderRow = [
+    id ? id : `ORD_${Date.now()}_${Math.floor(Math.random()*1000)}`,
+    document.getElementById('orderMainCat').value,
+    document.getElementById('orderSubCat').value,
+    document.getElementById('orderStatus').value,
+    document.getElementById('orderDate').value,
+    document.getElementById('orderArrivalDate').value,
+    document.getElementById('orderGrade').value,
+    document.getElementById('orderQuantity').value + (document.getElementById('orderUnit').value || '箱'),
+    sender,
+    document.getElementById('orderSenderPhone').value,
+    receiver,
+    document.getElementById('orderReceiverPhone').value,
+    document.getElementById('orderReceiverAddress').value,
+    document.getElementById('orderNeedSenderRemark').checked ? 'TRUE' : 'FALSE',
+    document.getElementById('orderDeliveryType').value,
+    document.getElementById('orderTotalPrice').value || '',
+  ];
+
+  showLoader('儲存中...');
+  try {
+    if (isEdit) {
+      const idx = ordersData.findIndex(x => x.id === id);
+      const rowNum = ordersData[idx]._localIdx;
+      await gapi.client.sheets.spreadsheets.values.update({
+        spreadsheetId: SPREADSHEET_ID,
+        range: `${SHEET.ORDERS}!A${rowNum}:O${rowNum}`,
+        valueInputOption: 'USER_ENTERED',
+        resource: { values: [orderRow] }
+      });
+    } else {
+      await gapi.client.sheets.spreadsheets.values.append({
+        spreadsheetId: SPREADSHEET_ID,
+        range: `${SHEET.ORDERS}!A:O`,
+        valueInputOption: 'USER_ENTERED',
+        resource: { values: [orderRow] }
+      });
+      
+      // 自動新增客戶若不存在
+      const cusExist = customersData.some(c => c.寄件人 === sender);
+      if (!cusExist) {
+        const cusRow = [
+          `CUS_${Date.now()}`, '系統新增', '-', sender, document.getElementById('orderSenderPhone').value,
+          receiver, document.getElementById('orderReceiverPhone').value, document.getElementById('orderReceiverAddress').value, ''
+        ];
+        await gapi.client.sheets.spreadsheets.values.append({
+          spreadsheetId: SPREADSHEET_ID,
+          range: `${SHEET.CUSTOMERS}!A:I`,
+          valueInputOption: 'USER_ENTERED',
+          resource: { values: [cusRow] }
+        });
+        showToast('已自動新增至客戶資料', 'success');
+      }
+    }
+
+    await fetchCustomers();
+    await fetchOrders();
+    renderOrderTable();
+    closeOrderModal();
+    showToast('訂單已儲存', 'success');
+  } catch (err) {
+    console.error(err);
+    showToast('儲存失敗', 'error');
+  }
+  hideLoader();
+};
+
+window.openOrderEdit = (id) => openOrderModal(id);
+
+// ============================================================
 // 14. 複製明細 Modal
 // ============================================================
 let _copyType = 'expense';
@@ -1865,6 +2358,7 @@ function renderExpenseMainCatAdmin() {
         <td>${sub.名稱}</td>
         <td>${sub.預設金額 ? `$${sub.預設金額}` : '—'}</td>
         <td><div class="table-actions">
+          ${si === 0 ? `<button class="btn-table-edit" onclick="editExpenseCat(${ci})" title="編輯主類別"><span class="material-symbols-outlined">edit</span></button>` : ''}
           <button class="btn-table-del" onclick="deleteExpenseSubCat(${ci},${si})" title="刪除次類別"><span class="material-symbols-outlined">delete</span></button>
         </div></td>`;
       tbody.appendChild(tr);
@@ -1876,6 +2370,7 @@ function renderExpenseMainCatAdmin() {
         <td><span class="status-badge pending">${typeLabel}</span></td>
         <td>—</td><td>—</td>
         <td><div class="table-actions">
+           <button class="btn-table-edit" onclick="editExpenseCat(${ci})" title="編輯主類別"><span class="material-symbols-outlined">edit</span></button>
           <button class="btn-table-del" onclick="deleteExpenseMainCat(${ci})" title="刪除主類別"><span class="material-symbols-outlined">delete</span></button>
         </div></td>`;
       tbody.appendChild(tr);
@@ -1893,6 +2388,7 @@ function renderWorkerListAdmin() {
       <td>$${w.預設時薪 || 190}</td>
       <td>$${w.預設日薪 || 1500}</td>
       <td><div class="table-actions">
+        <button class="btn-table-edit" onclick="editWorker(${i})" title="編輯"><span class="material-symbols-outlined">edit</span></button>
         <button class="btn-table-del" onclick="deleteWorker(${i})" title="刪除"><span class="material-symbols-outlined">delete</span></button>
       </div></td>`;
     tbody.appendChild(tr);
@@ -1982,14 +2478,24 @@ document.getElementById('adminForm').onsubmit = async (e) => {
       const hourly = document.getElementById('aw_hourly').value || '190';
       const daily = document.getElementById('aw_daily').value || '1500';
       if (!name) { showToast('請填寫姓名', 'error'); hideLoader(); return; }
-      await appendToSheet(SHEET.SETTINGS, ['工人', name, '', hourly, daily]);
-      settings.workers.push({ 姓名: name, 預設時薪: hourly, 預設日薪: daily });
+      // 判斷是新增還是編輯, 簡單起見這裡採先更新 local array 再 rebuild
+      const existing = settings.workers.find(w => w.姓名 === name);
+      if (existing) {
+        existing.預設時薪 = hourly;
+        existing.預設日薪 = daily;
+      } else {
+        settings.workers.push({ 姓名: name, 預設時薪: hourly, 預設日薪: daily });
+      }
+      await rebuildAndSaveSettings('workers');
       renderWorkerListAdmin();
     } else if (type === 'incomeMainCat') {
       const name = document.getElementById('aim_name').value.trim();
       if (!name) { showToast('請填寫名稱', 'error'); hideLoader(); return; }
-      await appendToSheet(SHEET.SETTINGS, ['收入主類別', name, '', '', '']);
-      settings.incomeMainCats.push({ 名稱: name });
+      const existing = settings.incomeMainCats.find(c => c.名稱 === name);
+      if(!existing){
+        settings.incomeMainCats.push({ 名稱: name, 次類別:[], 等級:[] });
+        await rebuildAndSaveSettings('incomeCats');
+      }
       renderIncomeMainCatAdmin();
       renderIncomeFilterChips();
     } else if (type === 'expenseMainCat') {
@@ -1997,14 +2503,17 @@ document.getElementById('adminForm').onsubmit = async (e) => {
       const catType = document.getElementById('aem_type').value;
       const subText = document.getElementById('aem_sub').value;
       if (!name) { showToast('請填寫名稱', 'error'); hideLoader(); return; }
-      await appendToSheet(SHEET.SETTINGS, ['支出主類別', name, '', '', catType]);
-      const subs = subText.split('\n').map(s => s.trim()).filter(Boolean);
-      const subObjs = [];
-      for (const sub of subs) {
-        await appendToSheet(SHEET.SETTINGS, ['支出次類別', sub, name, '', '']);
-        subObjs.push({ 名稱: sub, 預設金額: '' });
+      
+      const subs = subText.split('\n').map(s => s.trim()).filter(Boolean).map(s => ({ 名稱: s, 預設金額: '' }));
+      
+      const existing = settings.expenseMainCats.find(c => c.名稱 === name);
+      if(existing) {
+         existing.類型 = catType;
+         existing.次類別 = subs; // 覆蓋次類別
+      } else {
+         settings.expenseMainCats.push({ 名稱: name, 類型: catType, 次類別: subs });
       }
-      settings.expenseMainCats.push({ 名稱: name, 類型: catType, 次類別: subObjs });
+      await rebuildAndSaveSettings('expenseCats');
       renderExpenseMainCatAdmin();
       renderExpenseFilterChips();
     }
@@ -2014,6 +2523,36 @@ document.getElementById('adminForm').onsubmit = async (e) => {
     showToast('儲存失敗：' + err.message, 'error');
   }
   hideLoader();
+};
+
+window.editWorker = function(idx) {
+  const w = settings.workers[idx];
+  openAdminModal('worker', null, [
+    { id: 'aw_name', label: '姓名 * (不可改名)', type: 'text' },
+    { id: 'aw_hourly', label: '預設時薪', type: 'number', placeholder: '190' },
+    { id: 'aw_daily', label: '預設日薪', type: 'number', placeholder: '1500' },
+  ]);
+  document.getElementById('aw_name').value = w.姓名;
+  document.getElementById('aw_name').readOnly = true;
+  document.getElementById('aw_hourly').value = w.預設時薪;
+  document.getElementById('aw_daily').value = w.預設日薪;
+};
+
+window.editExpenseCat = function(idx) {
+  const c = settings.expenseMainCats[idx];
+  openAdminModal('expenseMainCat', null, [
+    { id: 'aem_name', label: '主類別名稱 *', type: 'text' },
+    { id: 'aem_type', label: '類型 *', type: 'select', options: [
+      { val: 'material', label: '材料/農藥' },
+      { val: 'worker', label: '工人薪資' },
+      { val: 'meal', label: '伙食' },
+    ]},
+    { id: 'aem_sub', label: '次類別（每行一個）', type: 'textarea', placeholder: '骨粉\n海鳥糞' },
+  ]);
+  document.getElementById('aem_name').value = c.名稱;
+  document.getElementById('aem_name').readOnly = true;
+  document.getElementById('aem_type').value = c.類型;
+  document.getElementById('aem_sub').value = c.次類別.map(s => s.名稱).join('\n');
 };
 
 // 管理頁刪除
@@ -2027,14 +2566,14 @@ window.deleteUser = function(idx) {
 window.deleteWorker = function(idx) {
   confirmAdminDelete(() => {
     settings.workers.splice(idx, 1);
-    rebuildAndSaveSettings('settings');
+    rebuildAndSaveSettings('workers');
     renderWorkerListAdmin();
   });
 };
 window.deleteIncomeMainCat = function(idx) {
   confirmAdminDelete(() => {
     settings.incomeMainCats.splice(idx, 1);
-    rebuildAndSaveSettings('settings');
+    rebuildAndSaveSettings('incomeCats');
     renderIncomeMainCatAdmin();
     renderIncomeFilterChips();
   });
@@ -2042,7 +2581,7 @@ window.deleteIncomeMainCat = function(idx) {
 window.deleteExpenseMainCat = function(catIdx) {
   confirmAdminDelete(() => {
     settings.expenseMainCats.splice(catIdx, 1);
-    rebuildAndSaveSettings('settings');
+    rebuildAndSaveSettings('expenseCats');
     renderExpenseMainCatAdmin();
     renderExpenseSubCatChips();
     renderExpenseTable();
@@ -2051,7 +2590,7 @@ window.deleteExpenseMainCat = function(catIdx) {
 window.deleteExpenseSubCat = function(catIdx, subIdx) {
   confirmAdminDelete(() => {
     settings.expenseMainCats[catIdx].次類別.splice(subIdx, 1);
-    rebuildAndSaveSettings('settings');
+    rebuildAndSaveSettings('expenseCats');
     renderExpenseMainCatAdmin();
   });
 };
@@ -2062,35 +2601,34 @@ document.getElementById('initSystemBtn').onclick = async () => {
   
   showLoader('系統初始化中...');
   try {
-    // 1. 清空 settings 
-    await clearSheet(SHEET.SETTINGS);
-    
-    // 2. 寫入收入主類別
+    await clearSheet(SHEET.INCOME_CATS);
     for (const name of DEFAULT_INCOME_CATS) {
-      await appendToSheet(SHEET.SETTINGS, ['收入主類別', name, '', '', '']);
+      await appendToSheet(SHEET.INCOME_CATS, [name, '', '', '', '']);
     }
     
-    // 3. 寫入支出類別
+    await clearSheet(SHEET.EXPENSE_CATS);
     for (const c of DEFAULT_EXPENSE_CATS) {
-      await appendToSheet(SHEET.SETTINGS, ['支出主類別', c.名稱, '', '', c.類型]);
-      for (const sub of c.次類別) {
-        await appendToSheet(SHEET.SETTINGS, ['支出次類別', sub.名稱, c.名稱, sub.預設金額, '']);
+      if(c.次類別.length === 0) {
+        await appendToSheet(SHEET.EXPENSE_CATS, [c.名稱, '', c.類型, '']);
+      } else {
+        for (const sub of c.次類別) {
+          await appendToSheet(SHEET.EXPENSE_CATS, [c.名稱, sub.名稱, c.類型, sub.預設金額]);
+        }
       }
     }
     
-    // 4. 寫入範例工人
+    await clearSheet(SHEET.WORKERS);
     const demoWorkers = [
       { 姓名: '阿明', 預設時薪: '190', 預設日薪: '1500' },
       { 姓名: '小華', 預設時薪: '190', 預設日薪: '1500' }
     ];
     for (const w of demoWorkers) {
-      await appendToSheet(SHEET.SETTINGS, ['工人', w.姓名, '', w.預設時薪, w.預設日薪]);
+      await appendToSheet(SHEET.WORKERS, [w.姓名, w.預設時薪, w.預設日薪]);
     }
     
     showToast('✓ 初始化完成，正在重新載入資料...');
     await fetchSettings();
     renderAll();
-    
   } catch (e) {
     console.error(e);
     showToast('初始化失敗', 'error');
@@ -2106,25 +2644,30 @@ async function rebuildAndSaveSettings(target) {
   showLoader('更新設定...');
   try {
     if (target === 'users') {
-      // 清空並重寫使用者工作表
       await clearSheet(SHEET.USERS);
       for (const u of usersData) {
         await appendToSheet(SHEET.USERS, [u.email, u.role, now()]);
       }
-    } else {
-      // 清空並重寫設定工作表
-      await clearSheet(SHEET.SETTINGS);
-      for (const c of settings.incomeMainCats) {
-        await appendToSheet(SHEET.SETTINGS, ['收入主類別', c.名稱, '', '', '']);
-      }
-      for (const c of settings.expenseMainCats) {
-        await appendToSheet(SHEET.SETTINGS, ['支出主類別', c.名稱, '', '', c.類型]);
-        for (const sub of c.次類別) {
-          await appendToSheet(SHEET.SETTINGS, ['支出次類別', sub.名稱, c.名稱, sub.預設金額, '']);
-        }
-      }
+    } else if (target === 'workers') {
+      await clearSheet(SHEET.WORKERS);
       for (const w of settings.workers) {
-        await appendToSheet(SHEET.SETTINGS, ['工人', w.姓名, '', w.預設時薪, w.預設日薪]);
+        await appendToSheet(SHEET.WORKERS, [w.姓名, w.預設時薪, w.預設日薪]);
+      }
+    } else if (target === 'incomeCats') {
+      await clearSheet(SHEET.INCOME_CATS);
+      for (const c of settings.incomeMainCats) {
+        await appendToSheet(SHEET.INCOME_CATS, [c.名稱, '', (c.次類別||[]).join(','), '', (c.等級||[]).join(',')]);
+      }
+    } else if (target === 'expenseCats') {
+      await clearSheet(SHEET.EXPENSE_CATS);
+      for (const c of settings.expenseMainCats) {
+        if(c.次類別.length === 0) {
+           await appendToSheet(SHEET.EXPENSE_CATS, [c.名稱, '', c.類型, '']);
+        } else {
+           for (const sub of c.次類別) {
+             await appendToSheet(SHEET.EXPENSE_CATS, [c.名稱, sub.名稱, c.類型, sub.預設金額]);
+           }
+        }
       }
     }
   } catch (e) {
@@ -2324,29 +2867,90 @@ function renderBalancePage() {
   // 1. 取得過濾後的資料
   const incData = getFilteredByPeriod(incomeData, '日期', currentBalancePeriod);
   const expData = getFilteredByPeriod(expenseData, '日期', currentBalancePeriod);
+  
+  // 訂單也需要過濾
+  let orderDataFiltered = [...ordersData];
+  if (currentBalancePeriod !== 'all') {
+    const now = new Date();
+    orderDataFiltered = ordersData.filter(r => {
+      const d = new Date(r.到貨日期 || r.下定日期 || 0);
+      if (currentBalancePeriod === 'year') return d.getFullYear() === now.getFullYear();
+      if (currentBalancePeriod === 'month') return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+      return true;
+    });
+  }
 
   // 2. 計算總和
-  let totalIncome = 0;
-  incData.forEach(r => totalIncome += (parseFloat(r.總價) || 0));
+  let marketIncome = 0;
+  let actualKG = 0;
+  incData.forEach(r => {
+    marketIncome += (parseFloat(r.總價) || 0);
+    actualKG += (parseFloat(r.總重) || 0) * 0.6; // 假設總重是台斤 -> KG
+  });
+  
+  let salesIncome = 0;
+  orderDataFiltered.forEach(r => {
+    salesIncome += (parseFloat(r.總價) || 0);
+    // 訂單通常由單盒重量算？如果沒有明確公斤數先不計入或者估計
+  });
+
+  const totalIncome = marketIncome + salesIncome;
   
   let totalExpense = 0;
-  expData.forEach(r => totalExpense += calcExpenseTotal(r));
+  let bagCount = 0;
+  let lossBagCount = 0;
+  
+  expData.forEach(r => {
+    totalExpense += calcExpenseTotal(r);
+    // 從支出項目提取套袋與損耗袋，這裡用次類別字串比對
+    const subCat = r.次類別 || '';
+    if (subCat.includes('套袋')) {
+      bagCount += (parseFloat(r.數量) || 0);
+    } else if (subCat.includes('損耗') && (subCat.includes('袋') || r.單位 === '袋' || r.主類別.includes('材料'))) {
+      lossBagCount += (parseFloat(r.數量) || 0);
+    }
+  });
 
   const netBalance = totalIncome - totalExpense;
 
-  // 3. 更新卡片數字
-  document.getElementById('balanceTotalIncome').textContent = `$${totalIncome.toLocaleString()}`;
-  document.getElementById('balanceTotalExpense').textContent = `$${totalExpense.toLocaleString()}`;
-  
+  // 3. 結餘與收入看板
   const netEl = document.getElementById('balanceNetAmount');
-  netEl.textContent = `$${netBalance.toLocaleString()}`;
-  netEl.style.color = netBalance >= 0 ? 'var(--green-dark)' : 'var(--red)';
+  if(netEl) {
+    netEl.textContent = `$${netBalance.toLocaleString()}`;
+    netEl.style.color = netBalance >= 0 ? 'var(--green-dark)' : 'var(--red)';
+  }
+  
+  if(document.getElementById('balanceMarketIncome')) {
+    document.getElementById('balanceMarketIncome').textContent = `$${marketIncome.toLocaleString()}`;
+    document.getElementById('balanceSalesIncome').textContent = `$${salesIncome.toLocaleString()}`;
+    document.getElementById('balanceTotalExpense').textContent = `$${totalExpense.toLocaleString()}`;
+  } else {
+    // 兼容舊版 ID
+    if(document.getElementById('balanceTotalIncome')) document.getElementById('balanceTotalIncome').textContent = `$${totalIncome.toLocaleString()}`;
+    if(document.getElementById('balanceTotalExpense')) document.getElementById('balanceTotalExpense').textContent = `$${totalExpense.toLocaleString()}`;
+  }
+  
+  // 4. 生產與損耗看板計算 (假設一袋平均 0.35 kg)
+  // 這些數值需要根據實際果園參數調整，此處設為預設預估
+  const expectedKG = bagCount * 0.35; 
+  const lossExpectedKG = lossBagCount * 0.35;
+  const actualLossKG = Math.max(0, expectedKG - actualKG);
+  const lossPercent = expectedKG > 0 ? ((actualLossKG / expectedKG) * 100).toFixed(1) + '%' : '0%';
 
-  // 4. 繪製圓餅圖 (Chart.js)
+  if(document.getElementById('balanceBagCount')) {
+    document.getElementById('balanceBagCount').textContent = bagCount.toLocaleString();
+    document.getElementById('balanceLossBagCount').textContent = lossBagCount.toLocaleString();
+    document.getElementById('balanceExpectedKG').textContent = expectedKG.toFixed(1);
+    document.getElementById('balanceActualKG').textContent = actualKG.toFixed(1);
+    document.getElementById('balanceLossKG').textContent = actualLossKG.toFixed(1);
+    document.getElementById('balanceLossPercent').textContent = lossPercent;
+  }
+
+  // 5. 繪製圓餅圖 (Chart.js)
   renderBalanceChart(totalIncome, totalExpense);
 
-  // 5. 繪製各月收支明細
-  renderBalanceMonthlyTable(incData, expData);
+  // 6. 繪製各月收支明細
+  renderBalanceMonthlyTable(incData, expData, orderDataFiltered);
 }
 
 function renderBalanceChart(income, expense) {
@@ -2404,26 +3008,36 @@ function renderBalanceChart(income, expense) {
   });
 }
 
-function renderBalanceMonthlyTable(incData, expData) {
+function renderBalanceMonthlyTable(incData, expData, orderDataFiltered = []) {
   const tbody = document.getElementById('balanceMonthlyTableBody');
   if (!tbody) return;
 
   // 聚合到月份
   const monthlyMap = {};
   
-  // 處理收入
+  // 處理市場收入
   incData.forEach(r => {
     if(!r.日期) return;
     const month = r.日期.substring(0, 7); // YYYY-MM
-    if(!monthlyMap[month]) monthlyMap[month] = { income: 0, expense: 0 };
+    if(!monthlyMap[month]) monthlyMap[month] = { income: 0, expense: 0, count: 0 };
     monthlyMap[month].income += (parseFloat(r.總價) || 0);
+  });
+
+  // 處理客戶銷售收入
+  orderDataFiltered.forEach(r => {
+    const d = r.到貨日期 || r.下定日期;
+    if(!d) return;
+    const month = d.substring(0, 7); // YYYY-MM
+    if(!monthlyMap[month]) monthlyMap[month] = { income: 0, expense: 0, count: 0 };
+    monthlyMap[month].income += (parseFloat(r.總價) || 0);
+    monthlyMap[month].count++;
   });
 
   // 處理支出
   expData.forEach(r => {
     if(!r.日期) return;
     const month = r.日期.substring(0, 7); // YYYY-MM
-    if(!monthlyMap[month]) monthlyMap[month] = { income: 0, expense: 0 };
+    if(!monthlyMap[month]) monthlyMap[month] = { income: 0, expense: 0, count: 0 };
     monthlyMap[month].expense += calcExpenseTotal(r);
   });
 
@@ -2442,7 +3056,7 @@ function renderBalanceMonthlyTable(incData, expData) {
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td><strong>${m}</strong></td>
-      <td style="color:var(--green-dark);">$${stat.income.toLocaleString()}</td>
+      <td style="color:var(--green-dark);">$${stat.income.toLocaleString()}${stat.count>0?` <small style="color:var(--text-muted);font-size:0.7rem">(${stat.count}筆訂單)</small>`:''}</td>
       <td style="color:var(--red);">$${stat.expense.toLocaleString()}</td>
       <td style="font-weight:bold; color:${net >= 0 ? 'var(--green-dark)' : 'var(--red)'};">$${net.toLocaleString()}</td>
     `;

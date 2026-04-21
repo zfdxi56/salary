@@ -332,6 +332,20 @@ body {
 }
 .summary-item.income-color .value { color: var(--green-dark); }
 .summary-item.expense-color .value { color: var(--red); }
+.summary-item.category-color .value { color: var(--purple); }
+.summary-item.default-color .value { color: var(--blue); }
+.summary-item.orange-color .value { color: var(--orange); }
+
+.grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; }
+.grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+.grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; align-items: stretch; }
+
+@media (max-width: 768px) {
+  .grid-3, .grid-4 { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 480px) {
+  .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+}
 
 .balance-net-amount {
   text-align: center;
@@ -1171,3 +1185,31 @@ input::placeholder { color: var(--text-xs); }
     display: none;
   }
 }
+
+/* ================================================
+   Auto Grade Grid (新增收入表單用)
+   ================================================ */
+.grade-auto-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+  background: var(--bg2);
+  padding: 1rem;
+  border-radius: var(--radius-sm);
+  border: 1px dashed var(--border);
+}
+.grade-auto-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+.grade-auto-item label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+.grade-auto-item input {
+  width: 100%;
+}
+
