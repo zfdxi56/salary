@@ -55,8 +55,8 @@
     <!-- Tab 導航 -->
     <nav class="tab-nav">
       <button class="tab-btn active" data-tab="income" id="tab-income">
-        <span class="material-symbols-outlined">trending_up</span>
-        <span>收入</span>
+        <span class="material-symbols-outlined">storefront</span>
+        <span>市場收入</span>
       </button>
       <button class="tab-btn" data-tab="expense" id="tab-expense">
         <span class="material-symbols-outlined">trending_down</span>
@@ -98,6 +98,7 @@
              <div class="summary-item income-color">
                 <span class="label">客戶銷售收入</span>
                 <span class="value" id="balanceSalesIncome">$0</span>
+                <div id="balanceOrderBreakdown" style="margin-top:0.25rem"></div>
              </div>
              <div class="summary-item expense-color">
                 <span class="label">總支出</span>
@@ -195,7 +196,7 @@
 
         <!-- 新增收入按鈕 -->
         <div class="section-action-row">
-          <h3 class="section-title">收入紀錄</h3>
+          <h3 class="section-title">市場收入紀錄</h3>
           <button class="btn btn-primary btn-sm" id="openIncomeFormBtn">
             <span class="material-symbols-outlined">add</span> 新增收入
           </button>
@@ -204,6 +205,7 @@
         <!-- 收入篩選列 -->
         <div class="filter-bar" id="incomeFilterBar">
           <div class="filter-chips" id="incomeMainCatChips"></div>
+          <div class="filter-chips sub" id="incomeSubCatChips" style="display:none"></div>
           <div class="filter-tools">
             <button class="btn-tool" id="incomeClearFilter" title="清除篩選">
               <span class="material-symbols-outlined">filter_alt_off</span>

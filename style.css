@@ -408,6 +408,52 @@ body {
   flex-direction: column;
   gap: 1.25rem;
 }
+/* Income stat cards grid (replaces bar chart) */
+.income-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 0.75rem;
+  padding: 0.25rem 0;
+}
+.income-stat-card {
+  border-radius: var(--radius);
+  padding: 1rem;
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s;
+  border: 1px solid rgba(0,0,0,0.06);
+}
+.income-stat-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow);
+}
+.stat-card-header {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.5rem;
+}
+.stat-card-name {
+  font-weight: 700;
+  font-size: 0.9rem;
+  flex: 1;
+}
+.stat-card-count {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  background: rgba(0,0,0,0.06);
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+.stat-card-amount {
+  font-size: 1.6rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+@media (max-width: 480px) {
+  .income-stat-grid { grid-template-columns: repeat(2, 1fr); }
+  .stat-card-amount { font-size: 1.25rem; }
+}
+
 .chart-row {
   display: flex;
   flex-direction: column;

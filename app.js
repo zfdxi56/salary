@@ -51,7 +51,7 @@ let settings = {
 
 // 篩選/排序狀態
 const filterState = {
-  income: { mainCat: null, sortOrder: 'desc', period: 'all' },
+  income: { mainCat: null, subCat: null, sortOrder: 'desc', period: 'all' },
   expense: { mainCat: null, subCat: null, sortOrder: 'desc', period: 'all' },
   order: { sortOrder: 'desc' },
 };
@@ -427,7 +427,7 @@ async function fetchSettings() {
   try {
     const [resInc, resRetail, resExp, resWork, resUnit] = await Promise.all([
       gapi.client.sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: `${SHEET.INCOME_CATS}!A2:F` }),
-      gapi.client.sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: `${SHEET.RETAIL_PRICE}!A2:G` }),
+      gapi.client.sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: `${SHEET.RETAIL_PRICE}!A2:H` }),
       gapi.client.sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: `${SHEET.EXPENSE_CATS}!A2:E` }),
       gapi.client.sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: `${SHEET.WORKERS}!A2:C` }),
       gapi.client.sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: `${SHEET.UNITS}!A2:A` }),
@@ -437,7 +437,7 @@ async function fetchSettings() {
 
     // 品種
     (resInc.result.values || []).forEach(r => {
-      const main = r[0], sub = r[2] || '', gradeStr = r[4] || '';
+      const main = r[1], sub = r[2] || '', gradeStr = r[4] || '';
       if (!main) return;
       
       let cat = settings.incomeMainCats.find(c => c.名稱 === main);
@@ -464,9 +464,10 @@ async function fetchSettings() {
           品種次類別: r[1] || '',
           等級: r[2] || '',
           單位: r[3] || '',
-          顆數: r[4] || '',
-          售價: r[5] || '',
-          備註: r[6] || ''
+          販售內容: r[4] || '',
+          定價: r[5] || '',
+          售價: r[6] || '',
+          備註: r[7] || ''
         });
       }
     });
@@ -713,62 +714,71 @@ function renderIncomeChart() {
   const data = getFilteredByPeriod(incomeData, '日期', period);
 
   const catMap = {};
-  settings.incomeMainCats.forEach(c => catMap[c.名稱] = { total: 0, count: 0, pending: 0 });
+  settings.incomeMainCats.forEach(c => catMap[c.名稱] = { total: 0, count: 0, pending: 0, unpaidAmount: 0 });
 
   let grandTotal = 0;
   data.forEach(r => {
     const key = r.主類別;
-    if (!catMap[key]) catMap[key] = { total: 0, count: 0, pending: 0 };
+    if (!catMap[key]) catMap[key] = { total: 0, count: 0, pending: 0, unpaidAmount: 0 };
     const price = parseFloat(r.總價) || 0;
     catMap[key].total += price;
     catMap[key].count++;
     grandTotal += price;
-    if (!r.價格確認) catMap[key].pending++;
+    if (r.付款狀態 !== '已付款') {
+      catMap[key].pending++;
+      catMap[key].unpaidAmount += price;
+    }
   });
 
-  // 更新總額摘要
   document.getElementById('incomeTotalSummary').textContent = `總計：$${grandTotal.toLocaleString()}`;
-
-  const bars = Object.entries(catMap).filter(([, v]) => v.count > 0);
-  const maxVal = Math.max(...bars.map(([, v]) => v.total), 1);
-  const colors = ['bar-green', 'bar-blue', 'bar-purple', 'bar-orange', 'bar-yellow', 'bar-red'];
 
   const area = document.getElementById('incomeChartArea');
   area.innerHTML = '';
 
-  if (bars.length === 0) {
-    area.innerHTML = '<p style="color:var(--text-xs); font-size:0.82rem; padding: 1rem 0;">該時段尚無紀錄</p>';
+  const entries = Object.entries(catMap).filter(([, v]) => v.count > 0);
+  if (entries.length === 0) {
+    area.innerHTML = '<p style="color:var(--text-xs); font-size:0.82rem; padding:1rem 0">該時段尚無紀錄</p>';
     return;
   }
 
-  bars.sort((a, b) => b[1].total - a[1].total).forEach(([name, v], i) => {
-    const pct = maxVal > 0 ? (v.total / maxVal * 100) : 0;
-    const row = document.createElement('div');
-    row.className = 'chart-row';
-    const icon = getCategoryIcon(name);
-    
-    row.innerHTML = `
-      <div class="chart-label-row">
-        <span class="chart-label-name">
-          <span class="material-symbols-outlined">${icon}</span>
-          ${name}
-          <small style="opacity:0.6; font-weight:normal; margin-left:4px">(${v.count} 筆)</small>
-        </span>
-        <span class="chart-label-val">
-          <strong>$${v.total.toLocaleString()}</strong>
-          ${v.pending > 0 ? `<span class="unpaid-tag">待核 ${v.pending}</span>` : ''}
-        </span>
-      </div>
-      <div class="chart-bar-bg">
-        <div class="chart-bar-fill ${colors[i % colors.length]}" style="width:0%" data-pct="${pct}"></div>
-      </div>`;
-    area.appendChild(row);
-  });
+  const palette = [
+    { color: '#22c55e', bg: '#f0fdf4', icon: 'eco' },
+    { color: '#3b82f6', bg: '#eff6ff', icon: 'water_drop' },
+    { color: '#a855f7', bg: '#f5f3ff', icon: 'spa' },
+    { color: '#f97316', bg: '#fff7ed', icon: 'nutrition' },
+    { color: '#eab308', bg: '#fefce8', icon: 'local_florist' },
+    { color: '#ef4444', bg: '#fef2f2', icon: 'yard' },
+  ];
+  const catColorMap = {};
+  settings.incomeMainCats.forEach((c, i) => { catColorMap[c.名稱] = palette[i % palette.length]; });
 
-  requestAnimationFrame(() => {
-    area.querySelectorAll('.chart-bar-fill').forEach(el => {
-      el.style.width = el.dataset.pct + '%';
-    });
+  // 轉為 grid
+  const grid = document.createElement('div');
+  grid.className = 'income-stat-grid';
+  area.appendChild(grid);
+
+  entries.sort((a, b) => b[1].total - a[1].total).forEach(([name, v], i) => {
+    const style = catColorMap[name] || palette[i % palette.length];
+    const icon = getCategoryIcon(name) || style.icon;
+    const card = document.createElement('div');
+    card.className = 'income-stat-card';
+    card.style.cssText = `border-top: 3px solid ${style.color}; background: ${style.bg};`;
+    card.innerHTML = `
+      <div class="stat-card-header">
+        <span class="material-symbols-outlined" style="color:${style.color};font-size:1.4rem">${icon}</span>
+        <span class="stat-card-name">${name}</span>
+        <span class="stat-card-count">${v.count}筆</span>
+      </div>
+      <div class="stat-card-amount" style="color:${style.color}">$${v.total.toLocaleString()}</div>
+      ${v.pending > 0 ? `<div style="margin-top:6px"><span class="unpaid-tag">未收 ${v.pending}筆 $${v.unpaidAmount.toLocaleString()}</span></div>` : '<div style="margin-top:6px"><span class="paid-tag">已全收</span></div>'}
+    `;
+    card.onclick = () => {
+      filterState.income.mainCat = filterState.income.mainCat === name ? null : name;
+      filterState.income.subCat = null;
+      renderIncomeFilterChips();
+      renderIncomeTable();
+    };
+    grid.appendChild(card);
   });
 }
 
@@ -786,21 +796,67 @@ document.querySelector('#incomeChartCard').addEventListener('click', e => {
 function renderIncomeFilterChips() {
   const container = document.getElementById('incomeMainCatChips');
   container.innerHTML = '';
+  const palette = ['#22c55e', '#3b82f6', '#a855f7', '#f97316', '#eab308', '#ef4444'];
+  const catColorMap = {};
+  settings.incomeMainCats.forEach((c, i) => { catColorMap[c.名稱] = palette[i % palette.length]; });
+
   settings.incomeMainCats.forEach(c => {
     const btn = document.createElement('button');
-    btn.className = `filter-chip${filterState.income.mainCat === c.名稱 ? ' active' : ''}`;
+    const isActive = filterState.income.mainCat === c.名稱;
+    const color = catColorMap[c.名稱];
+    btn.className = `filter-chip${isActive ? ' active' : ''}`;
+    if (isActive) btn.style.cssText = `background:${color};border-color:${color};color:white`;
     btn.textContent = c.名稱;
     btn.onclick = () => {
-      filterState.income.mainCat = filterState.income.mainCat === c.名稱 ? null : c.名稱;
+      if (filterState.income.mainCat === c.名稱) {
+        filterState.income.mainCat = null;
+        filterState.income.subCat = null;
+      } else {
+        filterState.income.mainCat = c.名稱;
+        filterState.income.subCat = null;
+      }
       renderIncomeFilterChips();
       renderIncomeTable();
     };
     container.appendChild(btn);
   });
+
+  // 次類別 chips
+  const subContainer = document.getElementById('incomeSubCatChips');
+  if (!subContainer) return;
+  subContainer.innerHTML = '';
+  if (filterState.income.mainCat) {
+    const cat = settings.incomeMainCats.find(c => c.名稱 === filterState.income.mainCat);
+    const subs = (cat && cat.次類別) ? cat.次類別.filter(Boolean) : [];
+    if (subs.length > 0) {
+      subContainer.style.display = 'flex';
+      const color = catColorMap[filterState.income.mainCat] || '#22c55e';
+      subs.forEach(sub => {
+        const btn = document.createElement('button');
+        const isSubActive = filterState.income.subCat === sub;
+        btn.className = `filter-chip${isSubActive ? ' active' : ''}`;
+        btn.style.cssText = isSubActive
+          ? `background:${color};border-color:${color};color:white`
+          : `border-color:${color};color:${color}`;
+        btn.textContent = sub;
+        btn.onclick = () => {
+          filterState.income.subCat = filterState.income.subCat === sub ? null : sub;
+          renderIncomeFilterChips();
+          renderIncomeTable();
+        };
+        subContainer.appendChild(btn);
+      });
+    } else {
+      subContainer.style.display = 'none';
+    }
+  } else {
+    subContainer.style.display = 'none';
+  }
 }
 
 document.getElementById('incomeClearFilter').onclick = () => {
   filterState.income.mainCat = null;
+  filterState.income.subCat = null;
   renderIncomeFilterChips();
   renderIncomeTable();
 };
@@ -819,6 +875,9 @@ function renderIncomeTable() {
   if (filterState.income.mainCat) {
     data = data.filter(r => r.主類別 === filterState.income.mainCat);
   }
+  if (filterState.income.subCat) {
+    data = data.filter(r => r.次類別 === filterState.income.subCat);
+  }
   data.sort((a, b) => {
     const diff = new Date(a.日期) - new Date(b.日期);
     return filterState.income.sortOrder === 'desc' ? -diff : diff;
@@ -834,42 +893,75 @@ function renderIncomeTable() {
   }
   empty.style.display = 'none';
 
-  data.forEach(r => {
-    // 等級資料摘要
-    const gradeArr = Array.isArray(r.等級資料) ? r.等級資料 : [];
-    const gradeText = gradeArr.map(g => `${g.等級} ${g.斤數}斤${g.箱數 ? ' ' + g.箱數 + '箱' : ''}`).join(' / ') || '-';
+  // 將資料刨3円：最近 30 天 vs 更早分月折疊
+  const now = new Date();
+  const recentData = [];
+  const groupedData = {}; // key: 'YYYY-MM'
 
+  data.forEach(r => {
+    const d = new Date(r.日期);
+    const diffDays = (now - d) / (1000 * 60 * 60 * 24);
+    if (r.日期 && diffDays > 30) {
+      const monthKey = r.日期.substring(0, 7);
+      if (!groupedData[monthKey]) groupedData[monthKey] = [];
+      groupedData[monthKey].push(r);
+    } else {
+      recentData.push(r);
+    }
+  });
+
+  const renderIncomeRow = (r, hiddenClass = '') => {
+    const gradeArr = Array.isArray(r.等級資料) ? r.等級資料 : [];
+    const gradeText = gradeArr.map(g => `${g.等級} ${g.斤數}斤${g.筘數 ? ' ' + g.筘數 + '筱' : ''}`).join(' / ') || '-';
     const confirmed = r.價格確認;
     const statusHtml = confirmed
       ? `<span class="status-badge confirmed">✓ 確認</span>`
       : `<span class="status-badge pending">待確認</span>`;
-
     const priceCell = r.總價
       ? `<span class="td-amount income">$${parseFloat(r.總價).toLocaleString()}</span>`
       : `<button class="btn-fill-price" onclick="openFillPriceModal('${r.id}')">+ 填入</button>`;
-
-    const actionHtml = isAdmin
-      ? `<div class="table-actions">
-          <button class="btn-table-edit" onclick="openIncomeEdit('${r.id}')" title="編輯"><span class="material-symbols-outlined">edit</span></button>
-          <button class="btn-table-del" onclick="confirmDelete('income','${r.id}')" title="刪除"><span class="material-symbols-outlined">delete</span></button>
-        </div>`
-      : `<div class="table-actions">
-          <button class="btn-table-edit" onclick="openIncomeEdit('${r.id}')" title="編輯"><span class="material-symbols-outlined">edit</span></button>
-          <button class="btn-table-del" onclick="confirmDelete('income','${r.id}')" title="刪除"><span class="material-symbols-outlined">delete</span></button>
-        </div>`;
-
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
+    const actionHtml = `<div class="table-actions">
+      <button class="btn-table-edit" onclick="openIncomeEdit('${r.id}')" title="編輯"><span class="material-symbols-outlined">edit</span></button>
+      <button class="btn-table-del" onclick="confirmDelete('income','${r.id}')" title="刪除"><span class="material-symbols-outlined">delete</span></button>
+    </div>`;
+    return `<tr class="${hiddenClass}">
       <td>${r.日期}</td>
       <td><span style="font-weight:600">${r.客戶名稱 || r.客戶類別 || '-'}</span><br><small style="color:var(--text-muted)">付款: ${r.付款狀態 || '未付款'}<br>對帳: ${r.對帳狀態 || '待對帳'}</small></td>
       <td><span class="badge-main">${r.主類別}</span>${r.其他備註 ? `<br><small style="color:var(--text-muted)">${r.其他備註}</small>` : ''}</td>
       <td style="font-size:0.78rem">${gradeText}</td>
-      <td>${r.總重 ? r.總重 + '斤' : '-'}${r.箱數 ? ' / ' + r.箱數 + '箱' : ''}</td>
+      <td>${r.總重 ? r.總重 + '斤' : '-'}${r.筘數 ? ' / ' + r.筘數 + '筱' : ''}</td>
       <td>${priceCell}<br><small style="color:var(--text-muted)">盤: ${r.盤商價 ? `$${parseFloat(r.盤商價).toLocaleString()}` : '-'} / 運: ${r.運費 ? `$${parseFloat(r.運費).toLocaleString()}` : '-'}</small></td>
       <td>${statusHtml}</td>
-      <td>${actionHtml}</td>`;
-    tbody.appendChild(tr);
+      <td>${actionHtml}</td>
+    </tr>`;
+  };
+
+  let html = '';
+  recentData.forEach(r => { html += renderIncomeRow(r); });
+
+  // 訂符分月30天以前按月折疊
+  const sortedMonths = Object.keys(groupedData).sort((a, b) =>
+    filterState.income.sortOrder === 'desc' ? b.localeCompare(a) : a.localeCompare(b)
+  );
+  sortedMonths.forEach(m => {
+    const list = groupedData[m];
+    const groupId = `fold-income-${m.replace('-', '')}`;
+    let groupTotal = 0;
+    list.forEach(i => groupTotal += (parseFloat(i.總價) || 0));
+    html += `<tr class="folder-header" onclick="toggleTableGroup('${groupId}')" style="cursor:pointer;background:#f8fafc;">
+      <td colspan="8">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span><span class="material-symbols-outlined" style="vertical-align:middle;font-size:1rem;color:var(--text-muted)">folder</span> <strong>${m}</strong> 歷史紀錄 <small style="color:var(--text-muted)">(${list.length}筆)</small></span>
+          <span style="color:var(--green-dark);font-weight:700">$${groupTotal.toLocaleString()}</span>
+        </div>
+      </td>
+    </tr>`;
+    list.forEach(r => { html += renderIncomeRow(r, groupId); });
   });
+
+  tbody.innerHTML = html;
+  // 預設折疊
+  document.querySelectorAll(`[class*="fold-income-"]`).forEach(el => { el.style.display = 'none'; });
 }
 
 // ============================================================
@@ -946,7 +1038,17 @@ function renderOrderTable() {
         <button class="btn-table-del" onclick="confirmDelete('order','${r.id}')" title="刪除"><span class="material-symbols-outlined">delete</span></button>
       </div>`;
 
-    let receiverInfo = `${r.收件人} (${r.收件人電話})<br><small style="color:var(--text-muted)">${r.收件人地址}</small>`;
+    const needReceiver = r.取貨方式 === '黑貓宅配' || r.取貨方式 === '老闆送';
+    let receiverInfo;
+    if (!needReceiver) {
+      receiverInfo = '-';
+    } else {
+      const namePart = r.收件人 || '';
+      const phonePart = r.收件人電話 ? `(${r.收件人電話})` : '';
+      const addrPart = r.收件人地址 || '';
+      receiverInfo = `${namePart}${phonePart ? ' ' + phonePart : ''}${addrPart ? `<br><small style="color:var(--text-muted)">${addrPart}</small>` : ''}`;
+      if (!namePart && !phonePart) receiverInfo = '-';
+    }
 
     return `
       <tr class="${hiddenClass}">
@@ -2154,6 +2256,16 @@ function calculateOrderPrice() {
     const unitPrice = parseFloat(match.售價);
     document.getElementById('orderTotalPrice').value = unitPrice * qty;
     if(match.單位) document.getElementById('orderUnit').value = match.單位;
+    // 顯示販售內容提示（如果 input hint 存在）
+    const hint = document.querySelector('#orderTotalPrice + .field-hint, #orderTotalPrice ~ .field-hint');
+    if (!hint) {
+      const h = document.createElement('small');
+      h.className = 'field-hint price-hint';
+      h.style.cssText = 'color:var(--green-dark);margin-top:2px;display:block';
+      document.getElementById('orderTotalPrice').parentElement.appendChild(h);
+    }
+    const hintEl = document.querySelector('.price-hint');
+    if (hintEl) hintEl.textContent = match.販售內容 ? `該等級內容：${match.販售內容}，單價 $${match.售價}/箱` : '';
   }
 }
 
@@ -2391,14 +2503,26 @@ function renderIncomeMainCatAdmin() {
   const tbody = document.getElementById('incomeMainCatBody');
   tbody.innerHTML = '';
   settings.incomeMainCats.forEach((c, i) => {
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td><strong>${c.名稱}</strong></td>
-      <td>—</td>
-      <td><div class="table-actions">
-        <button class="btn-table-del" onclick="deleteIncomeMainCat(${i})" title="刪除"><span class="material-symbols-outlined">delete</span></button>
-      </div></td>`;
-    tbody.appendChild(tr);
+    const subs = (c.次類別 || []);
+    if (subs.length === 0) {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><strong>${c.名稱}</strong></td>
+        <td>—</td>
+        <td><div class="table-actions">
+          <button class="btn-table-del" onclick="deleteIncomeMainCat(${i})" title="刪除"><span class="material-symbols-outlined">delete</span></button>
+        </div></td>`;
+      tbody.appendChild(tr);
+    } else {
+      subs.forEach((sub, si) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${si === 0 ? `<strong>${c.名稱}</strong>` : ''}</td>
+          <td><span class="badge-sub">${sub}</span></td>
+          <td>${si === 0 ? `<div class="table-actions"><button class="btn-table-del" onclick="deleteIncomeMainCat(${i})" title="刪除"><span class="material-symbols-outlined">delete</span></button></div>` : ''}</td>`;
+        tbody.appendChild(tr);
+      });
+    }
   });
 }
 
@@ -2920,16 +3044,25 @@ function renderBalancePage() {
 
   // 2. 計算總和
   let marketIncome = 0;
+  let marketUnpaid = 0;
   let actualKG = 0;
   incData.forEach(r => {
     marketIncome += (parseFloat(r.總價) || 0);
+    if (r.付款狀態 !== '已付款') marketUnpaid += (parseFloat(r.總價) || 0);
     actualKG += (parseFloat(r.總重) || 0) * 0.6; // 假設總重是台斤 -> KG
   });
   
+  // 訂單依狀態分組計算
   let salesIncome = 0;
+  let salesByStatus = {}; // { '未指定': 金額, '預定出貨': 金額, '已出貨': 金額, ... }
+  let salesUnpaid = 0;
   orderDataFiltered.forEach(r => {
-    salesIncome += (parseFloat(r.總價) || 0);
-    // 訂單通常由單盒重量算？如果沒有明確公斤數先不計入或者估計
+    const price = parseFloat(r.總價) || 0;
+    salesIncome += price;
+    const status = r.狀態 || '未指定';
+    if (!salesByStatus[status]) salesByStatus[status] = 0;
+    salesByStatus[status] += price;
+    if (r.付款狀態 !== '已付款') salesUnpaid += price;
   });
 
   const totalIncome = marketIncome + salesIncome;
@@ -2950,6 +3083,30 @@ function renderBalancePage() {
   });
 
   const netBalance = totalIncome - totalExpense;
+
+  // 更新訂單依狀態細項顯示
+  const orderBreakdownEl = document.getElementById('balanceOrderBreakdown');
+  if (orderBreakdownEl) {
+    if (Object.keys(salesByStatus).length === 0) {
+      orderBreakdownEl.innerHTML = '<small style="color:var(--text-muted)">無訂單</small>';
+    } else {
+      const statusOrder = ['已出貨', '預定出貨', '未指定'];
+      const sorted = Object.entries(salesByStatus).sort((a, b) => {
+        const ai = statusOrder.indexOf(a[0]);
+        const bi = statusOrder.indexOf(b[0]);
+        return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+      });
+      orderBreakdownEl.innerHTML = sorted.map(([status, amt]) =>
+        `<div style="display:flex;justify-content:space-between;font-size:0.78rem;padding:2px 0;">
+          <span style="color:var(--text-muted)">${status}</span>
+          <span>$${amt.toLocaleString()}</span>
+        </div>`
+      ).join('');
+    }
+    if (salesUnpaid > 0) {
+      orderBreakdownEl.innerHTML += `<div style="font-size:0.75rem;color:var(--orange);margin-top:4px">未付款 $${salesUnpaid.toLocaleString()}</div>`;
+    }
+  }
 
   // 3. 結餘與收入看板
   const netEl = document.getElementById('balanceNetAmount');
@@ -3057,8 +3214,8 @@ function renderBalanceMonthlyTable(incData, expData, orderDataFiltered = []) {
   incData.forEach(r => {
     if(!r.日期) return;
     const month = r.日期.substring(0, 7); // YYYY-MM
-    if(!monthlyMap[month]) monthlyMap[month] = { income: 0, expense: 0, count: 0 };
-    monthlyMap[month].income += (parseFloat(r.總價) || 0);
+    if(!monthlyMap[month]) monthlyMap[month] = { market: 0, sales: 0, expense: 0, orderCount: 0 };
+    monthlyMap[month].market += (parseFloat(r.總價) || 0);
   });
 
   // 處理客戶銷售收入
@@ -3066,16 +3223,16 @@ function renderBalanceMonthlyTable(incData, expData, orderDataFiltered = []) {
     const d = r.到貨日期 || r.下定日期;
     if(!d) return;
     const month = d.substring(0, 7); // YYYY-MM
-    if(!monthlyMap[month]) monthlyMap[month] = { income: 0, expense: 0, count: 0 };
-    monthlyMap[month].income += (parseFloat(r.總價) || 0);
-    monthlyMap[month].count++;
+    if(!monthlyMap[month]) monthlyMap[month] = { market: 0, sales: 0, expense: 0, orderCount: 0 };
+    monthlyMap[month].sales += (parseFloat(r.總價) || 0);
+    monthlyMap[month].orderCount++;
   });
 
   // 處理支出
   expData.forEach(r => {
     if(!r.日期) return;
     const month = r.日期.substring(0, 7); // YYYY-MM
-    if(!monthlyMap[month]) monthlyMap[month] = { income: 0, expense: 0, count: 0 };
+    if(!monthlyMap[month]) monthlyMap[month] = { market: 0, sales: 0, expense: 0, orderCount: 0 };
     monthlyMap[month].expense += calcExpenseTotal(r);
   });
 
@@ -3084,17 +3241,19 @@ function renderBalanceMonthlyTable(incData, expData, orderDataFiltered = []) {
   
   tbody.innerHTML = '';
   if (months.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-muted);">無資料</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);">無資料</td></tr>';
     return;
   }
 
   months.forEach(m => {
     const stat = monthlyMap[m];
-    const net = stat.income - stat.expense;
+    const totalIncome = stat.market + stat.sales;
+    const net = totalIncome - stat.expense;
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td><strong>${m}</strong></td>
-      <td style="color:var(--green-dark);">$${stat.income.toLocaleString()}${stat.count>0?` <small style="color:var(--text-muted);font-size:0.7rem">(${stat.count}筆訂單)</small>`:''}</td>
+      <td style="color:var(--green-dark);">$${stat.market.toLocaleString()}</td>
+      <td style="color:var(--green-dark);">$${stat.sales.toLocaleString()}${stat.orderCount>0?` <small style="color:var(--text-muted);font-size:0.7rem">(${stat.orderCount}筆)</small>`:''}</td>
       <td style="color:var(--red);">$${stat.expense.toLocaleString()}</td>
       <td style="font-weight:bold; color:${net >= 0 ? 'var(--green-dark)' : 'var(--red)'};">$${net.toLocaleString()}</td>
     `;
