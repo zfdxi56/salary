@@ -329,16 +329,37 @@
     <!-- ==================== 客戶訂單分頁 ==================== -->
     <section id="page-orders" class="tab-page">
       <div class="page-inner">
-        <!-- 訂單統計/動作區 -->
-        <div class="section-action-row" style="margin-top:0">
-          <h3 class="section-title">客戶訂單</h3>
+        <!-- 訂單統計圖表 [NEW] -->
+        <div class="card glass chart-card" id="orderChartCard">
+          <div class="card-header">
+            <div class="header-main">
+              <h2><span class="material-symbols-outlined">shopping_cart</span> 訂單統計</h2>
+              <div id="orderTotalSummary" class="chart-summary">總計：$0</div>
+            </div>
+            <div class="chart-period-btns">
+              <button class="period-btn active" data-period="all">全部</button>
+              <button class="period-btn" data-period="year">今年</button>
+              <button class="period-btn" data-period="month">本月</button>
+            </div>
+          </div>
+          <div id="orderChartArea" class="chart-area"></div>
+        </div>
+
+        <!-- 新增訂單按鈕 -->
+        <div class="section-action-row">
+          <h3 class="section-title">客戶訂單紀錄</h3>
           <button class="btn btn-primary btn-sm" id="openOrderFormBtn">
             <span class="material-symbols-outlined">add</span> 新增訂單
           </button>
         </div>
 
         <div class="filter-bar" id="orderFilterBar">
-          <div class="filter-tools" style="margin-left:auto">
+          <div class="filter-chips" id="orderMainCatChips"></div>
+          <div class="filter-chips sub" id="orderSubCatChips" style="display:none"></div>
+          <div class="filter-tools">
+            <button class="btn-tool" id="orderClearFilter" title="清除篩選">
+              <span class="material-symbols-outlined">filter_alt_off</span>
+            </button>
             <button class="btn-tool" id="orderSortBtn" title="切換排序 (以到貨日/訂購日為準)" data-order="desc">
               <span class="material-symbols-outlined">sort</span>
             </button>

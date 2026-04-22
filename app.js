@@ -53,7 +53,7 @@ let settings = {
 const filterState = {
   income: { mainCat: null, subCat: null, sortOrder: 'desc', period: 'all' },
   expense: { mainCat: null, subCat: null, sortOrder: 'desc', period: 'all' },
-  order: { sortOrder: 'desc' },
+  order: { mainCat: null, subCat: null, sortOrder: 'desc', period: 'all' },
 };
 
 // --- 工具類變數與函式 (先行定義避免 ReferenceError) ---
@@ -654,6 +654,8 @@ function renderAll() {
   renderExpenseFilterChips();
 
   renderBalancePage();
+  renderOrderChart();
+  renderOrderFilterChips();
   renderOrderTable();
 
   if (isAdmin) {
@@ -758,14 +760,14 @@ function renderIncomeChart() {
 
   // 轉為 grid
   const grid = document.createElement('div');
-  grid.className = 'income-stat-grid';
+  grid.className = 'stat-grid';
   area.appendChild(grid);
 
   entries.sort((a, b) => b[1].total - a[1].total).forEach(([name, v], i) => {
     const style = catColorMap[name] || palette[i % palette.length];
     const icon = getCategoryIcon(name) || style.icon;
     const card = document.createElement('div');
-    card.className = 'income-stat-card';
+    card.className = 'stat-card';
     card.style.cssText = `border-top: 3px solid ${style.color}; background: ${style.bg};`;
     card.innerHTML = `
       <div class="stat-card-header">
@@ -968,9 +970,149 @@ function renderIncomeTable() {
   document.querySelectorAll(`[class*="fold-income-"]`).forEach(el => { el.style.display = 'none'; });
 }
 
-// ============================================================
-// 9.5 客戶訂單處理
-// ============================================================
+function renderOrderChart() {
+  const period = filterState.order.period;
+  const data = getFilteredByPeriod(ordersData, '下定日期', period); // 或到貨日期
+
+  const catMap = {};
+  data.forEach(r => {
+    const key = r.訂購品項;
+    if (!catMap[key]) catMap[key] = { total: 0, count: 0, pending: 0, unpaidAmount: 0 };
+    const price = parseFloat(r.總價) || 0;
+    catMap[key].total += price;
+    catMap[key].count++;
+    if (r.付款狀態 !== '已付款') {
+      catMap[key].pending++;
+      catMap[key].unpaidAmount += price;
+    }
+  });
+
+  let grandTotal = data.reduce((acc, r) => acc + (parseFloat(r.總價) || 0), 0);
+  document.getElementById('orderTotalSummary').textContent = `總計：$${grandTotal.toLocaleString()}`;
+
+  const area = document.getElementById('orderChartArea');
+  area.innerHTML = '';
+
+  const entries = Object.entries(catMap).filter(([, v]) => v.count > 0);
+  if (entries.length === 0) {
+    area.innerHTML = '<p style="color:var(--text-xs); font-size:0.82rem; padding:1rem 0">該時段尚無紀錄</p>';
+    return;
+  }
+
+  const palette = [
+    { color: '#22c55e', bg: '#f0fdf4', icon: 'eco' },
+    { color: '#3b82f6', bg: '#eff6ff', icon: 'water_drop' },
+    { color: '#a855f7', bg: '#f5f3ff', icon: 'spa' },
+  ];
+  const varietyNames = ['甜柿', '水蜜桃', '橘子'];
+  
+  const grid = document.createElement('div');
+  grid.className = 'stat-grid';
+  area.appendChild(grid);
+
+  entries.sort((a, b) => b[1].total - a[1].total).forEach(([name, v], i) => {
+    const vIdx = varietyNames.indexOf(name);
+    const style = vIdx !== -1 ? palette[vIdx % palette.length] : palette[i % palette.length];
+    const icon = getCategoryIcon(name) || style.icon;
+    const card = document.createElement('div');
+    card.className = 'stat-card';
+    card.style.cssText = `border-top: 3px solid ${style.color}; background: ${style.bg};`;
+    card.innerHTML = `
+      <div class="stat-card-header">
+        <span class="material-symbols-outlined" style="color:${style.color};font-size:1.4rem">${icon}</span>
+        <span class="stat-card-name">${name}</span>
+        <span class="stat-card-count">${v.count}筆</span>
+      </div>
+      <div class="stat-card-amount" style="color:${style.color}">$${v.total.toLocaleString()}</div>
+      ${v.pending > 0 ? `<div style="margin-top:6px"><span class="unpaid-tag">未交/收 ${v.pending}筆 $${v.unpaidAmount.toLocaleString()}</span></div>` : '<div style="margin-top:6px"><span class="paid-tag">已全結</span></div>'}
+    `;
+    card.onclick = () => {
+      filterState.order.mainCat = filterState.order.mainCat === name ? null : name;
+      filterState.order.subCat = null;
+      renderOrderFilterChips();
+      renderOrderTable();
+    };
+    grid.appendChild(card);
+  });
+}
+
+function renderOrderFilterChips() {
+  const container = document.getElementById('orderMainCatChips');
+  if (!container) return;
+  container.innerHTML = '';
+  
+  const palette = ['#22c55e', '#3b82f6', '#a855f7'];
+  const varietyNames = ['甜柿', '水蜜桃', '橘子'];
+
+  varietyNames.forEach((name, i) => {
+    const btn = document.createElement('button');
+    const isActive = filterState.order.mainCat === name;
+    const color = palette[i % palette.length];
+    btn.className = `filter-chip${isActive ? ' active' : ''}`;
+    if (isActive) btn.style.cssText = `background:${color};border-color:${color};color:white`;
+    btn.textContent = name;
+    btn.onclick = () => {
+      if (filterState.order.mainCat === name) {
+        filterState.order.mainCat = null;
+        filterState.order.subCat = null;
+      } else {
+        filterState.order.mainCat = name;
+        filterState.order.subCat = null;
+      }
+      renderOrderFilterChips();
+      renderOrderTable();
+    };
+    container.appendChild(btn);
+  });
+
+  const subContainer = document.getElementById('orderSubCatChips');
+  if (!subContainer) return;
+  subContainer.innerHTML = '';
+  if (filterState.order.mainCat) {
+    const cat = settings.incomeMainCats.find(c => c.名稱 === filterState.order.mainCat);
+    const subs = (cat && cat.次類別) ? cat.次類別.filter(Boolean) : [];
+    if (subs.length > 0) {
+      subContainer.style.display = 'flex';
+      const vIdx = varietyNames.indexOf(filterState.order.mainCat);
+      const color = vIdx !== -1 ? palette[vIdx] : '#22c55e';
+      subs.forEach(sub => {
+        const btn = document.createElement('button');
+        const isSubActive = filterState.order.subCat === sub;
+        btn.className = `filter-chip${isSubActive ? ' active' : ''}`;
+        btn.style.cssText = isSubActive
+          ? `background:${color};border-color:${color};color:white`
+          : `border-color:${color};color:${color}`;
+        btn.textContent = sub;
+        btn.onclick = () => {
+          filterState.order.subCat = filterState.order.subCat === sub ? null : sub;
+          renderOrderFilterChips();
+          renderOrderTable();
+        };
+        subContainer.appendChild(btn);
+      });
+    } else {
+      subContainer.style.display = 'none';
+    }
+  } else {
+    subContainer.style.display = 'none';
+  }
+}
+
+document.getElementById('orderClearFilter').onclick = () => {
+  filterState.order.mainCat = null;
+  filterState.order.subCat = null;
+  renderOrderFilterChips();
+  renderOrderTable();
+};
+
+document.querySelector('#orderChartCard').addEventListener('click', e => {
+  const btn = e.target.closest('.period-btn');
+  if (!btn) return;
+  document.querySelectorAll('#orderChartCard .period-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  filterState.order.period = btn.dataset.period;
+  renderOrderChart();
+});
 // --- 事件與工具綁定 ---
 document.getElementById('orderSortBtn').onclick = () => {
   filterState.order.sortOrder = filterState.order.sortOrder === 'desc' ? 'asc' : 'desc';
@@ -980,6 +1122,13 @@ document.getElementById('orderSortBtn').onclick = () => {
 
 function renderOrderTable() {
   let data = [...ordersData];
+  
+  if (filterState.order.mainCat) {
+    data = data.filter(r => r.訂購品項 === filterState.order.mainCat);
+  }
+  if (filterState.order.subCat) {
+    data = data.filter(r => r.品項類別 === filterState.order.subCat);
+  }
   
   // 排序：預設以 到貨日期 為主，但若為空則以下定日期為主
   data.sort((a, b) => {
@@ -1325,111 +1474,99 @@ function renderExpenseChart() {
   data.forEach(r => grandTotal += calcExpenseTotal(r));
   document.getElementById('expenseTotalSummary').textContent = `總計：$${grandTotal.toLocaleString()}`;
 
-  // 先看有沒有工人薪資
+  // 1. 準備顏色與分類
+  const palette = [
+    { color: '#ef4444', bg: '#fef2f2', icon: 'payments' },       // 支出紅色系
+    { color: '#f97316', bg: '#fff7ed', icon: 'precision_manufacturing' },
+    { color: '#8b5cf6', bg: '#f5f3ff', icon: 'local_shipping' },
+    { color: '#3b82f6', bg: '#eff6ff', icon: 'shopping_basket' },
+    { color: '#06b6d4', bg: '#ecfeff', icon: 'restaurant' },
+    { color: '#64748b', bg: '#f8fafc', icon: 'category' },
+  ];
+  const catColorMap = {};
+  settings.expenseMainCats.forEach((c, i) => { catColorMap[c.名稱] = palette[i % palette.length]; });
+
+  // 2. 主類別統計
+  const mainCatMap = {};
+  settings.expenseMainCats.forEach(c => mainCatMap[c.名稱] = { total: 0, count: 0, unpaid: 0 });
+  data.forEach(r => {
+    if (!mainCatMap[r.主類別]) mainCatMap[r.主類別] = { total: 0, count: 0, unpaid: 0 };
+    const amt = calcExpenseTotal(r);
+    mainCatMap[r.主類別].total += amt;
+    mainCatMap[r.主類別].count++;
+    if (!r.已支付) mainCatMap[r.主類別].unpaid += amt;
+  });
+
+  // 第一排：主類別 Grid
+  const mainGrid = document.createElement('div');
+  mainGrid.className = 'stat-grid';
+  area.appendChild(mainGrid);
+
+  Object.entries(mainCatMap).filter(([, v]) => v.count > 0).sort((a,b) => b[1].total - a[1].total).forEach(([name, v], i) => {
+    const style = catColorMap[name] || palette[i % palette.length];
+    const icon = getCategoryIcon(name) || style.icon;
+    const card = document.createElement('div');
+    card.className = 'stat-card';
+    card.style.cssText = `border-top: 3px solid ${style.color}; background: ${style.bg};`;
+    card.innerHTML = `
+      <div class="stat-card-header">
+        <span class="material-symbols-outlined" style="color:${style.color};font-size:1.4rem">${icon}</span>
+        <span class="stat-card-name">${name}</span>
+        <span class="stat-card-count">${v.count}筆</span>
+      </div>
+      <div class="stat-card-amount" style="color:${style.color}">$${v.total.toLocaleString()}</div>
+      ${v.unpaid > 0 ? `<div style="margin-top:4px"><span class="unpaid-tag" style="background:#fff7ed;color:#ea580c;border:1px solid #ffedd5">未付 $${v.unpaid.toLocaleString()}</span></div>` : '<div style="margin-top:4px"><span class="paid-tag">已全付</span></div>'}
+    `;
+    card.onclick = () => {
+      filterState.expense.mainCat = (filterState.expense.mainCat === name) ? null : name;
+      filterState.expense.subCat = null;
+      renderExpenseFilterChips();
+      renderExpenseTable();
+    };
+    mainGrid.appendChild(card);
+  });
+
+  // 3. 工人個人統計 (第二排)
   const workerCat = settings.expenseMainCats.find(c => c.類型 === 'worker');
   const workerCatName = workerCat?.名稱 || '工人薪資';
-
-  // 工人薪資：依人名統計
   const workerExpenses = data.filter(r => r.主類別 === workerCatName);
-  const workerMap = {};
-  workerExpenses.forEach(r => {
-    const name = r.工人姓名 || '未知';
-    if (!workerMap[name]) workerMap[name] = { paid: 0, unpaid: 0, count: 0 };
-    const amt = calcExpenseTotal(r);
-    if (r.已支付) workerMap[name].paid += amt;
-    else workerMap[name].unpaid += amt;
-    workerMap[name].count++;
-  });
+  
+  if (workerExpenses.length > 0) {
+    const workerMap = {};
+    workerExpenses.forEach(r => {
+      const name = r.工人姓名 || '未知';
+      if (!workerMap[name]) workerMap[name] = { total: 0, count: 0, unpaid: 0 };
+      const amt = calcExpenseTotal(r);
+      workerMap[name].total += amt;
+      workerMap[name].count++;
+      if (!r.已支付) workerMap[name].unpaid += amt;
+    });
 
-  // 其他主類別
-  const otherCats = settings.expenseMainCats.filter(c => c.類型 !== 'worker');
-  const catMap = {};
-  otherCats.forEach(c => catMap[c.名稱] = { total: 0, count: 0 });
-  data.filter(r => r.主類別 !== workerCatName).forEach(r => {
-    if (!catMap[r.主類別]) catMap[r.主類別] = { total: 0, count: 0 };
-    catMap[r.主類別].total += calcExpenseTotal(r);
-    catMap[r.主類別].count++;
-  });
+    const subTitle = document.createElement('div');
+    subTitle.style.cssText = 'font-size:0.75rem; font-weight:700; color:var(--text-muted); margin-top:0.5rem;';
+    subTitle.innerHTML = `<span class="material-symbols-outlined" style="font-size:1rem; vertical-align:middle">engineering</span> 個別工人薪資統計`;
+    area.appendChild(subTitle);
 
-  // 工人薪資區塊
-  if (Object.keys(workerMap).length > 0) {
-    const workerHeader = document.createElement('div');
-    workerHeader.style.cssText = 'font-size:0.75rem; font-weight:700; color:var(--text-muted); margin: 0 0 4px 4px;';
-    workerHeader.innerHTML = `<span class="material-symbols-outlined" style="font-size:1rem; vertical-align:middle">engineering</span> ${workerCatName} (點選姓名看明細)`;
-    area.appendChild(workerHeader);
+    const workerGrid = document.createElement('div');
+    workerGrid.className = 'stat-grid sub';
+    area.appendChild(workerGrid);
 
-    const maxWorker = Math.max(...Object.values(workerMap).map(v => v.paid + v.unpaid), 1);
-    Object.entries(workerMap).sort((a,b) => (b[1].paid+b[1].unpaid) - (a[1].paid+a[1].unpaid)).forEach(([name, v], i) => {
-      const total = v.paid + v.unpaid;
-      const pct = (total / maxWorker * 100);
-      const row = document.createElement('div');
-      row.className = 'chart-row';
-      row.innerHTML = `
-        <div class="chart-label-row">
-          <span class="chart-label-name" onclick="showWorkerDetail('${name}')">
-            <span class="material-symbols-outlined">person</span> ${name}
-            <small style="opacity:0.6; font-weight:normal; margin-left:4px">(${v.count} 筆)</small>
-          </span>
-          <span class="chart-label-val">
-            <strong>$${total.toLocaleString()}</strong>
-            ${v.unpaid > 0 ? `<span class="unpaid-tag">欠 $${v.unpaid.toLocaleString()}</span>` : ''}
-            ${v.paid > 0 ? `<span class="paid-tag">已付</span>` : ''}
-          </span>
+    Object.entries(workerMap).sort((a,b) => b[1].total - a[1].total).forEach(([name, v]) => {
+      const card = document.createElement('div');
+      card.className = 'stat-card sm';
+      card.style.cssText = `background: white;`;
+      card.innerHTML = `
+        <div class="stat-card-header">
+           <span class="stat-card-name" style="font-size:0.85rem">${name}</span>
+           <span class="stat-card-count">${v.count}筆</span>
         </div>
-        <div class="chart-bar-bg">
-          <div class="chart-bar-fill bar-yellow" style="width:0%" data-pct="${pct}"></div>
-        </div>`;
-      area.appendChild(row);
+        <div class="stat-card-amount" style="font-size:1.15rem">$${v.total.toLocaleString()}</div>
+        ${v.unpaid > 0 ? `<div style="font-size:0.68rem; color:#ea580c">未付 $${v.unpaid.toLocaleString()}</div>` : '<div style="font-size:0.68rem; color:var(--green)">已結清</div>'}
+      `;
+      card.onclick = () => showWorkerDetail(name);
+      workerGrid.appendChild(card);
     });
   }
-
-  // 其他類別
-  const otherEntries = Object.entries(catMap).filter(([, v]) => v.count > 0);
-  if (otherEntries.length > 0) {
-    if (area.children.length > 0) {
-      const divider = document.createElement('div');
-      divider.style.height = '1px';
-      divider.style.background = 'var(--border)';
-      divider.style.margin = '4px 0';
-      area.appendChild(divider);
-    }
-    
-    const otherHeader = document.createElement('div');
-    otherHeader.style.cssText = 'font-size:0.75rem; font-weight:700; color:var(--text-muted); margin: 4px 0 4px 4px;';
-    otherHeader.innerHTML = `<span class="material-symbols-outlined" style="font-size:1rem; vertical-align:middle">category</span> 經營支出`;
-    area.appendChild(otherHeader);
-
-    const maxOther = Math.max(...otherEntries.map(([, v]) => v.total), 1);
-    otherEntries.sort((a, b) => b[1].total - a[1].total).forEach(([name, v], i) => {
-      const pct = (v.total / maxOther * 100);
-      const row = document.createElement('div');
-      row.className = 'chart-row';
-      const icon = getCategoryIcon(name);
-      
-      row.innerHTML = `
-        <div class="chart-label-row">
-          <span class="chart-label-name">
-            <span class="material-symbols-outlined">${icon}</span> ${name}
-            <small style="opacity:0.6; font-weight:normal; margin-left:4px">(${v.count} 筆)</small>
-          </span>
-          <span class="chart-label-val"><strong>$${v.total.toLocaleString()}</strong></span>
-        </div>
-        <div class="chart-bar-bg">
-          <div class="chart-bar-fill bar-orange" style="width:0%" data-pct="${pct}"></div>
-        </div>`;
-      area.appendChild(row);
-    });
-  }
-
-  if (area.children.length === 0) {
-    area.innerHTML = '<p style="color:var(--text-xs); font-size:0.82rem; padding: 1rem 0;">該時段尚無紀錄</p>';
-  }
-
-  requestAnimationFrame(() => {
-    area.querySelectorAll('.chart-bar-fill').forEach(el => {
-      el.style.width = el.dataset.pct + '%';
-    });
-  });
 }
 
 // 期間切換 — 支出
@@ -1546,31 +1683,7 @@ function renderExpenseFilterChips() {
   renderExpenseSubCatChips();
 }
 
-function renderExpenseSubCatChips() {
-  const container = document.getElementById('expenseSubCatChips');
-  container.innerHTML = '';
-  if (!filterState.expense.mainCat) {
-    container.style.display = 'none';
-    return;
-  }
-  const cat = settings.expenseMainCats.find(c => c.名稱 === filterState.expense.mainCat);
-  if (!cat || cat.次類別.length === 0) {
-    container.style.display = 'none';
-    return;
-  }
-  container.style.display = 'flex';
-  cat.次類別.forEach(sub => {
-    const btn = document.createElement('button');
-    btn.className = `filter-chip${filterState.expense.subCat === sub.名稱 ? ' active' : ''}`;
-    btn.textContent = sub.名稱;
-    btn.onclick = () => {
-      filterState.expense.subCat = filterState.expense.subCat === sub.名稱 ? null : sub.名稱;
-      renderExpenseSubCatChips();
-      renderExpenseTable();
-    };
-    container.appendChild(btn);
-  });
-}
+
 
 document.getElementById('expenseClearFilter').onclick = () => {
   filterState.expense.mainCat = null;

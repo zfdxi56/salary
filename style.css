@@ -408,23 +408,32 @@ body {
   flex-direction: column;
   gap: 1.25rem;
 }
-/* Income stat cards grid (replaces bar chart) */
-.income-stat-grid {
+/* Stat cards grid (Income, Expense, Orders) */
+.stat-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
   gap: 0.75rem;
   padding: 0.25rem 0;
 }
-.income-stat-card {
+/* For smaller sub-cards like individual workers */
+.stat-grid.sub {
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+.stat-card {
   border-radius: var(--radius);
   padding: 1rem;
   cursor: pointer;
   transition: transform 0.15s, box-shadow 0.15s;
   border: 1px solid rgba(0,0,0,0.06);
 }
-.income-stat-card:hover {
+.stat-card:hover {
   transform: translateY(-3px);
   box-shadow: var(--shadow);
+}
+.stat-card.sm {
+  padding: 0.75rem;
 }
 .stat-card-header {
   display: flex;
@@ -449,8 +458,12 @@ body {
   font-weight: 800;
   letter-spacing: -0.03em;
 }
+.stat-card.sm .stat-card-amount {
+  font-size: 1.1rem;
+}
 @media (max-width: 480px) {
-  .income-stat-grid { grid-template-columns: repeat(2, 1fr); }
+  .stat-grid { grid-template-columns: repeat(2, 1fr); }
+  .stat-grid.sub { grid-template-columns: repeat(2, 1fr); }
   .stat-card-amount { font-size: 1.25rem; }
 }
 
