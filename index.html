@@ -223,12 +223,11 @@
             <thead>
               <tr>
                 <th>日期</th>
+                <th>對象/帳務</th>
                 <th>品種</th>
                 <th>等級</th>
                 <th>斤數/箱數</th>
-                <th>總價</th>
-                <th>盤商價</th>
-                <th>運費</th>
+                <th>價格資訊</th>
                 <th>狀態</th>
                 <th>操作</th>
               </tr>
@@ -352,11 +351,11 @@
           <table class="records-table" id="orderTable">
             <thead>
               <tr>
-                <th>品種與狀態</th>
+                <th>訂購品項</th>
                 <th>日期(到貨/訂購)</th>
-                <th>等級/箱數</th>
-                <th>金額</th>
-                <th>寄件人</th>
+                <th>等級/內容</th>
+                <th>總價</th>
+                <th>寄件人/狀態</th>
                 <th>收件資訊</th>
                 <th>取貨方式</th>
                 <th>操作</th>
@@ -496,6 +495,20 @@
               <option value="">-- 請選擇 --</option>
               <option value="ADD_NEW">+ 新增品種...</option>
             </select>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="input-wrap">
+            <label for="incomeCustomerType">客戶類別</label>
+            <select id="incomeCustomerType">
+              <option value="一般">一般</option>
+              <option value="盤商">盤商</option>
+            </select>
+          </div>
+          <div class="input-wrap">
+            <label for="incomeCustomerName">客戶名稱</label>
+            <input type="text" id="incomeCustomerName" placeholder="輸入名稱">
           </div>
         </div>
 
@@ -739,6 +752,23 @@
         <div class="input-wrap">
           <label>訂單總價 (由系統自動抓取金額試算) *</label>
           <input type="number" id="orderTotalPrice" placeholder="將根據品種與等級自動試算" required>
+        </div>
+
+        <div class="form-row" style="margin-top: 0.5rem">
+          <div class="input-wrap">
+            <label for="orderPaymentStatus">付款狀態</label>
+            <select id="orderPaymentStatus">
+              <option value="未付款" selected>未付款</option>
+              <option value="已付款">已付款</option>
+            </select>
+          </div>
+          <div class="input-wrap">
+            <label for="orderReconStatus">對帳狀態</label>
+            <select id="orderReconStatus">
+              <option value="待對帳" selected>待對帳</option>
+              <option value="OK">OK</option>
+            </select>
+          </div>
         </div>
 
         <hr class="form-divider" style="margin: 1rem 0">

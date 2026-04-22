@@ -332,20 +332,20 @@ async function initSheetHeaders() {
       values: [['單位名稱']]
     },
     {
-      range: `${SHEET.MARKET_INCOME}!A1:N1`,
-      values: [['編號', '日期', '主類別', '其他備註', '等級資料(JSON)', '總重(斤)', '箱數', '總價', '盤商價', '運費', '附註', '價格已確認', '建立時間', '最後更新']]
+      range: `${SHEET.MARKET_INCOME}!A1:R1`,
+      values: [['編號', '日期', '客戶類別', '客戶名稱', '品種主類別', '品種次類別', '等級資料', '總重(斤)', '箱數', '總價', '盤商價', '運費', '附註', '付款狀態', '對帳狀態', '建立時間', '最後更新', '附註2']]
     },
     {
       range: `${SHEET.EXPENSE}!A1:O1`,
       values: [['編號', '日期', '主類別', '次類別', '工人姓名', '計薪方式', '數量', '單位', '單價', '總額', '含午餐', '已支付', '附註', '建立時間', '最後更新']]
     },
     {
-      range: `${SHEET.CUSTOMERS}!A1:I1`,
-      values: [['客戶編號', '客戶來源', '客戶渠道', '寄件人(客戶)', '寄件人電話', '收件人', '收件人電話', '收件人地址', '備註']]
+      range: `${SHEET.CUSTOMERS}!A1:G1`,
+      values: [['客戶編號', '客戶姓名', '電話', '地址', '客戶來源', '客戶渠道', '介紹人']]
     },
     {
-      range: `${SHEET.ORDERS}!A1:O1`,
-      values: [['訂購品項', '品項類別', '狀態', '下定日期', '到貨日期', '訂購等級', '訂單內容', '寄件人(客戶)', '寄件人電話', '收件人', '收件人電話', '收件人地址', '需備註寄件人', '取貨方式', '總價']]
+      range: `${SHEET.ORDERS}!A1:S1`,
+      values: [['訂購品項', '品項類別', '訂單狀態', '下定日期', '到貨日期', '訂購等級', '訂單內容', '總價', '客戶編號', '寄件人', '寄件人電話', '收件人(客戶)', '收件人電話', '收件人地址', '需備註寄件人', '取貨方式', '付款狀態', '對帳狀態', '附註']]
     },
     {
       range: `${SHEET.USERS}!A1:D1`,
@@ -489,22 +489,27 @@ async function fetchIncome() {
   try {
     const res = await gapi.client.sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
-      range: `${SHEET.MARKET_INCOME}!A2:N`,
+      range: `${SHEET.MARKET_INCOME}!A2:R`,
     });
     incomeData = (res.result.values || []).map(r => ({
       id: r[0] || '',
       日期: r[1] || '',
-      主類別: r[2] || '',
-      其他備註: r[3] || '',
-      等級資料: safeParseJSON(r[4], []),
-      總重: r[5] || '',
-      箱數: r[6] || '',
-      總價: r[7] || '',
-      盤商價: r[8] || '',
-      運費: r[9] || '',
-      附註: r[10] || '',
-      價格確認: r[11] === 'TRUE' || r[11] === true,
-      建立時間: r[12] || '',
+      客戶類別: r[2] || '',
+      客戶名稱: r[3] || '',
+      主類別: r[4] || '',
+      次類別: r[5] || '',
+      等級資料: safeParseJSON(r[6], []),
+      總重: r[7] || '',
+      箱數: r[8] || '',
+      總價: r[9] || '',
+      盤商價: r[10] || '',
+      運費: r[11] || '',
+      附註: r[12] || '',
+      付款狀態: r[13] || '未付款',
+      對帳狀態: r[14] || '待對帳',
+      價格確認: r[14] === 'OK',
+      建立時間: r[15] || '',
+      最後更新: r[16] || '',
     }));
   } catch (e) { incomeData = []; }
 }
@@ -538,18 +543,16 @@ async function fetchCustomers() {
   try {
     const res = await gapi.client.sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
-      range: `${SHEET.CUSTOMERS}!A2:I`,
+      range: `${SHEET.CUSTOMERS}!A2:G`,
     });
     customersData = (res.result.values || []).map(r => ({
       客戶編號: r[0] || '',
-      客戶來源: r[1] || '',
-      客戶渠道: r[2] || '',
-      寄件人: r[3] || '',
-      寄件人電話: r[4] || '',
-      收件人: r[5] || '',
-      收件人電話: r[6] || '',
-      收件人地址: r[7] || '',
-      備註: r[8] || '',
+      客戶姓名: r[1] || '',
+      電話: r[2] || '',
+      地址: r[3] || '',
+      客戶來源: r[4] || '',
+      客戶渠道: r[5] || '',
+      介紹人: r[6] || '',
     }));
   } catch (e) { customersData = []; }
 }
@@ -558,12 +561,10 @@ async function fetchOrders() {
   try {
     const res = await gapi.client.sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
-      range: `${SHEET.ORDERS}!A2:P`,
+      range: `${SHEET.ORDERS}!A2:S`,
     });
-    ordersData = (res.result.values || []).map(r => ({
-      id: r[0] ? r[0] : `ORD_${Date.now()}_${Math.floor(Math.random()*1000)}`, // 處理如果沒編號 防護
-      訂購品項: r[0] || '', // Wait, columns: r[0] 訂購品項? No, let's look at schema!
-      // '訂購品項', '品項類別', '狀態', '下定日期', '到貨日期', '訂購等級', '訂單內容', '寄件人(客戶)', '寄件人電話', '收件人', '收件人電話', '收件人地址', '需備註寄件人', '取貨方式', '總價'
+    ordersData = (res.result.values || []).map((r, index) => ({
+      id: `ORD_${index}_${Date.now()}`, // 強制使用記憶體唯一ID，因試算表沒有唯一編號欄位
       訂購品項: r[0] || '',
       品項類別: r[1] || '',
       狀態: r[2] || '',
@@ -571,17 +572,20 @@ async function fetchOrders() {
       到貨日期: r[4] || '',
       訂購等級: r[5] || '',
       訂單內容: r[6] || '',
-      寄件人: r[7] || '',
-      寄件人電話: r[8] || '',
-      收件人: r[9] || '',
-      收件人電話: r[10] || '',
-      收件人地址: r[11] || '',
-      需備註寄件人: r[12] === 'TRUE' || r[12] === 'Y' || r[12] === true,
-      取貨方式: r[13] || '',
-      總價: r[14] || '',
+      總價: r[7] || '',
+      客戶編號: r[8] || '',
+      寄件人: r[9] || '',
+      寄件人電話: r[10] || '',
+      收件人: r[11] || '',
+      收件人電話: r[12] || '',
+      收件人地址: r[13] || '',
+      需備註寄件人: r[14] === 'TRUE' || r[14] === 'Y' || r[14] === true,
+      取貨方式: r[15] || '',
+      付款狀態: r[16] || '未付款',
+      對帳狀態: r[17] || '待對帳',
+      附註: r[18] || '',
     }));
-    // assign unique id locally if not present in sheets for easy editing
-    ordersData.forEach((od, i) => od._localIdx = i + 2); // row index
+    ordersData.forEach((od, i) => od._localIdx = i + 2);
   } catch (e) { ordersData = []; }
 }
 
@@ -829,12 +833,11 @@ function renderIncomeTable() {
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td>${r.日期}</td>
+      <td><span style="font-weight:600">${r.客戶名稱 || r.客戶類別 || '-'}</span><br><small style="color:var(--text-muted)">付款: ${r.付款狀態 || '未付款'}<br>對帳: ${r.對帳狀態 || '待對帳'}</small></td>
       <td><span class="badge-main">${r.主類別}</span>${r.其他備註 ? `<br><small style="color:var(--text-muted)">${r.其他備註}</small>` : ''}</td>
       <td style="font-size:0.78rem">${gradeText}</td>
       <td>${r.總重 ? r.總重 + '斤' : '-'}${r.箱數 ? ' / ' + r.箱數 + '箱' : ''}</td>
-      <td>${priceCell}</td>
-      <td>${r.盤商價 ? `$${parseFloat(r.盤商價).toLocaleString()}` : '-'}</td>
-      <td>${r.運費 ? `$${parseFloat(r.運費).toLocaleString()}` : '-'}</td>
+      <td>${priceCell}<br><small style="color:var(--text-muted)">盤: ${r.盤商價 ? `$${parseFloat(r.盤商價).toLocaleString()}` : '-'} / 運: ${r.運費 ? `$${parseFloat(r.運費).toLocaleString()}` : '-'}</small></td>
       <td>${statusHtml}</td>
       <td>${actionHtml}</td>`;
     tbody.appendChild(tr);
@@ -919,11 +922,11 @@ function renderOrderTable() {
 
     return `
       <tr class="${hiddenClass}">
-        <td><span class="badge-main">${r.訂購品項}</span> ${r.品項類別? `<span class="badge-sub">${r.品項類別}</span>`:''}<br><div style="margin-top:4px">${statusHtml}</div></td>
+        <td><span class="badge-main">${r.訂購品項}</span> ${r.品項類別? `<span class="badge-sub">${r.品項類別}</span>`:''}</td>
         <td><strong style="color:var(--orange)">${r.到貨日期 || '未填'}</strong><br><small style="color:var(--text-muted)">訂購: ${r.下定日期}</small></td>
         <td>${r.訂購等級 || '-'}<br>${r.訂單內容 || '-'}</td>
         <td class="td-amount income">$${parseFloat(r.總價||0).toLocaleString()}</td>
-        <td>${r.寄件人}<br><small style="color:var(--text-muted)">${r.寄件人電話}</small>${r.需備註寄件人 ? `<br><span class="unpaid-tag">需備註寄件人</span>`:''}</td>
+        <td>${r.寄件人}<br><small style="color:var(--text-muted)">結帳: ${r.付款狀態||'未付款'} (${r.對帳狀態||'待對帳'})</small><br><div style="margin-top:4px">${statusHtml}</div>${r.需備註寄件人 ? `<br><span class="unpaid-tag">需備註</span>`:''}</td>
         <td>${receiverInfo}</td>
         <td>${r.取貨方式}</td>
         <td>${actionHtml}</td>
@@ -1005,13 +1008,29 @@ function openIncomeModal(record = null) {
   document.getElementById('incomeDealerPrice').value = isEdit ? record.盤商價 : '';
   document.getElementById('incomeShippingFee').value = isEdit ? record.運費 : '';
 
+  // 新欄位回填
+  if (document.getElementById('incomeCustomerType')) {
+    document.getElementById('incomeCustomerType').value = isEdit ? (record.客戶類別 || '一般') : '一般';
+  }
+  if (document.getElementById('incomeCustomerName')) {
+    document.getElementById('incomeCustomerName').value = isEdit ? (record.客戶名稱 || '') : '';
+  }
+  if (document.getElementById('incomePaymentStatus')) {
+    document.getElementById('incomePaymentStatus').value = isEdit ? (record.付款狀態 || '未付款') : '未付款';
+  }
+  if (document.getElementById('incomeReconStatus')) {
+    document.getElementById('incomeReconStatus').value = isEdit ? (record.對帳狀態 || '待對帳') : '待對帳';
+  }
+
   // 填充主類別
   const sel = document.getElementById('incomeMainCat');
   sel.innerHTML = settings.incomeMainCats.map(c => `<option value="${c.名稱}">${c.名稱}</option>`).join('');
   sel.value = isEdit ? record.主類別 : settings.incomeMainCats[0]?.名稱;
   onIncomeMainCatChange();
 
-  if (isEdit && record.其他備註) {
+  if (isEdit && record.次類別) {
+    document.getElementById('incomeOtherNote').value = record.次類別;
+  } else if (isEdit && record.其他備註) {
     document.getElementById('incomeOtherNote').value = record.其他備註;
   }
 
@@ -1104,8 +1123,10 @@ document.getElementById('incomeForm').onsubmit = async (e) => {
   const rowData = [
     id || generateId(),
     document.getElementById('incomeDate').value,
+    document.getElementById('incomeCustomerType') ? document.getElementById('incomeCustomerType').value : '一般',
+    document.getElementById('incomeCustomerName') ? document.getElementById('incomeCustomerName').value : '',
     mainCat,
-    mainCat === '其他' ? document.getElementById('incomeOtherNote').value : '',
+    mainCat === '其他' ? document.getElementById('incomeOtherNote').value : (document.getElementById('incomeOtherNote').value || ''),
     JSON.stringify(gradeData),
     totalWeight || '',
     totalBoxes || '',
@@ -1113,9 +1134,11 @@ document.getElementById('incomeForm').onsubmit = async (e) => {
     document.getElementById('incomeDealerPrice').value,
     document.getElementById('incomeShippingFee').value,
     document.getElementById('incomeNotes').value,
-    document.getElementById('incomeTotalPrice').value ? 'TRUE' : 'FALSE',
+    document.getElementById('incomePaymentStatus') ? document.getElementById('incomePaymentStatus').value : '未付款',
+    document.getElementById('incomeReconStatus') ? document.getElementById('incomeReconStatus').value : '待對帳',
     isEdit ? (incomeData.find(r => r.id === id)?.建立時間 || now()) : now(),
     now(),
+    ''
   ];
 
   showLoader(isEdit ? '更新中...' : '儲存中...');
@@ -1128,14 +1151,14 @@ document.getElementById('incomeForm').onsubmit = async (e) => {
       const rowIdx = incomeData.findIndex(r => r.id === id) + 2;
       await gapi.client.sheets.spreadsheets.values.update({
         spreadsheetId: SPREADSHEET_ID,
-        range: `${SHEET.INCOME}!A${rowIdx}:N${rowIdx}`,
+        range: `${SHEET.MARKET_INCOME}!A${rowIdx}:R${rowIdx}`,
         valueInputOption: 'USER_ENTERED',
         resource: { values: [rowData] }
       });
     } else {
       await gapi.client.sheets.spreadsheets.values.append({
         spreadsheetId: SPREADSHEET_ID,
-        range: `${SHEET.INCOME}!A:N`,
+        range: `${SHEET.MARKET_INCOME}!A:R`,
         valueInputOption: 'USER_ENTERED',
         resource: { values: [rowData] }
       });
@@ -2003,7 +2026,7 @@ function openOrderModal(recordId = null) {
   const cDataList = document.getElementById('customerList');
   cDataList.innerHTML = '';
   // 客戶可以藉由寄件人匹配
-  let uniqueSenders = [...new Set(customersData.map(c => c.寄件人))].filter(Boolean);
+  let uniqueSenders = [...new Set(customersData.map(c => c.客戶姓名 || c.寄件人))].filter(Boolean);
   uniqueSenders.forEach(s => {
     const opt = document.createElement('option');
     opt.value = s;
@@ -2032,12 +2055,16 @@ function openOrderModal(recordId = null) {
       document.getElementById('orderReceiverAddress').value = r.收件人地址;
       document.getElementById('orderNeedSenderRemark').checked = r.需備註寄件人;
       document.getElementById('orderDeliveryType').value = r.取貨方式;
-      document.getElementById('orderStatus').value = r.狀態;
+      if (document.getElementById('orderStatus')) document.getElementById('orderStatus').value = r.狀態;
       document.getElementById('orderTotalPrice').value = r.總價;
+      if (document.getElementById('orderPaymentStatus')) document.getElementById('orderPaymentStatus').value = r.付款狀態 || '未付款';
+      if (document.getElementById('orderReconStatus')) document.getElementById('orderReconStatus').value = r.對帳狀態 || '待對帳';
     }
   } else {
     document.getElementById('orderDate').value = today();
-    document.getElementById('orderStatus').value = '未指定';
+    if (document.getElementById('orderStatus')) document.getElementById('orderStatus').value = '未指定';
+    if (document.getElementById('orderPaymentStatus')) document.getElementById('orderPaymentStatus').value = '未付款';
+    if (document.getElementById('orderReconStatus')) document.getElementById('orderReconStatus').value = '待對帳';
   }
   
   document.getElementById('orderModal').style.display = 'flex';
@@ -2147,14 +2174,15 @@ document.getElementById('orderForm').onsubmit = async (e) => {
   const receiver = document.getElementById('orderReceiverName').value.trim();
   
   const orderRow = [
-    id ? id : `ORD_${Date.now()}_${Math.floor(Math.random()*1000)}`,
     document.getElementById('orderMainCat').value,
     document.getElementById('orderSubCat').value,
-    document.getElementById('orderStatus').value,
+    document.getElementById('orderStatus') ? document.getElementById('orderStatus').value : '未指定',
     document.getElementById('orderDate').value,
     document.getElementById('orderArrivalDate').value,
     document.getElementById('orderGrade').value,
     document.getElementById('orderQuantity').value + (document.getElementById('orderUnit').value || '箱'),
+    document.getElementById('orderTotalPrice').value || '',
+    isEdit ? (ordersData.find(x => x.id === id)?.客戶編號 || '') : '',
     sender,
     document.getElementById('orderSenderPhone').value,
     receiver,
@@ -2162,38 +2190,40 @@ document.getElementById('orderForm').onsubmit = async (e) => {
     document.getElementById('orderReceiverAddress').value,
     document.getElementById('orderNeedSenderRemark').checked ? 'TRUE' : 'FALSE',
     document.getElementById('orderDeliveryType').value,
-    document.getElementById('orderTotalPrice').value || '',
+    document.getElementById('orderPaymentStatus') ? document.getElementById('orderPaymentStatus').value : '未付款',
+    document.getElementById('orderReconStatus') ? document.getElementById('orderReconStatus').value : '待對帳',
+    ''
   ];
 
-  showLoader('儲存中...');
+  showLoader(isEdit ? '更新中...' : '儲存中...');
   try {
     if (isEdit) {
       const idx = ordersData.findIndex(x => x.id === id);
       const rowNum = ordersData[idx]._localIdx;
       await gapi.client.sheets.spreadsheets.values.update({
         spreadsheetId: SPREADSHEET_ID,
-        range: `${SHEET.ORDERS}!A${rowNum}:O${rowNum}`,
+        range: `${SHEET.ORDERS}!A${rowNum}:S${rowNum}`,
         valueInputOption: 'USER_ENTERED',
         resource: { values: [orderRow] }
       });
     } else {
       await gapi.client.sheets.spreadsheets.values.append({
         spreadsheetId: SPREADSHEET_ID,
-        range: `${SHEET.ORDERS}!A:O`,
+        range: `${SHEET.ORDERS}!A:S`,
         valueInputOption: 'USER_ENTERED',
         resource: { values: [orderRow] }
       });
       
       // 自動新增客戶若不存在
-      const cusExist = customersData.some(c => c.寄件人 === sender);
+      const cusExist = customersData.some(c => c.寄件人 === sender || c.客戶姓名 === sender);
       if (!cusExist) {
         const cusRow = [
-          `CUS_${Date.now()}`, '系統新增', '-', sender, document.getElementById('orderSenderPhone').value,
-          receiver, document.getElementById('orderReceiverPhone').value, document.getElementById('orderReceiverAddress').value, ''
+          `CUS_${Date.now()}`, sender, document.getElementById('orderSenderPhone').value, '',
+          '系統新增', '自動', ''
         ];
         await gapi.client.sheets.spreadsheets.values.append({
           spreadsheetId: SPREADSHEET_ID,
-          range: `${SHEET.CUSTOMERS}!A:I`,
+          range: `${SHEET.CUSTOMERS}!A:G`,
           valueInputOption: 'USER_ENTERED',
           resource: { values: [cusRow] }
         });
