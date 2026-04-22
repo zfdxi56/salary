@@ -56,6 +56,34 @@ const filterState = {
   order: { sortOrder: 'desc' },
 };
 
+// --- 工具類變數與函式 (先行定義避免 ReferenceError) ---
+let _loaderCount = 0;
+function showLoader(msg = '處理中...') {
+  _loaderCount++;
+  const el = document.getElementById('loaderMsg');
+  if (el) el.textContent = msg;
+  const loader = document.getElementById('loader');
+  if (loader) loader.style.display = 'flex';
+}
+function hideLoader() {
+  _loaderCount = Math.max(0, _loaderCount - 1);
+  if (_loaderCount === 0) {
+    const loader = document.getElementById('loader');
+    if (loader) loader.style.display = 'none';
+  }
+}
+
+let _toastTimer;
+function showToast(msg, type = 'success') {
+  const el = document.getElementById('toast');
+  if (!el) return;
+  el.textContent = msg;
+  el.style.background = type === 'error' ? 'var(--red)' : 'var(--text)';
+  el.style.display = 'block';
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => { el.style.display = 'none'; }, 3000);
+}
+
 // ============================================================
 // 3. 預設資料（若工作表無資料時使用）
 // ============================================================
@@ -2738,26 +2766,7 @@ function now() {
   return new Date().toISOString();
 }
 
-let _loaderCount = 0;
-function showLoader(msg = '處理中...') {
-  _loaderCount++;
-  document.getElementById('loaderMsg').textContent = msg;
-  document.getElementById('loader').style.display = 'flex';
-}
-function hideLoader() {
-  _loaderCount = Math.max(0, _loaderCount - 1);
-  if (_loaderCount === 0) document.getElementById('loader').style.display = 'none';
-}
-
-let _toastTimer;
-function showToast(msg, type = 'success') {
-  const el = document.getElementById('toast');
-  el.textContent = msg;
-  el.style.background = type === 'error' ? 'var(--red)' : 'var(--text)';
-  el.style.display = 'block';
-  clearTimeout(_toastTimer);
-  _toastTimer = setTimeout(() => { el.style.display = 'none'; }, 3000);
-}
+// --- 工具類結束 ---
 
 // Modal 點外部關閉
 ['incomeModal', 'expenseModal', 'copyModal', 'confirmModal', 'adminModal'].forEach(id => {
