@@ -167,6 +167,7 @@ function maybeEnableAuth() {
 function handleLogin() {
   tokenClient.callback = async (resp) => {
     if (resp.error) throw resp;
+    gapi.client.setToken(resp);
     await afterLogin();
   };
   const token = gapi.client.getToken();
@@ -838,8 +839,6 @@ function renderIncomeTable() {
       <td>${actionHtml}</td>`;
     tbody.appendChild(tr);
   });
-}
-
 }
 
 // ============================================================
