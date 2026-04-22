@@ -630,6 +630,12 @@ function safeParseJSON(str, fallback) {
 // 7. Tab 切換
 // ============================================================
 function switchTab(tab) {
+  // 安全檢查：只有 Admin 能進入管理分頁
+  if (tab === 'admin' && !isAdmin) {
+    showToast('權限不足，無法進入管理頁面', 'error');
+    return;
+  }
+  
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
   document.querySelectorAll('.tab-page').forEach(p => {
     const match = p.id === `page-${tab}`;
