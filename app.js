@@ -592,28 +592,32 @@ async function fetchOrders() {
       spreadsheetId: SPREADSHEET_ID,
       range: `${SHEET.ORDERS}!A2:S`,
     });
-    ordersData = (res.result.values || []).map((r, index) => ({
-      id: `ORD_${index}_${Date.now()}`, // 強制使用記憶體唯一ID，因試算表沒有唯一編號欄位
-      訂購品項: r[0] || '',
-      品項類別: r[1] || '',
-      狀態: r[2] || '',
-      下定日期: r[3] || '',
-      到貨日期: r[4] || '',
-      訂購等級: r[5] || '',
-      訂單內容: r[6] || '',
-      總價: r[7] || '',
-      客戶編號: r[8] || '',
-      寄件人: r[9] || '',
-      寄件人電話: r[10] || '',
-      收件人: r[11] || '',
-      收件人電話: r[12] || '',
-      收件人地址: r[13] || '',
-      需備註寄件人: r[14] === 'TRUE' || r[14] === 'Y' || r[14] === true,
-      取貨方式: r[15] || '',
-      付款狀態: r[16] || '未付款',
-      對帳狀態: r[17] || '待對帳',
-      附註: r[18] || '',
-    }));
+    ordersData = (res.result.values || []).map((r, index) => {
+      let status = r[2] || '未指定';
+      if (status === '不指定' || status === '未填') status = '未指定';
+      return {
+        id: `ORD_${index}_${Date.now()}`,
+        訂購品項: r[0] || '',
+        品項類別: r[1] || '',
+        狀態: status,
+        下定日期: r[3] || '',
+        到貨日期: r[4] || '',
+        訂購等級: r[5] || '',
+        訂單內容: r[6] || '',
+        總價: r[7] || '',
+        客戶編號: r[8] || '',
+        寄件人: r[9] || '',
+        寄件人電話: r[10] || '',
+        收件人: r[11] || '',
+        收件人電話: r[12] || '',
+        收件人地址: r[13] || '',
+        需備註寄件人: r[14] === 'TRUE' || r[14] === 'Y' || r[14] === true,
+        取貨方式: r[15] || '',
+        付款狀態: r[16] || '未付款',
+        對帳狀態: r[17] || '待對帳',
+        附註: r[18] || '',
+      };
+    });
     ordersData.forEach((od, i) => od._localIdx = i + 2);
   } catch (e) { ordersData = []; }
 }
@@ -912,7 +916,7 @@ function renderIncomeTable() {
 
   const renderIncomeRow = (r, hiddenClass = '') => {
     const gradeArr = Array.isArray(r.等級資料) ? r.等級資料 : [];
-    const gradeText = gradeArr.map(g => `${g.等級} ${g.斤數}斤${g.筘數 ? ' ' + g.筘數 + '筱' : ''}`).join(' / ') || '-';
+    const gradeText = gradeArr.map(g => `${g.等級} ${g.斤數}斤${g.箱數 ? ' ' + g.箱數 + '箱' : ''}`).join(' / ') || '-';
     const confirmed = r.價格確認;
     const statusHtml = confirmed
       ? `<span class="status-badge confirmed">✓ 確認</span>`
@@ -929,7 +933,7 @@ function renderIncomeTable() {
       <td><span style="font-weight:600">${r.客戶名稱 || r.客戶類別 || '-'}</span><br><small style="color:var(--text-muted)">付款: ${r.付款狀態 || '未付款'}<br>對帳: ${r.對帳狀態 || '待對帳'}</small></td>
       <td><span class="badge-main">${r.主類別}</span>${r.其他備註 ? `<br><small style="color:var(--text-muted)">${r.其他備註}</small>` : ''}</td>
       <td style="font-size:0.78rem">${gradeText}</td>
-      <td>${r.總重 ? r.總重 + '斤' : '-'}${r.筘數 ? ' / ' + r.筘數 + '筱' : ''}</td>
+      <td>${r.總重 ? r.總重 + '斤' : '-'}${r.箱數 ? ' / ' + r.箱數 + '箱' : ''}</td>
       <td>${priceCell}<br><small style="color:var(--text-muted)">盤: ${r.盤商價 ? `$${parseFloat(r.盤商價).toLocaleString()}` : '-'} / 運: ${r.運費 ? `$${parseFloat(r.運費).toLocaleString()}` : '-'}</small></td>
       <td>${statusHtml}</td>
       <td>${actionHtml}</td>
@@ -3059,7 +3063,8 @@ function renderBalancePage() {
   orderDataFiltered.forEach(r => {
     const price = parseFloat(r.總價) || 0;
     salesIncome += price;
-    const status = r.狀態 || '未指定';
+    let status = r.狀態 || '未指定';
+    if (status === '不指定') status = '未指定';
     if (!salesByStatus[status]) salesByStatus[status] = 0;
     salesByStatus[status] += price;
     if (r.付款狀態 !== '已付款') salesUnpaid += price;
