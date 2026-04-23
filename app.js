@@ -737,23 +737,110 @@ function getCategoryIcon(name) {
   return icons[match] || 'nest_multi_room';
 }
 
+/* Helper: 取得語意化類別顏色 */
+const CAT_COLORS = {
+  '甜柿':   { color: '#f97316', bg: '#fff7ed', border: '#fed7aa' },
+  '水蜜桃': { color: '#ec4899', bg: '#fdf2f8', border: '#fbcfe8' },
+  '橘子':   { color: '#84cc16', bg: '#f7fee7', border: '#d9f99d' },
+  '固定成本': { color: '#3b82f6', bg: '#eff6ff', border: '#bfdbfe' },
+  '變動成本': { color: '#8b5cf6', bg: '#f3f0ff', border: '#ddd6fe' },
+};
+const CAT_FALLBACK_PALETTE = ['#22c55e','#3b82f6','#a855f7','#f97316','#eab308','#ef4444','#06b6d4','#64748b'];
 
-let _incomePieInstance = null;
+function getCategoryColor(name, fallbackIndex = 0) {
+  if (CAT_COLORS[name]) return CAT_COLORS[name];
+  const c = CAT_FALLBACK_PALETTE[fallbackIndex % CAT_FALLBACK_PALETTE.length];
+  return { color: c, bg: '#f8fafc', border: '#e2e8f0' };
+}
+
+
+
+/** 建立「左滑」顯示編輯/刪除按鈕的邏輯 (適用於手機/觸控) */
+function setupSwipeLogic(itemEl, editCb, delCb) {
+  let startX = 0;
+  let currentX = 0;
+  let isSwiping = false;
+  const content = itemEl.querySelector('.record-item-content');
+  const actionWidth = 140; // 應與 CSS 一致
+
+  itemEl.addEventListener('touchstart', (e) => {
+    startX = e.touches[0].clientX;
+    isSwiping = true;
+    content.style.transition = 'none'; // 拖曳時不延遲
+  }, { passive: true });
+
+  itemEl.addEventListener('touchmove', (e) => {
+    if (!isSwiping) return;
+    currentX = e.touches[0].clientX;
+    const diff = currentX - startX;
+    
+    // 只允許向左滑 (負值)
+    if (diff < 0) {
+      const move = Math.max(diff, -actionWidth - 40); // 稍微多一點彈性
+      content.style.transform = `translateX(${move}px)`;
+    } else {
+      content.style.transform = `translateX(0px)`;
+    }
+  }, { passive: true });
+
+  itemEl.addEventListener('touchend', (e) => {
+    isSwiping = false;
+    content.style.transition = ''; // 恢復動畫
+    const finalDiff = currentX - startX;
+
+    if (finalDiff < -actionWidth / 2) {
+      itemEl.classList.add('swiped');
+      content.style.transform = `translateX(-${actionWidth}px)`;
+    } else {
+      itemEl.classList.remove('swiped');
+      content.style.transform = `translateX(0px)`;
+    }
+  });
+
+  // 對於非觸控裝置 (滑鼠)，可以點擊「...」或保持隱藏按鈕。
+  // 這裡我們在 itemEl 內部加入隱藏的按鈕
+  const actionsWrap = document.createElement('div');
+  actionsWrap.className = 'record-item-actions-swipe';
+  actionsWrap.innerHTML = `
+    <button class="swipe-btn edit"><span class="material-symbols-outlined">edit</span>編輯</button>
+    <button class="swipe-btn del"><span class="material-symbols-outlined">delete</span>刪除</button>
+  `;
+  actionsWrap.querySelector('.edit').onclick = (e) => { e.stopPropagation(); editCb(); itemEl.classList.remove('swiped'); content.style.transform = 'translateX(0)'; };
+  actionsWrap.querySelector('.del').onclick  = (e) => { e.stopPropagation(); delCb(); itemEl.classList.remove('swiped'); content.style.transform = 'translateX(0)'; };
+  
+  itemEl.appendChild(actionsWrap);
+
+  // 點擊 content 時若已展開則關閉
+  content.addEventListener('click', (e) => {
+    if (itemEl.classList.contains('swiped')) {
+      e.stopPropagation();
+      itemEl.classList.remove('swiped');
+      content.style.transform = 'translateX(0)';
+    }
+  });
+}
+
+function getAmountClass(val) {
+  return (parseFloat(val) === 0) ? ' amount-zero' : '';
+}
 
 function renderIncomeChart() {
   const period = filterState.income.period;
   const data = getFilteredByPeriod(incomeData, '日期', period);
 
-  const palette = ['#22c55e','#3b82f6','#a855f7','#f97316','#eab308','#ef4444'];
   const catMap = {};
   settings.incomeMainCats.forEach((c, i) => {
-    catMap[c.名稱] = { total: 0, count: 0, pending: 0, unpaidAmount: 0, color: palette[i % palette.length] };
+    const clr = getCategoryColor(c.名稱, i);
+    catMap[c.名稱] = { total: 0, count: 0, pending: 0, unpaidAmount: 0, ...clr };
   });
 
   let grandTotal = 0;
   data.forEach(r => {
     const key = r.主類別;
-    if (!catMap[key]) catMap[key] = { total: 0, count: 0, pending: 0, unpaidAmount: 0, color: palette[Object.keys(catMap).length % palette.length] };
+    if (!catMap[key]) {
+      const clr = getCategoryColor(key, Object.keys(catMap).length);
+      catMap[key] = { total: 0, count: 0, pending: 0, unpaidAmount: 0, ...clr };
+    }
     const price = parseFloat(r.總價) || 0;
     catMap[key].total += price;
     catMap[key].count++;
@@ -1020,24 +1107,27 @@ function renderIncomeTable() {
 
           const item = document.createElement('div');
           item.className = 'record-item';
+          const priceVal = parseFloat(r.總價) || 0;
+          const amtClass = getAmountClass(priceVal);
+
           item.innerHTML = `
-            <div class="record-item-date">${r.日期 ? r.日期.substring(5) : '-'}</div>
-            <div class="record-item-main">
-              <div class="record-item-name">${r.客戶名稱 || r.客戶類別 || catName}${r.附註 ? ` · ${r.附註}` : ''}</div>
-              <div class="record-item-sub">${gradeText ? `等級：${gradeText}` : ''}${r.總重 ? ` | ${r.總重}斤` : ''}${r.箱數 ? `/${r.箱數}箱` : ''}</div>
-              <div style="display:flex;gap:4px;margin-top:4px;flex-wrap:wrap">
-                <button class="btn-quick-toggle ${payClass}" onclick="toggleIncomePayment('${r.id}')">${r.付款狀態 === '已付款' ? '✓ 已付款' : '⚠ 未付款'}</button>
-                <button class="btn-quick-toggle ${reconClass}" onclick="toggleIncomeRecon('${r.id}')">${r.對帳狀態 === 'OK' ? '✓ OK' : '待對帳'}</button>
+            <div class="record-item-content">
+              <div class="record-item-date">${r.日期 ? r.日期.substring(5) : '-'}</div>
+              <div class="record-item-main">
+                <div class="record-item-name">${r.客戶名稱 || r.客戶類別 || catName}${r.附註 ? ` · ${r.附註}` : ''}</div>
+                <div class="record-item-sub">${gradeText ? `等級：${gradeText}` : ''}${r.總重 ? ` | ${r.總重}斤` : ''}${r.箱數 ? `/${r.箱數}箱` : ''}</div>
+                <div style="display:flex;gap:4px;margin-top:4px;flex-wrap:wrap">
+                  <button class="btn-quick-toggle ${payClass}" onclick="toggleIncomePayment('${r.id}')">${r.付款狀態 === '已付款' ? '✓ 已付款' : '⚠ 未付款'}</button>
+                  <button class="btn-quick-toggle ${reconClass}" onclick="toggleIncomeRecon('${r.id}')">${r.對帳狀態 === 'OK' ? '✓ OK' : '待對帳'}</button>
+                </div>
               </div>
-            </div>
-            <div class="record-item-right">
-              <span class="record-item-amount">${price}</span>
-              ${r.盤商價 ? `<small style="color:var(--text-muted);font-size:0.68rem">盤 $${parseFloat(r.盤商價).toLocaleString()}</small>` : ''}
-              <div class="record-item-actions">
-                <button class="btn-table-edit" onclick="openIncomeEdit('${r.id}')" title="編輯"><span class="material-symbols-outlined">edit</span></button>
-                <button class="btn-table-del" onclick="confirmDelete('income','${r.id}')" title="刪除"><span class="material-symbols-outlined">delete</span></button>
+              <div class="record-item-right">
+                <span class="record-item-amount ${amtClass}">${price}</span>
+                ${r.盤商價 ? `<small style="color:var(--text-muted);font-size:0.68rem">盤 $${parseFloat(r.盤商價).toLocaleString()}</small>` : ''}
               </div>
             </div>`;
+          
+          setupSwipeLogic(item, () => openIncomeEdit(r.id), () => confirmDelete('income', r.id));
           moBody.appendChild(item);
         });
 
@@ -1403,24 +1493,27 @@ function buildOrderItem(r) {
 
   const item = document.createElement('div');
   item.className = 'record-item';
+  const priceVal = parseFloat(r.總價 || 0);
+  const amtClass = getAmountClass(priceVal);
+
   item.innerHTML = `
-    <div class="record-item-date">${dateDisplay}</div>
-    <div class="record-item-main">
-      <div class="record-item-name">${r.寄件人 || '未知客戶'}${r.品項類別 ? ` · ${r.品項類別}` : ''}</div>
-      <div class="record-item-sub">${r.訂購等級 || ''}${r.訂單內容 ? ` | ${r.訂單內容}` : ''}${r.取貨方式 ? ` | ${r.取貨方式}` : ''}</div>
-      <div style="display:flex;gap:4px;margin-top:4px;flex-wrap:wrap">
-        ${statusToggle}
-        <button class="btn-quick-toggle ${payClass}" onclick="toggleOrderPayment('${r.id}')">${r.付款狀態 === '已付款' ? '✓ 已付款' : '⚠ 未付款'}</button>
-        <button class="btn-quick-toggle ${reconClass}" onclick="toggleOrderRecon('${r.id}')">${r.對帳狀態 === 'OK' ? '✓ OK' : '待對帳'}</button>
+    <div class="record-item-content">
+      <div class="record-item-date">${dateDisplay}</div>
+      <div class="record-item-main">
+        <div class="record-item-name">${r.寄件人 || '未知客戶'}${r.品項類別 ? ` · ${r.品項類別}` : ''}</div>
+        <div class="record-item-sub">${r.訂購等級 || ''}${r.訂單內容 ? ` | ${r.訂單內容}` : ''}${r.取貨方式 ? ` | ${r.取貨方式}` : ''}</div>
+        <div style="display:flex;gap:4px;margin-top:4px;flex-wrap:wrap">
+          ${statusToggle}
+          <button class="btn-quick-toggle ${payClass}" onclick="toggleOrderPayment('${r.id}')">${r.付款狀態 === '已付款' ? '✓ 已付款' : '⚠ 未付款'}</button>
+          <button class="btn-quick-toggle ${reconClass}" onclick="toggleOrderRecon('${r.id}')">${r.對帳狀態 === 'OK' ? '✓ OK' : '待對帳'}</button>
+        </div>
       </div>
-    </div>
-    <div class="record-item-right">
-      <span class="record-item-amount">$${parseFloat(r.總價||0).toLocaleString()}</span>
-      <div class="record-item-actions">
-        <button class="btn-table-edit" onclick="openOrderEdit('${r.id}')" title="編輯"><span class="material-symbols-outlined">edit</span></button>
-        <button class="btn-table-del" onclick="confirmDelete('order','${r.id}')" title="刪除"><span class="material-symbols-outlined">delete</span></button>
+      <div class="record-item-right">
+        <span class="record-item-amount ${amtClass}">$${priceVal.toLocaleString()}</span>
       </div>
     </div>`;
+  
+  setupSwipeLogic(item, () => openOrderEdit(r.id), () => confirmDelete('order', r.id));
   return item;
 }
 
@@ -1986,21 +2079,21 @@ function renderExpenseTable() {
           const item = document.createElement('div');
           item.className = 'record-item';
           item.innerHTML = `
-            <div class="record-item-date">${r.日期 ? r.日期.substring(5) : '-'}</div>
-            <div class="record-item-main">
-              <div class="record-item-name">${r.次類別 || catName}${r.工人姓名 ? ` · ${r.工人姓名}` : ''}</div>
-              <div class="record-item-sub">${r.數量 ? r.數量 + (r.單位 || '') : ''}${r.單價 ? ` × $${parseFloat(r.單價).toLocaleString()}` : ''}${r.附註 ? ` | ${r.附註}` : ''}</div>
-              <div style="margin-top:4px">
-                <button class="btn-quick-toggle ${payClass}" onclick="togglePaid('${r.id}')">${r.已支付 ? '✓ 已支付' : '⚠ 未支付'}</button>
+            <div class="record-item-content">
+              <div class="record-item-date">${r.日期 ? r.日期.substring(5) : '-'}</div>
+              <div class="record-item-main">
+                <div class="record-item-name">${r.次類別 || catName}${r.工人姓名 ? ` · ${r.工人姓名}` : ''}</div>
+                <div class="record-item-sub">${r.數量 ? r.數量 + (r.單位 || '') : ''}${r.單價 ? ` × $${parseFloat(r.單價).toLocaleString()}` : ''}${r.附註 ? ` | ${r.附註}` : ''}</div>
+                <div style="margin-top:4px">
+                  <button class="btn-quick-toggle ${payClass}" onclick="togglePaid('${r.id}')">${r.已支付 ? '✓ 已支付' : '⚠ 未支付'}</button>
+                </div>
               </div>
-            </div>
-            <div class="record-item-right">
-              <span class="record-item-amount expense">$${total.toLocaleString()}</span>
-              <div class="record-item-actions">
-                <button class="btn-table-edit" onclick="openExpenseEdit('${r.id}')" title="編輯"><span class="material-symbols-outlined">edit</span></button>
-                <button class="btn-table-del" onclick="confirmDelete('expense','${r.id}')" title="刪除"><span class="material-symbols-outlined">delete</span></button>
+              <div class="record-item-right">
+                <span class="record-item-amount expense ${getAmountClass(total)}">$${total.toLocaleString()}</span>
               </div>
             </div>`;
+          
+          setupSwipeLogic(item, () => openExpenseEdit(r.id), () => confirmDelete('expense', r.id));
           moB.appendChild(item);
         });
 

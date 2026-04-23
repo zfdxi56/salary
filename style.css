@@ -16,6 +16,25 @@
   --orange: #f97316;
   --orange-light: #fff7ed;
 
+  /* 語意化品項顏色 */
+  --cat-persimmon: #f97316;        /* 甜柿  — 橘 */
+  --cat-persimmon-bg: #fff7ed;
+  --cat-persimmon-border: #fed7aa;
+  --cat-peach: #ec4899;            /* 水蜜桃 — 粉 */
+  --cat-peach-bg: #fdf2f8;
+  --cat-peach-border: #fbcfe8;
+  --cat-orange: #84cc16;           /* 橘子  — 黃綠 */
+  --cat-orange-bg: #f7fee7;
+  --cat-orange-border: #d9f99d;
+
+  /* 語意化支出顏色 */
+  --cat-fixed: #3b82f6;            /* 固定成本 — 藍 */
+  --cat-fixed-bg: #eff6ff;
+  --cat-fixed-border: #bfdbfe;
+  --cat-variable: #8b5cf6;         /* 變動成本 — 紫 */
+  --cat-variable-bg: #f3f0ff;
+  --cat-variable-border: #ddd6fe;
+
   --bg: #f0fdf4;
   --bg2: #ecfdf5;
   --surface: rgba(255,255,255,0.88);
@@ -1511,16 +1530,67 @@ input::placeholder { color: var(--text-xs); }
 
 /* 紀錄單列 */
 .record-item {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: stretch; /* Make actions full height */
+  padding: 0;           /* Shift padding to content */
+  border-bottom: 1px solid #f8fafc;
+  font-size: 0.82rem;
+  background: white;
+  transition: background 0.15s;
+}
+.record-item:last-child { border-bottom: none; }
+
+.record-item-content {
+  flex: 1;
   display: flex;
   align-items: flex-start;
   gap: 0.75rem;
   padding: 0.625rem 1rem 0.625rem 2rem;
-  border-bottom: 1px solid #f8fafc;
-  font-size: 0.82rem;
-  transition: background 0.15s;
+  background: white;
+  z-index: 2;
+  transition: transform 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+  width: 100%;
 }
-.record-item:last-child { border-bottom: none; }
-.record-item:hover { background: #f8fffe; }
+
+.record-item.swiped .record-item-content {
+  transform: translateX(-140px); /* Adjust based on action width */
+}
+
+.record-item-actions-swipe {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 140px;
+  display: flex;
+  z-index: 1;
+}
+
+.swipe-btn {
+  flex: 1;
+  border: none;
+  color: white;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  gap: 2px;
+}
+.swipe-btn.edit { background-color: var(--blue); }
+.swipe-btn.del { background-color: var(--red); }
+.swipe-btn .material-symbols-outlined { font-size: 18px; }
+
+/* Dim $0 amounts */
+.amount-zero {
+  color: var(--text-xs) !important;
+  font-weight: 400 !important;
+  opacity: 0.7;
+}
 .record-item-date {
   flex-shrink: 0;
   font-size: 0.72rem;
@@ -1540,7 +1610,6 @@ input::placeholder { color: var(--text-xs); }
 }
 .record-item-amount { font-weight: 700; color: var(--green-dark); white-space: nowrap; }
 .record-item-amount.expense { color: var(--red); }
-.record-item-actions { display: flex; gap: 4px; }
 
 /* ================================================
    訂單等級輸入
