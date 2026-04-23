@@ -51,9 +51,9 @@ let settings = {
 
 // 篩選/排序狀態
 const filterState = {
-  income: { mainCat: null, subCat: null, sortOrder: 'desc', period: 'year' },
-  expense: { mainCat: null, subCat: null, sortOrder: 'desc', period: 'year' },
-  order: { mainCat: null, subCat: null, sortOrder: 'desc', period: 'year' },
+  income: { mainCat: null, subCat: null, sortOrder: 'desc', period: 'year', isEditMode: false },
+  expense: { type: 'worker', mainCat: null, subCat: null, sortOrder: 'desc', period: 'year', isEditMode: false },
+  order: { mainCat: null, subCat: null, sortOrder: 'desc', period: 'year', isEditMode: false },
   balance: { period: 'year' },
 };
 
@@ -623,6 +623,24 @@ async function fetchOrders() {
   } catch (e) { ordersData = []; }
 }
 
+function getFilteredByPeriod(data, field, period) {
+  if (period === 'all') return data;
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth();
+  
+  return data.filter(r => {
+    const val = r[field];
+    if (!val) return false;
+    const d = new Date(val);
+    if (isNaN(d.getTime())) return false;
+    
+    if (period === 'year') return d.getFullYear() === currentYear;
+    if (period === 'month') return d.getFullYear() === currentYear && d.getMonth() === currentMonth;
+    return true;
+  });
+}
+
 function safeParseJSON(str, fallback) {
   try { return JSON.parse(str) || fallback; } catch { return fallback; }
 }
@@ -677,6 +695,7 @@ function renderAll() {
   renderOrderTable();
 
   if (isAdmin) renderAdminPage();
+  setupEditModeToggle();
 }
 
 // 收入總覽卡片（市場+訂單合計，依今年）
@@ -701,19 +720,6 @@ function renderRevenueSummary() {
 // ============================================================
 // 9. 收入分頁
 // ============================================================
-
-// --- 圖表 ---
-function getFilteredByPeriod(data, field, period) {
-  if (period === 'all') return data;
-  const now = new Date();
-  return data.filter(r => {
-    const d = new Date(r[field]);
-    if (period === 'year') return d.getFullYear() === now.getFullYear();
-    if (period === 'month') return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
-    return true;
-  });
-}
-
 
 /* Helper: 取得類別圖示 */
 function getCategoryIcon(name) {
@@ -753,8 +759,6 @@ function getCategoryColor(name, fallbackIndex = 0) {
   const c = CAT_FALLBACK_PALETTE[fallbackIndex % CAT_FALLBACK_PALETTE.length];
   return { color: c, bg: '#f8fafc', border: '#e2e8f0' };
 }
-
-
 
 /** 建立「左滑」顯示編輯/刪除按鈕的邏輯 (適用於手機/觸控) */
 function setupSwipeLogic(itemEl, editCb, delCb) {
@@ -919,50 +923,41 @@ document.querySelector('#incomeChartCard').addEventListener('click', e => {
 
 // --- 篩選 chips ---
 function renderIncomeFilterChips() {
-  const container = document.getElementById('incomeMainCatChips');
-  container.innerHTML = '';
-  const palette = ['#22c55e', '#3b82f6', '#a855f7', '#f97316', '#eab308', '#ef4444'];
-  const catColorMap = {};
-  settings.incomeMainCats.forEach((c, i) => { catColorMap[c.名稱] = palette[i % palette.length]; });
+  const mainContainer = document.getElementById('incomeMainCatChips');
+  const subContainer = document.getElementById('incomeSubCatChips');
+  if (!mainContainer || !subContainer) return;
+  
+  mainContainer.innerHTML = '';
+  subContainer.innerHTML = '';
 
-  settings.incomeMainCats.forEach(c => {
+  const mainCats = settings.incomeMainCats.map(c => c.名稱).filter(n => incomeData.some(r => r.主類別 === n));
+  if (!filterState.income.mainCat && mainCats.length > 0) {
+    filterState.income.mainCat = mainCats[0];
+  }
+
+  mainCats.forEach(cat => {
     const btn = document.createElement('button');
-    const isActive = filterState.income.mainCat === c.名稱;
-    const color = catColorMap[c.名稱];
+    const isActive = filterState.income.mainCat === cat;
     btn.className = `filter-chip${isActive ? ' active' : ''}`;
-    if (isActive) btn.style.cssText = `background:${color};border-color:${color};color:white`;
-    btn.textContent = c.名稱;
+    btn.textContent = cat;
     btn.onclick = () => {
-      if (filterState.income.mainCat === c.名稱) {
-        filterState.income.mainCat = null;
-        filterState.income.subCat = null;
-      } else {
-        filterState.income.mainCat = c.名稱;
-        filterState.income.subCat = null;
-      }
+      filterState.income.mainCat = cat;
+      filterState.income.subCat = null;
       renderIncomeFilterChips();
       renderIncomeTable();
     };
-    container.appendChild(btn);
+    mainContainer.appendChild(btn);
   });
 
-  // 次類別 chips
-  const subContainer = document.getElementById('incomeSubCatChips');
-  if (!subContainer) return;
-  subContainer.innerHTML = '';
   if (filterState.income.mainCat) {
     const cat = settings.incomeMainCats.find(c => c.名稱 === filterState.income.mainCat);
     const subs = (cat && cat.次類別) ? cat.次類別.filter(Boolean) : [];
     if (subs.length > 0) {
       subContainer.style.display = 'flex';
-      const color = catColorMap[filterState.income.mainCat] || '#22c55e';
       subs.forEach(sub => {
         const btn = document.createElement('button');
         const isSubActive = filterState.income.subCat === sub;
         btn.className = `filter-chip${isSubActive ? ' active' : ''}`;
-        btn.style.cssText = isSubActive
-          ? `background:${color};border-color:${color};color:white`
-          : `border-color:${color};color:${color}`;
         btn.textContent = sub;
         btn.onclick = () => {
           filterState.income.subCat = filterState.income.subCat === sub ? null : sub;
@@ -998,7 +993,7 @@ document.getElementById('incomeCopyBtn').onclick = () => openCopyModal('income')
 function renderIncomeTable() {
   let data = [...incomeData];
   if (filterState.income.mainCat) data = data.filter(r => r.主類別 === filterState.income.mainCat);
-  if (filterState.income.subCat) data = data.filter(r => r.次類別 === filterState.income.subCat);
+  if (filterState.income.subCat) data = data.filter(r => r.客戶類別 === filterState.income.subCat);
 
   data.sort((a, b) => {
     const diff = new Date(a.日期) - new Date(b.日期);
@@ -1009,33 +1004,31 @@ function renderIncomeTable() {
   const empty = document.getElementById('incomeEmpty');
   if (!container) return;
   container.innerHTML = '';
+  container.classList.add('horizontal-scroll-row');
 
-  if (data.length === 0) { empty.style.display = 'block'; return; }
+  if (data.length === 0) { 
+    container.classList.remove('horizontal-scroll-row');
+    empty.style.display = 'block'; 
+    return; 
+  }
   empty.style.display = 'none';
 
-  const now = new Date();
-  const THIRTY_DAYS = 30 * 24 * 60 * 60 * 1000;
-
-  // 依主類別分區塊
   const mainCatSet = filterState.income.mainCat
     ? [filterState.income.mainCat]
     : [...new Set(settings.incomeMainCats.map(c => c.名稱))].filter(n => data.some(r => r.主類別 === n));
-
-  const palette = ['#22c55e','#3b82f6','#a855f7','#f97316','#eab308','#ef4444'];
-  const catColors = {};
-  settings.incomeMainCats.forEach((c, i) => { catColors[c.名稱] = palette[i % palette.length]; });
 
   mainCatSet.forEach((catName, ci) => {
     const catData = data.filter(r => r.主類別 === catName);
     if (catData.length === 0) return;
 
     const catTotal = catData.reduce((s, r) => s + (parseFloat(r.總價) || 0), 0);
-    const color = catColors[catName] || palette[ci % palette.length];
+    const clr = getCategoryColor(catName, ci);
+    const color = clr.color;
 
     // 主類別區塊
     const section = document.createElement('div');
     section.className = 'record-section';
-    section.style.borderLeft = `4px solid ${color}`;
+    section.style.backgroundColor = clr.bg;
 
     const header = document.createElement('div');
     header.className = 'record-section-header';
@@ -1274,32 +1267,52 @@ function renderOrderChart() {
 }
 
 function renderOrderFilterChips() {
-  // 訂單篩選只有次類別（因主類別已改為區塊）
+  const mainContainer = document.getElementById('orderMainCatChips');
   const subContainer = document.getElementById('orderSubCatChips');
-  if (!subContainer) return;
+  if (!mainContainer || !subContainer) return;
+  mainContainer.innerHTML = '';
   subContainer.innerHTML = '';
 
-  const varietyNames = settings.incomeMainCats.map(c => c.名稱).filter(n => ordersData.some(r => r.訂購品項 === n));
-  const palette = ['#22c55e','#3b82f6','#a855f7','#f97316'];
-  const catColors = {};
-  settings.incomeMainCats.forEach((c, i) => { catColors[c.名稱] = palette[i % palette.length]; });
+  // 從過濾過期間的資料中取得主類別
+  const periodData = getFilteredByPeriod(ordersData, '下定日期', filterState.order.period);
+  const allMain = [...new Set(periodData.map(r => (r.訂購品項 || '').trim()).filter(Boolean))];
 
-  // 收集所有出現的次類別
-  const allSubs = [...new Set(ordersData.map(r => r.品項類別).filter(Boolean))];
-  if (allSubs.length === 0) return;
+  // 核心邏輯：若主類別為空且有資料，預設選第一個
+  if (!filterState.order.mainCat && allMain.length > 0) {
+    filterState.order.mainCat = allMain[0];
+  }
 
-  allSubs.forEach(sub => {
+  allMain.forEach(cat => {
     const btn = document.createElement('button');
-    const isActive = filterState.order.subCat === sub;
+    const isActive = filterState.order.mainCat === cat;
     btn.className = `filter-chip${isActive ? ' active' : ''}`;
-    btn.textContent = sub;
+    btn.textContent = cat;
     btn.onclick = () => {
-      filterState.order.subCat = filterState.order.subCat === sub ? null : sub;
+      filterState.order.mainCat = cat;
+      filterState.order.subCat = null;
       renderOrderFilterChips();
       renderOrderTable();
     };
-    subContainer.appendChild(btn);
+    mainContainer.appendChild(btn);
   });
+
+  // 2. 次類別
+  if (filterState.order.mainCat) {
+    const relOrders = periodData.filter(r => (r.訂購品項 || '').trim() === filterState.order.mainCat);
+    const allSubs = [...new Set(relOrders.map(r => (r.品項類別 || '').trim()).filter(Boolean))];
+    allSubs.forEach(sub => {
+      const btn = document.createElement('button');
+      const isActive = filterState.order.subCat === sub;
+      btn.className = `filter-chip${isActive ? ' active' : ''}`;
+      btn.textContent = sub;
+      btn.onclick = () => {
+        filterState.order.subCat = filterState.order.subCat === sub ? null : sub;
+        renderOrderFilterChips();
+        renderOrderTable();
+      };
+      subContainer.appendChild(btn);
+    });
+  }
 }
 
 document.getElementById('orderClearFilter').onclick = () => {
@@ -1319,15 +1332,22 @@ document.querySelector('#orderChartCard').addEventListener('click', e => {
 });
 
 function renderOrderTable() {
-  let data = [...ordersData];
-  if (filterState.order.subCat) data = data.filter(r => r.品項類別 === filterState.order.subCat);
+  let data = getFilteredByPeriod(ordersData, '下定日期', filterState.order.period);
+  
+  if (filterState.order.mainCat) data = data.filter(r => (r.訂購品項 || '').trim() === filterState.order.mainCat);
+  if (filterState.order.subCat) data = data.filter(r => (r.品項類別 || '').trim() === filterState.order.subCat);
 
   const container = document.getElementById('orderRecordContainer');
   const empty = document.getElementById('orderEmpty');
   if (!container) return;
   container.innerHTML = '';
+  container.classList.add('horizontal-scroll-row');
 
-  if (data.length === 0) { empty.style.display = 'block'; return; }
+  if (data.length === 0) {
+    container.classList.remove('horizontal-scroll-row');
+    empty.style.display = 'block';
+    return;
+  }
   empty.style.display = 'none';
 
   // 依主類別（訂購品項）分區塊
@@ -1348,7 +1368,7 @@ function renderOrderTable() {
 
     const section = document.createElement('div');
     section.className = 'record-section';
-    section.style.borderLeft = `4px solid ${color}`;
+    section.style.backgroundColor = clr.bg;
 
     const catTotal = catData.reduce((s, r) => s + (parseFloat(r.總價) || 0), 0);
     const header = document.createElement('div');
@@ -1360,7 +1380,7 @@ function renderOrderTable() {
         <span class="record-section-count">${catData.length}筆</span>
       </div>
       <div class="record-section-right">
-        <span class="record-section-total">$${catTotal.toLocaleString()}</span>
+        <span class="record-section-total expense">$${catTotal.toLocaleString()}</span>
         <span class="material-symbols-outlined record-section-arrow expanded">chevron_right</span>
       </div>`;
 
@@ -1491,7 +1511,17 @@ function buildOrderItem(r) {
   const payClass = r.付款狀態 === '已付款' ? 'paid' : 'unpaid';
   const reconClass = r.對帳狀態 === 'OK' ? 'ok-recon' : 'pending-recon';
   const isShipped = r.狀態 === '已出貨';
-  const dateDisplay = r.到貨日期 ? `到 ${r.到貨日期.substring(5)}` : `訂 ${(r.下定日期||'').substring(5)}`;
+
+  // 格式化日期顯示：若有到貨日期則顯示「到 MM-DD」，否則顯示「訂 MM-DD」
+  const formatDate = (dateStr, prefix) => {
+    if (!dateStr) return '';
+    const clean = dateStr.trim();
+    if (clean.length > 5) return `${prefix} ${clean.substring(5)}`;
+    return `${prefix} ${clean}`;
+  };
+  const dateDisplay = r.狀態 === '未指定' 
+    ? formatDate(r.下定日期, '訂') 
+    : (r.到貨日期 ? formatDate(r.到貨日期, '到') : formatDate(r.下定日期, '訂'));
 
   // 訂單狀態切換
   const statusToggle = !isShipped
@@ -1595,6 +1625,33 @@ async function updateOrderStatus(orderId, newStatus) {
   }
 }
 
+function setupEditModeToggle() {
+  const configs = [
+    { btnId: 'incomeEditModeBtn', containerId: 'incomeRecordContainer', state: filterState.income },
+    { btnId: 'orderEditModeBtn', containerId: 'orderRecordContainer', state: filterState.order },
+    { btnId: 'expenseEditModeBtn', containerId: 'expenseRecordContainer', state: filterState.expense },
+  ];
+
+  configs.forEach(cfg => {
+    const btn = document.getElementById(cfg.btnId);
+    const container = document.getElementById(cfg.containerId);
+    if (!btn || !container) return;
+
+    // 初始化狀態
+    if (cfg.state.isEditMode) {
+      container.classList.add('edit-mode-active');
+      btn.classList.add('active');
+    }
+
+    btn.onclick = () => {
+      cfg.state.isEditMode = !cfg.state.isEditMode;
+      const isActive = cfg.state.isEditMode;
+      container.classList.toggle('edit-mode-active', isActive);
+      btn.classList.toggle('active', isActive);
+      showToast(isActive ? '管理模式：已開啟' : '管理模式：已關閉');
+    };
+  });
+}
 
 // ============================================================
 // 10. 收入表單 Modal
@@ -1950,42 +2007,52 @@ window.togglePaid = async function(id) {
 
 // --- 篩選 chips ---
 function renderExpenseFilterChips() {
-  const container = document.getElementById('expenseMainCatChips');
-  container.innerHTML = '';
-  settings.expenseMainCats.forEach(c => {
+  const mainContainer = document.getElementById('expenseMainCatChips');
+  const subContainer = document.getElementById('expenseSubCatChips');
+  if (!mainContainer || !subContainer) return;
+  mainContainer.innerHTML = '';
+  subContainer.innerHTML = '';
+
+  const typesMap = [
+    { id: 'worker', label: '勞工' },
+    { id: 'material', label: '成本' },
+    { id: 'meal', label: '開銷' }
+  ];
+
+  // 1. 類型標籤
+  typesMap.forEach(t => {
     const btn = document.createElement('button');
-    btn.className = `filter-chip${filterState.expense.mainCat === c.名稱 ? ' active' : ''}`;
-    btn.textContent = c.名稱;
+    const isActive = filterState.expense.type === t.id;
+    btn.className = `filter-chip${isActive ? ' active' : ''}`;
+    btn.textContent = t.label;
     btn.onclick = () => {
-      filterState.expense.mainCat = filterState.expense.mainCat === c.名稱 ? null : c.名稱;
+      filterState.expense.type = t.id;
+      filterState.expense.mainCat = null; // 切換類型時清空主類別，以顯示該類型下所有卡片
       filterState.expense.subCat = null;
       renderExpenseFilterChips();
-      renderExpenseSubCatChips();
       renderExpenseTable();
     };
-    container.appendChild(btn);
+    mainContainer.appendChild(btn);
   });
-  renderExpenseSubCatChips();
-}
 
-function renderExpenseSubCatChips() {
-  const container = document.getElementById('expenseSubCatChips');
-  if (!container) return;
-  container.innerHTML = '';
-  if (!filterState.expense.mainCat) return;
+  // 2. 主類別標籤 (選填，若未選則顯示該類型下所有類別卡片)
+  const relMainCats = settings.expenseMainCats.filter(c => {
+    if (filterState.expense.type === 'meal') return c.類型 === 'meal' || c.類型 === 'other';
+    return c.類型 === filterState.expense.type;
+  });
 
-  const subCats = settings.expenseMainCats.find(c => c.名稱 === filterState.expense.mainCat)?.次類別 || [];
-  subCats.forEach(sub => {
+  relMainCats.forEach(cat => {
     const btn = document.createElement('button');
-    const isActive = filterState.expense.subCat === sub;
+    const isActive = filterState.expense.mainCat === cat.名稱;
     btn.className = `filter-chip${isActive ? ' active' : ''}`;
-    btn.textContent = sub;
+    btn.textContent = cat.名稱;
     btn.onclick = () => {
-      filterState.expense.subCat = filterState.expense.subCat === sub ? null : sub;
-      renderExpenseSubCatChips();
+      filterState.expense.mainCat = cat.名稱;
+      filterState.expense.subCat = null;
+      renderExpenseFilterChips();
       renderExpenseTable();
     };
-    container.appendChild(btn);
+    subContainer.appendChild(btn);
   });
 }
 
@@ -2007,6 +2074,18 @@ document.getElementById('expenseCopyBtn').onclick = () => openCopyModal('expense
 // --- 表格（折疊式卡片版） ---
 function renderExpenseTable() {
   let data = [...expenseData];
+  
+  // 先過濾類型 (worker, material, meal/other)
+  if (filterState.expense.type) {
+    data = data.filter(r => {
+      const cat = settings.expenseMainCats.find(c => c.名稱 === r.主類別);
+      if (!cat) return false;
+      if (filterState.expense.type === 'meal') return cat.類型 === 'meal' || cat.類型 === 'other';
+      return cat.類型 === filterState.expense.type;
+    });
+  }
+
+  // 再過濾主類別與次類別
   if (filterState.expense.mainCat) data = data.filter(r => r.主類別 === filterState.expense.mainCat);
   if (filterState.expense.subCat) {
     data = data.filter(r => {
@@ -2023,28 +2102,36 @@ function renderExpenseTable() {
   const empty = document.getElementById('expenseEmpty');
   if (!container) return;
   container.innerHTML = '';
+  container.classList.add('horizontal-scroll-row');
 
-  if (data.length === 0) { empty.style.display = 'block'; return; }
+  if (data.length === 0) {
+    container.classList.remove('horizontal-scroll-row');
+    empty.style.display = 'block';
+    return;
+  }
   empty.style.display = 'none';
 
-  const palette = ['#ef4444','#f97316','#8b5cf6','#3b82f6','#06b6d4','#64748b'];
-  const catColors = {};
-  settings.expenseMainCats.forEach((c, i) => { catColors[c.名稱] = palette[i % palette.length]; });
-
   // 依主類別分區塊
+  const relMainCats = settings.expenseMainCats.filter(c => {
+    if (filterState.expense.type === 'meal') return c.類型 === 'meal' || c.類型 === 'other';
+    return c.類型 === filterState.expense.type;
+  });
+
   const mainCatSet = filterState.expense.mainCat
     ? [filterState.expense.mainCat]
-    : [...new Set(settings.expenseMainCats.map(c => c.名稱))].filter(n => data.some(r => r.主類別 === n));
+    : relMainCats.map(c => c.名稱).filter(n => data.some(r => r.主類別 === n));
 
   mainCatSet.forEach((catName, ci) => {
     const catData = data.filter(r => r.主類別 === catName);
     if (catData.length === 0) return;
-    const color = catColors[catName] || palette[ci % palette.length];
+    
+    const clr = getCategoryColor(catName, ci);
+    const color = clr.color;
     const catTotal = catData.reduce((s, r) => s + calcExpenseTotal(r), 0);
 
     const section = document.createElement('div');
     section.className = 'record-section';
-    section.style.borderLeft = `4px solid ${color}`;
+    section.style.backgroundColor = clr.bg;
 
     const header = document.createElement('div');
     header.className = 'record-section-header';
@@ -2465,22 +2552,13 @@ document.getElementById('expenseForm').onsubmit = async (e) => {
     for (const r of recordsToSave) {
       // 處理新項目 (Settings)
       if (r.isNewWorker) {
-        await gapi.client.sheets.spreadsheets.values.append({
-          spreadsheetId: SPREADSHEET_ID, range: `${SHEET.WORKERS}!A:C`,
-          valueInputOption: 'USER_ENTERED', resource: { values: [[r.工人姓名, '190', '1500']] }
-        });
+        await appendToSheet(SHEET.WORKERS, [r.工人姓名, '190', '1500']);
       }
       if (r.isNewSubCat) {
-        await gapi.client.sheets.spreadsheets.values.append({
-          spreadsheetId: SPREADSHEET_ID, range: `${SHEET.EXPENSE_CATS}!A:D`,
-          valueInputOption: 'USER_ENTERED', resource: { values: [[r.主類別, r.次類別, 'material', '']] }
-        });
+        await appendToSheet(SHEET.EXPENSE_CATS, [r.主類別, r.次類別, 'material', '']);
       }
       if (r.isNewUnit) {
-        await gapi.client.sheets.spreadsheets.values.append({
-          spreadsheetId: SPREADSHEET_ID, range: `${SHEET.UNITS}!A:A`,
-          valueInputOption: 'USER_ENTERED', resource: { values: [[r.單位]] }
-        });
+        await appendToSheet(SHEET.UNITS, [r.單位]);
       }
       // 如果有新增 Settings 則重新讀取
       if (r.isNewWorker || r.isNewSubCat || r.isNewUnit) await fetchSettings();
@@ -2863,7 +2941,7 @@ document.getElementById('orderForm').onsubmit = async (e) => {
           `CUS_${Date.now()}`, sender, document.getElementById('orderSenderPhone').value, '',
           '系統新增', '自動', ''
         ];
-        await gapi.client.sheets.spreadsheets.values.append({
+        await gapi.client.sheets.spreadsheets.append({
           spreadsheetId: SPREADSHEET_ID,
           range: `${SHEET.CUSTOMERS}!A:G`,
           valueInputOption: 'USER_ENTERED',
@@ -3763,3 +3841,38 @@ function renderBalanceMonthlyTable(incData, expData, orderDataFiltered = []) {
     tbody.appendChild(tr);
   });
 }
+// ============================================================
+// 17. 管理模式與初始化
+// ============================================================
+
+function setupEditModeToggle() {
+  const configs = [
+    { btnId: 'incomeEditModeBtn', containerId: 'incomeRecordContainer', state: filterState.income },
+    { btnId: 'orderEditModeBtn', containerId: 'orderRecordContainer', state: filterState.order },
+    { btnId: 'expenseEditModeBtn', containerId: 'expenseRecordContainer', state: filterState.expense },
+  ];
+
+  configs.forEach(cfg => {
+    const btn = document.getElementById(cfg.btnId);
+    const container = document.getElementById(cfg.containerId);
+    if (!btn || !container) return;
+
+    btn.onclick = () => {
+      cfg.state.isEditMode = !cfg.state.isEditMode;
+      btn.classList.toggle('active', cfg.state.isEditMode);
+      container.classList.toggle('edit-mode-active', cfg.state.isEditMode);
+      showToast(cfg.state.isEditMode ? '✓ 管理模式：開啟 (顯示編輯按鈕)' : '管理模式：關閉');
+    };
+  });
+}
+
+// 修改 renderAll 以包含初始化
+const originalRenderAll = typeof renderAll === 'function' ? renderAll : null;
+window.renderAll = function() {
+  if (originalRenderAll) originalRenderAll();
+  setupEditModeToggle();
+};
+
+document.addEventListener('DOMContentLoaded', () => {
+  setupEditModeToggle();
+});

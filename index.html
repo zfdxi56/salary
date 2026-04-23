@@ -153,6 +153,9 @@
               <button class="btn-tool" id="incomeSortBtn" title="切換排序" data-order="desc">
                 <span class="material-symbols-outlined">sort</span>
               </button>
+              <button class="btn-tool" id="incomeEditModeBtn" title="管理模式">
+                <span class="material-symbols-outlined">edit_note</span>
+              </button>
               <button class="btn-tool" id="incomeCopyBtn" title="複製明細">
                 <span class="material-symbols-outlined">content_copy</span>
               </button>
@@ -202,12 +205,16 @@
             </button>
           </div>
 
-          <!-- 訂單篩選（只有次類別） -->
-          <div class="filter-bar" id="orderFilterBar">
-            <div class="filter-chips" id="orderSubCatChips"></div>
-            <div class="filter-tools">
+          <div class="filter-box" id="orderFilterBar">
+            <div id="orderMainCatChips" class="filter-chips-row main-cats"></div>
+            <div class="chips-divider"></div>
+            <div id="orderSubCatChips" class="filter-chips-row sub-cats"></div>
+            <div class="filter-actions-group">
               <button class="btn-tool" id="orderClearFilter" title="清除篩選">
                 <span class="material-symbols-outlined">filter_alt_off</span>
+              </button>
+              <button class="btn-tool" id="orderEditModeBtn" title="管理模式">
+                <span class="material-symbols-outlined">edit_note</span>
               </button>
               <button class="btn-tool" id="orderCopyBtn" title="複製訂單明細">
                 <span class="material-symbols-outlined">content_copy</span>
@@ -272,15 +279,19 @@
         </div>
 
         <!-- 支出篩選列 -->
-        <div class="filter-bar" id="expenseFilterBar">
-          <div class="filter-chips" id="expenseMainCatChips"></div>
-          <div class="filter-chips sub" id="expenseSubCatChips" style="display:none"></div>
-          <div class="filter-tools">
+        <div class="filter-box" id="expenseFilterBar">
+          <div id="expenseMainCatChips" class="filter-chips-row main-cats"></div>
+          <div class="chips-divider"></div>
+          <div id="expenseSubCatChips" class="filter-chips-row sub-cats"></div>
+          <div class="filter-actions-group">
             <button class="btn-tool" id="expenseClearFilter" title="清除篩選">
               <span class="material-symbols-outlined">filter_alt_off</span>
             </button>
             <button class="btn-tool" id="expenseSortBtn" title="切換排序" data-order="desc">
               <span class="material-symbols-outlined">sort</span>
+            </button>
+            <button class="btn-tool" id="expenseEditModeBtn" title="管理模式">
+              <span class="material-symbols-outlined">edit_note</span>
             </button>
             <button class="btn-tool" id="expenseCopyBtn" title="複製明細">
               <span class="material-symbols-outlined">content_copy</span>
