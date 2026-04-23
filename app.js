@@ -744,6 +744,7 @@ const CAT_COLORS = {
   '橘子':   { color: '#84cc16', bg: '#f7fee7', border: '#d9f99d' },
   '固定成本': { color: '#3b82f6', bg: '#eff6ff', border: '#bfdbfe' },
   '變動成本': { color: '#8b5cf6', bg: '#f3f0ff', border: '#ddd6fe' },
+  '工人薪資': { color: '#8b5cf6', bg: '#f3f0ff', border: '#ddd6fe' }
 };
 const CAT_FALLBACK_PALETTE = ['#22c55e','#3b82f6','#a855f7','#f97316','#eab308','#ef4444','#06b6d4','#64748b'];
 
@@ -823,6 +824,8 @@ function setupSwipeLogic(itemEl, editCb, delCb) {
 function getAmountClass(val) {
   return (parseFloat(val) === 0) ? ' amount-zero' : '';
 }
+let _incomePieInstance = null;
+let _orderPieInstance = null;
 
 function renderIncomeChart() {
   const period = filterState.income.period;
@@ -1196,11 +1199,13 @@ function renderOrderChart() {
   const period = filterState.order.period;
   const data = getFilteredByPeriod(ordersData, '下定日期', period);
 
-  const orderPalette = ['#22c55e','#3b82f6','#a855f7','#f97316'];
   const catMap = {};
   data.forEach((r, ri) => {
     const key = r.訂購品項;
-    if (!catMap[key]) catMap[key] = { total: 0, count: 0, pending: 0, unpaidAmount: 0, color: orderPalette[Object.keys(catMap).length % orderPalette.length] };
+    if (!catMap[key]) {
+      const clr = getCategoryColor(key, Object.keys(catMap).length);
+      catMap[key] = { total: 0, count: 0, pending: 0, unpaidAmount: 0, ...clr };
+    }
     const price = parseFloat(r.總價) || 0;
     catMap[key].total += price;
     catMap[key].count++;
@@ -1215,9 +1220,9 @@ function renderOrderChart() {
   // 圓餅圖
   const ctx = document.getElementById('orderPieChart');
   if (ctx) {
-    if (window._orderPieInstance) window._orderPieInstance.destroy();
+    if (_orderPieInstance) _orderPieInstance.destroy();
     if (entries.length > 0) {
-      window._orderPieInstance = new Chart(ctx, {
+      _orderPieInstance = new Chart(ctx, {
         type: 'doughnut',
         data: {
           labels: entries.map(([n]) => n),
@@ -1240,9 +1245,9 @@ function renderOrderChart() {
     d.className = 'pie-legend-item';
     d.style.cursor = 'pointer';
     d.innerHTML = `
-      <span class="pie-legend-dot" style="background:${catMap[name]?.color}"></span>
+      <span class="pie-legend-dot" style="background:${v.color}"></span>
       <span class="pie-legend-name">${name}<span style="color:var(--text-muted);font-size:0.7rem;margin-left:4px">${v.count}筆${v.pending>0?`·⚠${v.pending}未付`:''}</span></span>
-      <span class="pie-legend-val">$${v.total.toLocaleString()}</span>`;
+      <span class="pie-legend-val" style="color:${v.color}">$${v.total.toLocaleString()}</span>`;
     area.appendChild(d);
   });
 
@@ -1326,18 +1331,20 @@ function renderOrderTable() {
   empty.style.display = 'none';
 
   // 依主類別（訂購品項）分區塊
-  const mainCatSet = filterState.order.mainCat
-    ? [filterState.order.mainCat]
-    : [...new Set(settings.incomeMainCats.map(c => c.名稱))].filter(n => data.some(r => r.訂購品項 === n));
+  // 合併「設定中有的」與「實際資料有的」主類別，確保不遺漏
+  const allPossibleCats = [...new Set([
+    ...settings.incomeMainCats.map(c => c.名稱),
+    ...data.map(r => r.訂購品項)
+  ])].filter(n => data.some(r => r.訂購品項 === n));
 
-  const orderColors = ['#22c55e','#3b82f6','#a855f7','#f97316'];
-  const catColors = {};
-  settings.incomeMainCats.forEach((c, i) => { catColors[c.名稱] = orderColors[i % orderColors.length]; });
+  const mainCatSet = filterState.order.mainCat ? [filterState.order.mainCat] : allPossibleCats;
 
   mainCatSet.forEach((catName, ci) => {
     const catData = data.filter(r => r.訂購品項 === catName);
     if (catData.length === 0) return;
-    const color = catColors[catName] || orderColors[ci % orderColors.length];
+    
+    const clr = getCategoryColor(catName, ci);
+    const color = clr.color;
 
     const section = document.createElement('div');
     section.className = 'record-section';
@@ -1789,15 +1796,13 @@ function renderExpenseChart() {
   data.forEach(r => grandTotal += calcExpenseTotal(r));
   document.getElementById('expenseTotalSummary').textContent = `總計：$${grandTotal.toLocaleString()}`;
 
-  const palette = ['#ef4444','#f97316','#8b5cf6','#3b82f6','#06b6d4','#64748b'];
-  const catColorMap = {};
-  settings.expenseMainCats.forEach((c, i) => { catColorMap[c.名稱] = palette[i % palette.length]; });
-
   // 主類別統計
   const mainCatMap = {};
-  settings.expenseMainCats.forEach(c => mainCatMap[c.名稱] = { total: 0, count: 0, unpaid: 0, color: catColorMap[c.名稱] });
   data.forEach(r => {
-    if (!mainCatMap[r.主類別]) mainCatMap[r.主類別] = { total: 0, count: 0, unpaid: 0, color: palette[Object.keys(mainCatMap).length % palette.length] };
+    if (!mainCatMap[r.主類別]) {
+      const clr = getCategoryColor(r.主類別, Object.keys(mainCatMap).length);
+      mainCatMap[r.主類別] = { total: 0, count: 0, unpaid: 0, ...clr };
+    }
     const amt = calcExpenseTotal(r);
     mainCatMap[r.主類別].total += amt;
     mainCatMap[r.主類別].count++;
@@ -1963,6 +1968,26 @@ function renderExpenseFilterChips() {
   renderExpenseSubCatChips();
 }
 
+function renderExpenseSubCatChips() {
+  const container = document.getElementById('expenseSubCatChips');
+  if (!container) return;
+  container.innerHTML = '';
+  if (!filterState.expense.mainCat) return;
+
+  const subCats = settings.expenseMainCats.find(c => c.名稱 === filterState.expense.mainCat)?.次類別 || [];
+  subCats.forEach(sub => {
+    const btn = document.createElement('button');
+    const isActive = filterState.expense.subCat === sub;
+    btn.className = `filter-chip${isActive ? ' active' : ''}`;
+    btn.textContent = sub;
+    btn.onclick = () => {
+      filterState.expense.subCat = filterState.expense.subCat === sub ? null : sub;
+      renderExpenseSubCatChips();
+      renderExpenseTable();
+    };
+    container.appendChild(btn);
+  });
+}
 
 
 document.getElementById('expenseClearFilter').onclick = () => {
