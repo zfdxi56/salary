@@ -1272,3 +1272,485 @@ input::placeholder { color: var(--text-xs); }
   width: 100%;
 }
 
+/* ================================================
+   收入總覽卡片
+   ================================================ */
+.revenue-overview-card {
+  border-radius: var(--radius-lg);
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 0.75rem;
+  box-shadow: var(--shadow);
+  background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%);
+  border-left: 4px solid var(--green);
+}
+.revenue-overview-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+.revenue-overview-info {}
+.revenue-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  display: block;
+  margin-bottom: 0.2rem;
+}
+.revenue-total-amount {
+  font-size: 2rem;
+  font-weight: 800;
+  color: var(--green-dark);
+  letter-spacing: -0.03em;
+}
+.revenue-sub-items {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+.revenue-sub-item { text-align: center; }
+.revenue-sub-label {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  font-weight: 600;
+  display: block;
+}
+.revenue-sub-value {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--green-dark);
+}
+.revenue-sub-dot {
+  font-size: 1.25rem;
+  color: var(--text-xs);
+  font-weight: 300;
+}
+
+/* ================================================
+   收入子頁 Tab
+   ================================================ */
+.sub-tab-nav {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  background: rgba(255,255,255,0.7);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 4px;
+}
+.sub-tab-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: calc(var(--radius-lg) - 3px);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: var(--transition);
+}
+.sub-tab-btn .material-symbols-outlined { font-size: 18px; }
+.sub-tab-btn.active {
+  background: white;
+  color: var(--green-dark);
+  box-shadow: var(--shadow-sm);
+}
+.sub-tab-page { display: none; }
+.sub-tab-page.active { display: block; }
+
+/* ================================================
+   圓餅圖佈局（收入/支出統計）
+   ================================================ */
+.income-chart-layout {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: 0.5rem;
+}
+.income-pie-wrap {
+  flex-shrink: 0;
+  width: 140px;
+  height: 140px;
+  position: relative;
+}
+.income-chart-right {
+  flex: 1;
+  min-width: 180px;
+}
+.expense-pie-layout {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: 0.5rem;
+}
+.expense-pie-wrap {
+  flex-shrink: 0;
+  width: 160px;
+  height: 160px;
+  position: relative;
+}
+.expense-pie-legend {
+  flex: 1;
+  min-width: 160px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+.pie-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.82rem;
+}
+.pie-legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.pie-legend-name { flex: 1; font-weight: 500; }
+.pie-legend-val { font-weight: 700; color: var(--text); }
+
+/* ================================================
+   折疊紀錄區塊（支出/收入/訂單通用）
+   ================================================ */
+.record-section {
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  margin-bottom: 0.75rem;
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border);
+  background: white;
+}
+.record-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  cursor: pointer;
+  user-select: none;
+  background: #f8fafc;
+  border-bottom: 1px solid var(--border);
+  transition: var(--transition);
+}
+.record-section-header:hover { background: #f1f5f9; }
+.record-section-left {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 700;
+  font-size: 0.92rem;
+}
+.record-section-right {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.82rem;
+}
+.record-section-total { font-weight: 700; color: var(--green-dark); }
+.record-section-total.expense { color: var(--red); }
+.record-section-count {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  background: rgba(0,0,0,0.06);
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+.record-section-arrow {
+  font-size: 18px;
+  color: var(--text-muted);
+  transition: transform 0.2s;
+}
+.record-section-arrow.expanded { transform: rotate(90deg); }
+.record-section-body { display: none; }
+.record-section-body.expanded { display: block; }
+
+/* 子區塊 */
+.record-subsection { border-top: 1px solid #f1f5f9; }
+.record-subsection-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 1.25rem;
+  cursor: pointer;
+  background: #fafbfc;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  border-bottom: 1px solid #f1f5f9;
+}
+.record-subsection-header:hover { background: #f4f6f8; }
+.record-subsection-body { display: none; }
+.record-subsection-body.expanded { display: block; }
+
+/* 年/月折疊 */
+.record-year-header, .record-month-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.4rem 1.5rem;
+  cursor: pointer;
+  font-size: 0.78rem;
+  font-weight: 600;
+  background: white;
+  border-bottom: 1px solid #f8fafc;
+}
+.record-year-header { color: var(--blue); padding-left: 1.25rem; }
+.record-month-header { color: var(--text-muted); padding-left: 2rem; }
+.record-year-body, .record-month-body { display: none; }
+.record-year-body.expanded, .record-month-body.expanded { display: block; }
+
+/* 紀錄單列 */
+.record-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.625rem 1rem 0.625rem 2rem;
+  border-bottom: 1px solid #f8fafc;
+  font-size: 0.82rem;
+  transition: background 0.15s;
+}
+.record-item:last-child { border-bottom: none; }
+.record-item:hover { background: #f8fffe; }
+.record-item-date {
+  flex-shrink: 0;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  min-width: 56px;
+  padding-top: 2px;
+}
+.record-item-main { flex: 1; min-width: 0; }
+.record-item-name { font-weight: 600; color: var(--text); }
+.record-item-sub { font-size: 0.72rem; color: var(--text-muted); margin-top: 2px; }
+.record-item-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.record-item-amount { font-weight: 700; color: var(--green-dark); white-space: nowrap; }
+.record-item-amount.expense { color: var(--red); }
+.record-item-actions { display: flex; gap: 4px; }
+
+/* ================================================
+   訂單等級輸入
+   ================================================ */
+.order-grade-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  background: var(--bg2);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+}
+.order-grade-row {
+  display: grid;
+  grid-template-columns: 70px 1fr 80px;
+  gap: 0.375rem;
+  align-items: center;
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.375rem 0.5rem;
+}
+.order-grade-label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text);
+  text-align: center;
+}
+.order-grade-row input {
+  padding: 0.3rem 0.4rem;
+  font-size: 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  width: 100%;
+}
+.order-unit-toggle {
+  display: flex;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.order-unit-toggle button {
+  flex: 1;
+  border: none;
+  background: #f1f5f9;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.3rem 0.25rem;
+  cursor: pointer;
+  font-family: inherit;
+  transition: var(--transition);
+}
+.order-unit-toggle button.active {
+  background: var(--green);
+  color: white;
+}
+
+/* ================================================
+   按鈕：一鍵切換付款/對帳
+   ================================================ */
+.btn-quick-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  border: 1.5px solid transparent;
+  cursor: pointer;
+  font-family: inherit;
+  transition: var(--transition);
+  white-space: nowrap;
+}
+.btn-quick-toggle.unpaid {
+  background: var(--yellow-light);
+  color: #92400e;
+  border-color: #fde68a;
+}
+.btn-quick-toggle.paid {
+  background: var(--green-light);
+  color: var(--green-dark);
+  border-color: #bbf7d0;
+}
+.btn-quick-toggle.pending-recon {
+  background: #f0f9ff;
+  color: #0369a1;
+  border-color: #bae6fd;
+}
+.btn-quick-toggle.ok-recon {
+  background: #f0fdf4;
+  color: var(--green-dark);
+  border-color: #86efac;
+}
+
+/* ================================================
+   未出貨摘要
+   ================================================ */
+.order-unshipped-summary {
+  background: #fff7ed;
+  border: 1px solid #ffedd5;
+  border-radius: var(--radius-sm);
+  padding: 0.75rem 1rem;
+  font-size: 0.82rem;
+  margin-top: 0.75rem;
+}
+.order-unshipped-title {
+  font-weight: 700;
+  color: #c2410c;
+  margin-bottom: 0.5rem;
+}
+.order-unshipped-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.order-unshipped-item {
+  background: white;
+  border: 1px solid #fed7aa;
+  border-radius: 6px;
+  padding: 0.25rem 0.625rem;
+  font-size: 0.75rem;
+}
+.order-unshipped-item strong { color: var(--orange); }
+
+/* ================================================
+   結餘淨額卡片（新版）
+   ================================================ */
+.balance-net-card {
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
+  margin-bottom: 1rem;
+  box-shadow: var(--shadow-lg);
+}
+.balance-period-btns-wrap {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 1rem;
+}
+.balance-net-main {
+  text-align: center;
+  padding: 0.5rem 0 1rem;
+}
+.balance-net-label {
+  display: block;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+.balance-net-value {
+  font-size: 3rem;
+  font-weight: 900;
+  color: var(--green-dark);
+  letter-spacing: -0.04em;
+  display: block;
+}
+.balance-sub-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px dashed var(--border);
+}
+@media (max-width: 480px) {
+  .balance-sub-grid { grid-template-columns: 1fr; }
+  .income-pie-wrap { width: 120px; height: 120px; }
+  .expense-pie-wrap { width: 130px; height: 130px; }
+}
+
+/* ================================================
+   Grade Row v2 (收入新增：等級+重量+數量+單位)
+   ================================================ */
+.grade-rows-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  background: var(--bg2);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.75rem;
+}
+.grade-row-v2 {
+  display: grid;
+  grid-template-columns: 70px 1fr 1fr 80px auto;
+  gap: 0.375rem;
+  align-items: center;
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.375rem 0.5rem;
+}
+.grade-row-v2 .grade-label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-align: center;
+  color: var(--text);
+}
+.grade-row-v2 input {
+  padding: 0.3rem 0.4rem;
+  font-size: 0.82rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  width: 100%;
+}
+@media (max-width: 420px) {
+  .grade-row-v2 { grid-template-columns: 60px 1fr 70px auto; }
+  .grade-row-v2 .weight-col { display: none; }
+}
+
