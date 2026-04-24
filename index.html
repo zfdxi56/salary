@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,13 +8,24 @@
   <meta name="description" content="山上果園種植成本與收入記帳管理系統">
   <link rel="stylesheet" href="style.css">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet">
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🍎</text></svg>">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0"
+    rel="stylesheet">
+  <link rel="icon"
+    href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🍎</text></svg>">
   <script src="https://accounts.google.com/gsi/client" async defer></script>
   <script src="https://apis.google.com/js/api.js"></script>
   <!-- 引入 Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <head>
+    <!--  放入這三行開始 -->
+    <link rel="icon" type="image/png" href="./icon.png">
+    <link rel="apple-touch-icon" href="./icon.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="./icon.png">
+    <!--  放入這三行結束 -->
+  </head>
 </head>
+
 <body>
 
   <!-- 頂部 Header -->
@@ -76,29 +88,45 @@
     <section id="page-revenue" class="tab-page active">
       <div class="page-inner">
 
-        <!-- 收入總覽卡片（顯示兩者加總） -->
-        <div class="revenue-overview-card glass">
-          <div class="revenue-overview-top">
-            <div class="revenue-overview-info">
-              <span class="revenue-label">本年收入總計</span>
-              <span class="revenue-total-amount" id="revenueTotalAmount">$0</span>
+        <!-- 複合式收入卡片 -->
+        <div class="card glass composite-revenue-card" id="compositeRevenueCard">
+          <!-- 區塊 1: 管道對比 (Header + Bar) -->
+          <div class="composite-section section-header">
+            <div class="annual-total-mini">
+              <span class="label">年度總計：</span>
+              <span class="value" id="revenueTotalAmount">$0</span>
             </div>
-            <div class="revenue-sub-items">
-              <div class="revenue-sub-item">
-                <span class="revenue-sub-label">市場收入</span>
-                <span class="revenue-sub-value" id="revenueMarketTotal">$0</span>
+            <div class="stacked-bar-container">
+              <div class="stacked-bar-segment market" id="barMarket" style="width: 50%">
+                <span class="segment-label">市場 Wholesale</span>
+                <span class="segment-value" id="barMarketVal">$0 (0%)</span>
               </div>
-              <div class="revenue-sub-dot">+</div>
-              <div class="revenue-sub-item">
-                <span class="revenue-sub-label">客戶訂單</span>
-                <span class="revenue-sub-value" id="revenueOrderTotal">$0</span>
+              <div class="stacked-bar-segment order" id="barOrder" style="width: 50%">
+                <span class="segment-label">客戶 Retail</span>
+                <span class="segment-value" id="barOrderVal">$0 (0%)</span>
               </div>
+            </div>
+          </div>
+
+          <div class="section-divider"></div>
+
+          <!-- 區塊 2: 明細清單 (Flex Layout) -->
+          <div class="composite-section section-details">
+            <div class="details-column column-left">
+              <h4 class="details-title market-color">市場明細</h4>
+              <div id="marketSummaryDetails" class="details-list"></div>
+            </div>
+            <div class="details-column column-right">
+              <h4 class="details-title order-color">客戶明細</h4>
+              <div id="orderSummaryDetails" class="details-list"></div>
+              <!-- 區塊 3: 行動提醒 (未出貨資訊) -->
+              <div id="unshippedAlertContainer" class="unshipped-alerts" style="display:none"></div>
             </div>
           </div>
         </div>
 
-        <!-- 收入子頁 Tab -->
-        <div class="sub-tab-nav">
+        <!-- 原有的子頁 Tab (保留供列表切換，但隱藏統計部分) -->
+        <div class="sub-tab-nav" style="margin-top: 1.5rem">
           <button class="sub-tab-btn active" data-subtab="income" id="stab-income">
             <span class="material-symbols-outlined">storefront</span>
             市場收入
@@ -112,25 +140,12 @@
         <!-- ---- 市場收入子頁 ---- -->
         <div id="subpage-income" class="sub-tab-page active">
 
-          <!-- 收入統計圖表 -->
-          <div class="card glass chart-card" id="incomeChartCard">
-            <div class="card-header">
-              <div class="header-main">
-                <h2><span class="material-symbols-outlined">analytics</span> 收入統計</h2>
-                <div id="incomeTotalSummary" class="chart-summary">總計：$0</div>
-              </div>
-              <div class="chart-period-btns">
-                <button class="period-btn" data-period="all">全部</button>
-                <button class="period-btn active" data-period="year">今年</button>
-                <button class="period-btn" data-period="month">本月</button>
-              </div>
-            </div>
-            <!-- 圓餅圖 + 方格雙區 -->
-            <div class="income-chart-layout">
-              <div class="income-pie-wrap">
-                <canvas id="incomePieChart"></canvas>
-              </div>
-              <div id="incomeChartArea" class="chart-area income-chart-right"></div>
+          <!-- 收入統計圖表 (已由複合卡片取代，此處改為精簡版標題) -->
+          <div class="section-header-compact">
+            <div class="chart-period-btns">
+              <button class="period-btn" data-period="all">全部</button>
+              <button class="period-btn active" data-period="year">今年</button>
+              <button class="period-btn" data-period="month">本月</button>
             </div>
           </div>
 
@@ -173,28 +188,13 @@
         <!-- ---- 客戶訂單子頁 ---- -->
         <div id="subpage-orders" class="sub-tab-page">
 
-          <!-- 訂單統計 -->
-          <div class="card glass chart-card" id="orderChartCard">
-            <div class="card-header">
-              <div class="header-main">
-                <h2><span class="material-symbols-outlined">shopping_cart</span> 訂單統計</h2>
-                <div id="orderTotalSummary" class="chart-summary">總計：$0</div>
-              </div>
-              <div class="chart-period-btns">
-                <button class="period-btn" data-period="all">全部</button>
-                <button class="period-btn active" data-period="year">今年</button>
-                <button class="period-btn" data-period="month">本月</button>
-              </div>
+          <!-- 訂單統計 (已由複合卡片取代) -->
+          <div class="section-header-compact">
+            <div class="chart-period-btns">
+              <button class="period-btn" data-period="all">全部</button>
+              <button class="period-btn active" data-period="year">今年</button>
+              <button class="period-btn" data-period="month">本月</button>
             </div>
-            <!-- 訂單圓餅圖 + 方格 -->
-            <div class="income-chart-layout">
-              <div class="income-pie-wrap">
-                <canvas id="orderPieChart"></canvas>
-              </div>
-              <div id="orderChartArea" class="chart-area income-chart-right"></div>
-            </div>
-            <!-- 未出貨等級/數量 -->
-            <div id="orderUnshippedSummary" class="order-unshipped-summary" style="margin-top:0.75rem"></div>
           </div>
 
           <!-- 新增訂單按鈕 -->
@@ -349,11 +349,14 @@
           </div>
           <div style="display:flex; gap:1rem; flex-wrap:wrap;">
             <div style="flex:1; min-width:180px;">
-              <div class="chart-container" style="position: relative; height:30vh; width:100%; display:flex; justify-content:center; align-items:center;">
+              <div class="chart-container"
+                style="position: relative; height:30vh; width:100%; display:flex; justify-content:center; align-items:center;">
                 <canvas id="balancePieChart"></canvas>
               </div>
             </div>
-            <div id="balancePieLegend" style="flex:1; min-width:150px; display:flex; flex-direction:column; justify-content:center; gap:0.5rem; padding:0.5rem;"></div>
+            <div id="balancePieLegend"
+              style="flex:1; min-width:150px; display:flex; flex-direction:column; justify-content:center; gap:0.5rem; padding:0.5rem;">
+            </div>
           </div>
         </div>
 
@@ -390,7 +393,13 @@
           <div class="table-wrap">
             <table class="records-table">
               <thead>
-                <tr><th>期間</th><th>市場收入</th><th>客戶銷售</th><th>支出</th><th>淨結餘</th></tr>
+                <tr>
+                  <th>期間</th>
+                  <th>市場收入</th>
+                  <th>客戶銷售</th>
+                  <th>支出</th>
+                  <th>淨結餘</th>
+                </tr>
               </thead>
               <tbody id="balanceMonthlyTableBody"></tbody>
             </table>
@@ -414,7 +423,13 @@
           <div class="table-wrap">
             <table class="records-table">
               <thead>
-                <tr><th>客戶姓名</th><th>電話</th><th>客源</th><th>地址</th><th>操作</th></tr>
+                <tr>
+                  <th>客戶姓名</th>
+                  <th>電話</th>
+                  <th>客源</th>
+                  <th>地址</th>
+                  <th>操作</th>
+                </tr>
               </thead>
               <tbody id="customerListBody"></tbody>
             </table>
@@ -432,7 +447,12 @@
           <div class="table-wrap">
             <table class="records-table">
               <thead>
-                <tr><th>主類別</th><th>次類別</th><th>等級</th><th>操作</th></tr>
+                <tr>
+                  <th>主類別</th>
+                  <th>次類別</th>
+                  <th>等級</th>
+                  <th>操作</th>
+                </tr>
               </thead>
               <tbody id="incomeMainCatBody"></tbody>
             </table>
@@ -450,7 +470,13 @@
           <div class="table-wrap">
             <table class="records-table">
               <thead>
-                <tr><th>編號</th><th>主類別</th><th>次類別</th><th>類型</th><th>操作</th></tr>
+                <tr>
+                  <th>編號</th>
+                  <th>主類別</th>
+                  <th>次類別</th>
+                  <th>類型</th>
+                  <th>操作</th>
+                </tr>
               </thead>
               <tbody id="expenseMainCatBody"></tbody>
             </table>
@@ -468,7 +494,12 @@
           <div class="table-wrap">
             <table class="records-table">
               <thead>
-                <tr><th>姓名</th><th>預設時薪</th><th>預設日薪</th><th>操作</th></tr>
+                <tr>
+                  <th>姓名</th>
+                  <th>預設時薪</th>
+                  <th>預設日薪</th>
+                  <th>操作</th>
+                </tr>
               </thead>
               <tbody id="workerListBody"></tbody>
             </table>
@@ -486,7 +517,11 @@
           <div class="table-wrap">
             <table class="records-table">
               <thead>
-                <tr><th>Google 帳號 Email</th><th>角色</th><th>操作</th></tr>
+                <tr>
+                  <th>Google 帳號 Email</th>
+                  <th>角色</th>
+                  <th>操作</th>
+                </tr>
               </thead>
               <tbody id="userListBody"></tbody>
             </table>
@@ -513,7 +548,10 @@
         <div class="form-row">
           <div class="input-wrap">
             <label for="incomeDate">日期 *</label>
-            <input type="date" id="incomeDate" required>
+            <div class="date-input-group">
+              <input type="date" id="incomeDate" required>
+              <button type="button" class="btn-today-shortcut" onclick="setFormDateToday('incomeDate')">今天</button>
+            </div>
           </div>
           <div class="input-wrap">
             <label for="incomeMainCat">品種 *</label>
@@ -619,7 +657,10 @@
         <div class="form-row">
           <div class="input-wrap">
             <label for="expenseDate">日期 *</label>
-            <input type="date" id="expenseDate" required>
+            <div class="date-input-group">
+              <input type="date" id="expenseDate" required>
+              <button type="button" class="btn-today-shortcut" onclick="setFormDateToday('expenseDate')">今天</button>
+            </div>
           </div>
           <div class="input-wrap">
             <label for="expenseMainCat">主類別 *</label>
@@ -749,7 +790,10 @@
         <div class="form-row">
           <div class="input-wrap">
             <label for="orderDate">下定日期 *</label>
-            <input type="date" id="orderDate" required>
+            <div class="date-input-group">
+              <input type="date" id="orderDate" required>
+              <button type="button" class="btn-today-shortcut" onclick="setFormDateToday('orderDate')">今天</button>
+            </div>
           </div>
           <div class="input-wrap">
             <label for="orderStatus">訂單狀態</label>
@@ -972,6 +1016,28 @@
   <!-- Toast 通知 -->
   <div id="toast" class="toast" style="display:none"></div>
 
+  <!-- 全域懸浮按鈕 (FAB) -->
+  <div class="fab-container" id="fabContainer">
+    <div class="fab-menu" id="fabMenu">
+      <button class="fab-item item-income" onclick="handleFabAction('income')">
+        <span class="material-symbols-outlined">storefront</span>
+        <span class="fab-label">市場收入</span>
+      </button>
+      <button class="fab-item item-order" onclick="handleFabAction('order')">
+        <span class="material-symbols-outlined">list_alt</span>
+        <span class="fab-label">客戶訂單</span>
+      </button>
+      <button class="fab-item item-expense" onclick="handleFabAction('expense')">
+        <span class="material-symbols-outlined">trending_down</span>
+        <span class="fab-label">新增支出</span>
+      </button>
+    </div>
+    <button class="fab-main" id="fabMain">
+      <span class="material-symbols-outlined main-icon">add</span>
+    </button>
+  </div>
+
   <script src="app.js"></script>
 </body>
+
 </html>

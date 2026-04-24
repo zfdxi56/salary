@@ -58,6 +58,9 @@
 
   --tab-height: 60px;
   --header-height: 52px;
+  --fab-size: 56px;
+  --market-green: #22c55e;
+  --order-orange: #f97316;
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -1593,7 +1596,7 @@ input::placeholder { color: var(--text-xs); }
 }
 
 .record-item.swiped .record-item-content {
-  transform: translateX(-140px); /* Adjust based on action width */
+  transform: translateX(-210px); /* 三個按鈕，寬度增加 */
 }
 
 .record-item-actions-swipe {
@@ -1601,7 +1604,7 @@ input::placeholder { color: var(--text-xs); }
   right: 0;
   top: 0;
   bottom: 0;
-  width: 140px;
+  width: 210px; /* 三個按鈕 */
   display: flex;
   z-index: 1;
 }
@@ -1619,6 +1622,7 @@ input::placeholder { color: var(--text-xs); }
   cursor: pointer;
   gap: 2px;
 }
+.swipe-btn.copy { background-color: var(--green); }
 .swipe-btn.edit { background-color: var(--blue); }
 .swipe-btn.del { background-color: var(--red); }
 .swipe-btn .material-symbols-outlined { font-size: 18px; }
@@ -1861,3 +1865,289 @@ input::placeholder { color: var(--text-xs); }
   .grade-row-v2 .weight-col { display: none; }
 }
 
+
+/* ================================================
+   複合式收入卡片 (Composite Revenue Card)
+   ================================================ */
+.composite-revenue-card {
+  padding: 1.5rem !important;
+  margin-bottom: 2rem;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+}
+
+.composite-section {
+  width: 100%;
+}
+
+.section-header {
+  margin-bottom: 1rem;
+}
+
+.annual-total-mini {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  background: var(--yellow-light);
+  padding: 8px 16px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--yellow-light);
+  width: fit-content;
+}
+
+.annual-total-mini .label {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.annual-total-mini .value {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--text);
+}
+
+/* 堆疊條形圖 Stacked Bar */
+.stacked-bar-container {
+  display: flex;
+  height: 48px;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);
+  background: #f1f5f9;
+}
+
+.stacked-bar-segment {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 0 12px;
+  color: white;
+  transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  min-width: 60px;
+}
+
+.stacked-bar-segment.market {
+  background: linear-gradient(135deg, #4ade80, #22c55e);
+}
+
+.stacked-bar-segment.order {
+  background: linear-gradient(135deg, #fb923c, #f97316);
+}
+
+.segment-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  opacity: 0.9;
+  white-space: nowrap;
+}
+
+.segment-value {
+  font-size: 0.85rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.section-divider {
+  height: 1px;
+  background: #e2e8f0;
+  margin: 1.5rem 0;
+}
+
+/* Flex Layout 區塊 2 */
+.section-details {
+  display: flex;
+  gap: 2rem;
+}
+
+.details-column {
+  flex: 1;
+}
+
+.details-title {
+  font-size: 1rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid transparent;
+}
+
+.market-color { color: var(--green-dark); border-color: rgba(34, 197, 94, 0.2); }
+.order-color { color: var(--orange); border-color: rgba(249, 115, 22, 0.2); }
+
+.details-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.detail-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.9rem;
+  padding: 4px 0;
+}
+
+.detail-name {
+  color: var(--text);
+  font-weight: 500;
+}
+
+.detail-amount {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 區塊 3: 行動提醒 */
+.unshipped-alerts {
+  margin-top: 1.25rem;
+  padding: 0.875rem;
+  background: rgba(249, 115, 22, 0.05);
+  border-radius: 8px;
+  border-left: 4px solid var(--orange);
+}
+
+.alert-item {
+  font-size: 0.85rem;
+  line-height: 1.6;
+  color: #c2410c;
+  font-weight: 600;
+}
+
+@media (max-width: 600px) {
+  .section-details {
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+  .annual-total-mini .value { font-size: 1.25rem; }
+  .stacked-bar-container { height: 60px; }
+  .segment-label { font-size: 0.65rem; }
+  .segment-value { font-size: 0.75rem; }
+}
+
+/* ================================================
+   全域懸浮按鈕 (FAB)
+   ================================================ */
+.fab-container {
+  position: fixed;
+  bottom: 90px; /* 高於底部切換導覽線 */
+  right: 20px;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  pointer-events: none;
+}
+
+.fab-container > * { pointer-events: auto; }
+
+.fab-main {
+  width: var(--fab-size);
+  height: var(--fab-size);
+  background: #f43f5e; /* 使用更亮眼的粉紅/紅色 */
+  color: white;
+  border: none;
+  border-radius: 50%;
+  box-shadow: 0 4px 12px rgba(244, 63, 94, 0.4);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.2s;
+}
+
+.fab-main:active { transform: scale(0.9); }
+
+.fab-main.open {
+  transform: rotate(45deg);
+  background: #94a3b8;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.fab-main .material-symbols-outlined {
+  font-size: 32px;
+}
+
+.fab-menu {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 12px;
+  margin-bottom: 16px;
+  opacity: 0;
+  transform: translateY(20px) scale(0.8);
+  pointer-events: none;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.fab-menu.open {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  pointer-events: auto;
+}
+
+.fab-item {
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  padding: 8px 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: var(--shadow);
+  cursor: pointer;
+  color: var(--text);
+  font-weight: 600;
+  font-size: 0.9rem;
+  transition: transform 0.15s, background 0.15s;
+}
+
+.fab-item:hover {
+  background: #f8fafc;
+  transform: translateX(-4px);
+}
+
+.fab-item .material-symbols-outlined {
+  font-size: 20px;
+}
+
+.item-income { border-left: 4px solid var(--green); }
+.item-order { border-left: 4px solid var(--orange); }
+.item-expense { border-left: 4px solid var(--red); }
+
+.fab-label { white-space: nowrap; }
+
+/* ================================================
+   今天快捷按鈕
+   ================================================ */
+.date-input-group {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.btn-today-shortcut {
+  background: transparent;
+  border: 1.5px dashed var(--border);
+  color: var(--text-muted);
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.btn-today-shortcut:hover {
+  border-color: var(--green);
+  color: var(--green-dark);
+  background: var(--green-light);
+}
+
+.section-header-compact {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 0.75rem;
+}
