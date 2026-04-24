@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>果園收支記帳</title>
+  <title>假日果園收支記帳</title>
   <meta name="description" content="山上果園種植成本與收入記帳管理系統">
   <link rel="stylesheet" href="style.css">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -32,7 +32,7 @@
   <header class="app-header">
     <div class="header-left">
       <img src="fruit-logo.svg" alt="logo" class="header-logo">
-      <span class="header-title">果園記帳</span>
+      <span class="header-title">假日果園記帳</span>
     </div>
     <div class="header-right">
       <div id="userInfo" class="user-info" style="display:none">
@@ -51,7 +51,7 @@
       <div class="auth-logo">
         <img src="fruit-logo.svg" alt="logo" style="width:64px;height:64px;">
       </div>
-      <h1>果園收支記帳</h1>
+      <h1>假日果園收支記帳</h1>
       <p class="auth-desc">記錄山上種植的每一筆成本與收入</p>
       <button id="authBtn" class="btn btn-primary btn-lg" style="display:none">
         <span class="material-symbols-outlined">login</span>
@@ -88,173 +88,109 @@
     <section id="page-revenue" class="tab-page active">
       <div class="page-inner">
 
-        <!-- 收入總覽卡片（顯示兩者加總） -->
-        <div class="revenue-overview-card glass">
-          <div class="revenue-overview-top">
-            <div class="revenue-overview-info">
-              <span class="revenue-label">本年收入總計</span>
-              <span class="revenue-total-amount" id="revenueTotalAmount">$0</span>
-            </div>
-            <div class="revenue-sub-items">
-              <div class="revenue-sub-item">
-                <span class="revenue-sub-label">市場收入</span>
-                <span class="revenue-sub-value" id="revenueMarketTotal">$0</span>
+        <!-- 複合式收入卡片 (區塊 1: 管道對比 & 堆疊條形圖) -->
+        <div class="card glass composite-revenue-card">
+          <div class="composite-section">
+            <div class="section-header">
+              <div class="annual-total-mini">
+                <span class="label">年度收入總額</span>
+                <span class="value" id="revenueTotalAmount">$0</span>
               </div>
-              <div class="revenue-sub-dot">+</div>
-              <div class="revenue-sub-item">
-                <span class="revenue-sub-label">客戶訂單</span>
-                <span class="revenue-sub-value" id="revenueOrderTotal">$0</span>
+
+              <div class="stacked-bar-container">
+                <div class="stacked-bar-segment market" id="barMarket" style="width: 50%">
+                  <span class="segment-label">市場通路</span>
+                  <span class="segment-value" id="barMarketVal">$0</span>
+                </div>
+                <div class="stacked-bar-segment order" id="barOrder" style="width: 50%">
+                  <span class="segment-label">客戶訂單</span>
+                  <span class="segment-value" id="barOrderVal">$0</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="section-divider"></div>
+
+            <!-- 區塊 2: 明細清單 (Flex Layout) -->
+            <div class="section-details">
+              <div class="details-column">
+                <h3 class="details-title market-color">市場明細</h3>
+                <div id="marketSummaryDetails" class="details-list">
+                  <!-- JS Render: <div class="detail-name">甜柿</div><div class="detail-amount">$...</div> -->
+                </div>
+              </div>
+              <div class="details-column">
+                <h3 class="details-title order-color">客戶明細</h3>
+                <div id="orderSummaryDetails" class="details-list">
+                  <!-- JS Render -->
+                </div>
+
+                <!-- 區塊 3: 行動提醒 (未出貨資訊) -->
+                <div id="unshippedAlertContainer" class="unshipped-alerts" style="display:none">
+                  <!-- JS Render: 🍅(甜柿未出貨)：6A-10箱... -->
+                </div>
               </div>
             </div>
           </div>
         </div>
 
-        <!-- 收入子頁 Tab -->
+        <!-- 收入切換 Tab (隱藏舊的圓餅圖改用複合卡片，但保留表格切換) -->
         <div class="sub-tab-nav">
           <button class="sub-tab-btn active" data-subtab="income" id="stab-income">
             <span class="material-symbols-outlined">storefront</span>
-            市場收入
+            市場收入明細
           </button>
           <button class="sub-tab-btn" data-subtab="orders" id="stab-orders">
             <span class="material-symbols-outlined">list_alt</span>
-            客戶訂單
+            客戶訂單明細
           </button>
         </div>
 
-        <!-- ---- 市場收入子頁 ---- -->
-        <div id="subpage-income" class="sub-tab-page active">
+        <!-- 新增收入按鈕 -->
+        <div class="section-action-row">
+          <h3 class="section-title">市場收入紀錄</h3>
+          <button class="btn btn-primary btn-sm" id="openIncomeFormBtn">
+            <span class="material-symbols-outlined">add</span> 新增收入
+          </button>
+        </div>
 
-          <!-- 收入統計圖表 -->
-          <div class="card glass chart-card" id="incomeChartCard">
-            <div class="card-header">
-              <div class="header-main">
-                <h2><span class="material-symbols-outlined">analytics</span> 收入統計</h2>
-                <div id="incomeTotalSummary" class="chart-summary">總計：$0</div>
-              </div>
-              <div class="chart-period-btns">
-                <button class="period-btn" data-period="all">全部</button>
-                <button class="period-btn active" data-period="year">今年</button>
-                <button class="period-btn" data-period="month">本月</button>
-              </div>
-            </div>
-            <!-- 圓餅圖 + 方格雙區 -->
-            <div class="income-chart-layout">
-              <div class="income-pie-wrap">
-                <canvas id="incomePieChart"></canvas>
-              </div>
-              <div id="incomeChartArea" class="chart-area income-chart-right"></div>
-            </div>
-          </div>
-
-          <!-- 新增收入按鈕 -->
-          <div class="section-action-row">
-            <h3 class="section-title">市場收入紀錄</h3>
-            <button class="btn btn-primary btn-sm" id="openIncomeFormBtn">
-              <span class="material-symbols-outlined">add</span> 新增收入
+        <!-- 收入篩選列 -->
+        <div class="filter-bar" id="incomeFilterBar">
+          <div class="filter-chips" id="incomeMainCatChips"></div>
+          <div class="filter-chips sub" id="incomeSubCatChips" style="display:none"></div>
+          <div class="filter-tools">
+            <button class="btn-tool" id="incomeClearFilter" title="清除篩選">
+              <span class="material-symbols-outlined">filter_alt_off</span>
             </button>
-          </div>
-
-          <!-- 收入篩選列 -->
-          <div class="filter-bar" id="incomeFilterBar">
-            <div class="filter-chips" id="incomeMainCatChips"></div>
-            <div class="filter-chips sub" id="incomeSubCatChips" style="display:none"></div>
-            <div class="filter-tools">
-              <button class="btn-tool" id="incomeClearFilter" title="清除篩選">
-                <span class="material-symbols-outlined">filter_alt_off</span>
-              </button>
-              <button class="btn-tool" id="incomeSortBtn" title="切換排序" data-order="desc">
-                <span class="material-symbols-outlined">sort</span>
-              </button>
-              <button class="btn-tool" id="incomeEditModeBtn" title="管理模式">
-                <span class="material-symbols-outlined">edit_note</span>
-              </button>
-              <button class="btn-tool" id="incomeCopyBtn" title="複製明細">
-                <span class="material-symbols-outlined">content_copy</span>
-              </button>
-            </div>
-          </div>
-
-          <!-- 收入紀錄（折疊式） -->
-          <div id="incomeRecordContainer"></div>
-          <div id="incomeEmpty" class="empty-state" style="display:none">
-            <span class="material-symbols-outlined">inbox</span>
-            <p>尚無收入紀錄</p>
+            <button class="btn-tool" id="incomeSortBtn" title="切換排序" data-order="desc">
+              <span class="material-symbols-outlined">sort</span>
+            </button>
+            <button class="btn-tool" id="incomeEditModeBtn" title="管理模式">
+              <span class="material-symbols-outlined">edit_note</span>
+            </button>
+            <button class="btn-tool" id="incomeCopyBtn" title="複製明細">
+              <span class="material-symbols-outlined">content_copy</span>
+            </button>
           </div>
         </div>
 
-        <!-- ---- 客戶訂單子頁 ---- -->
-        <div id="subpage-orders" class="sub-tab-page">
-
-          <!-- 訂單統計 -->
-          <div class="card glass chart-card" id="orderChartCard">
-            <div class="card-header">
-              <div class="header-main">
-                <h2><span class="material-symbols-outlined">shopping_cart</span> 訂單統計</h2>
-                <div id="orderTotalSummary" class="chart-summary">總計：$0</div>
-              </div>
-              <div class="chart-period-btns">
-                <button class="period-btn" data-period="all">全部</button>
-                <button class="period-btn active" data-period="year">今年</button>
-                <button class="period-btn" data-period="month">本月</button>
-              </div>
-            </div>
-            <!-- 訂單圓餅圖 + 方格 -->
-            <div class="income-chart-layout">
-              <div class="income-pie-wrap">
-                <canvas id="orderPieChart"></canvas>
-              </div>
-              <div id="orderChartArea" class="chart-area income-chart-right"></div>
-            </div>
-            <!-- 未出貨等級/數量 -->
-            <div id="orderUnshippedSummary" class="order-unshipped-summary" style="margin-top:0.75rem"></div>
-          </div>
-
-          <!-- 新增訂單按鈕 -->
-          <div class="section-action-row">
-            <h3 class="section-title">客戶訂單紀錄</h3>
-            <button class="btn btn-primary btn-sm" id="openOrderFormBtn">
-              <span class="material-symbols-outlined">add</span> 新增訂單
-            </button>
-          </div>
-
-          <div class="filter-box" id="orderFilterBar">
-            <div id="orderMainCatChips" class="filter-chips-row main-cats"></div>
-            <div class="chips-divider"></div>
-            <div id="orderSubCatChips" class="filter-chips-row sub-cats"></div>
-            <div class="filter-actions-group">
-              <button class="btn-tool" id="orderClearFilter" title="清除篩選">
-                <span class="material-symbols-outlined">filter_alt_off</span>
-              </button>
-              <button class="btn-tool" id="orderEditModeBtn" title="管理模式">
-                <span class="material-symbols-outlined">edit_note</span>
-              </button>
-              <button class="btn-tool" id="orderCopyBtn" title="複製訂單明細">
-                <span class="material-symbols-outlined">content_copy</span>
-              </button>
-            </div>
-          </div>
-
-          <!-- 訂單紀錄（依主類別分區塊折疊式） -->
-          <div id="orderRecordContainer"></div>
-          <div id="orderEmpty" class="empty-state" style="display:none">
-            <span class="material-symbols-outlined">list_alt</span>
-            <p>尚無訂單紀錄</p>
-          </div>
+        <!-- 收入紀錄（折疊式） -->
+        <div id="incomeRecordContainer"></div>
+        <div id="incomeEmpty" class="empty-state" style="display:none">
+          <span class="material-symbols-outlined">inbox</span>
+          <p>尚無收入紀錄</p>
         </div>
-
       </div>
-    </section>
 
-    <!-- ==================== 支出分頁 ==================== -->
-    <section id="page-expense" class="tab-page">
-      <div class="page-inner">
+      <!-- ---- 客戶訂單子頁 ---- -->
+      <div id="subpage-orders" class="sub-tab-page">
 
-        <!-- 支出統計圖表 -->
-        <div class="card glass chart-card" id="expenseChartCard">
+        <!-- 訂單統計 -->
+        <div class="card glass chart-card" id="orderChartCard">
           <div class="card-header">
             <div class="header-main">
-              <h2><span class="material-symbols-outlined">payments</span> 支出統計</h2>
-              <div id="expenseTotalSummary" class="chart-summary">總計：$0</div>
+              <h2><span class="material-symbols-outlined">shopping_cart</span> 訂單統計</h2>
+              <div id="orderTotalSummary" class="chart-summary">總計：$0</div>
             </div>
             <div class="chart-period-btns">
               <button class="period-btn" data-period="all">全部</button>
@@ -262,286 +198,350 @@
               <button class="period-btn" data-period="month">本月</button>
             </div>
           </div>
-          <!-- 圓餅圖 -->
-          <div class="expense-pie-layout">
-            <div class="expense-pie-wrap">
-              <canvas id="expensePieChart"></canvas>
+          <!-- 訂單圓餅圖 + 方格 -->
+          <div class="income-chart-layout">
+            <div class="income-pie-wrap">
+              <canvas id="orderPieChart"></canvas>
             </div>
-            <div id="expensePieLegend" class="expense-pie-legend"></div>
+            <div id="orderChartArea" class="chart-area income-chart-right"></div>
           </div>
+          <!-- 未出貨等級/數量 -->
+          <div id="orderUnshippedSummary" class="order-unshipped-summary" style="margin-top:0.75rem"></div>
         </div>
 
-        <!-- 工人薪資詳情（點選後展開） -->
-        <div id="workerDetailPanel" class="worker-detail-panel" style="display:none">
-          <div class="panel-header">
-            <span id="workerDetailName" class="panel-title"></span>
-            <button class="btn-icon-sm" id="closeWorkerDetail">
-              <span class="material-symbols-outlined">close</span>
-            </button>
-          </div>
-          <div id="workerDetailContent"></div>
-        </div>
-
-        <!-- 新增支出按鈕 -->
+        <!-- 新增訂單按鈕 -->
         <div class="section-action-row">
-          <h3 class="section-title">支出紀錄</h3>
-          <button class="btn btn-primary btn-sm" id="openExpenseFormBtn">
-            <span class="material-symbols-outlined">add</span> 新增支出
+          <h3 class="section-title">客戶訂單紀錄</h3>
+          <button class="btn btn-primary btn-sm" id="openOrderFormBtn">
+            <span class="material-symbols-outlined">add</span> 新增訂單
           </button>
         </div>
 
-        <!-- 支出篩選列 -->
-        <div class="filter-box" id="expenseFilterBar">
-          <div id="expenseMainCatChips" class="filter-chips-row main-cats"></div>
+        <div class="filter-box" id="orderFilterBar">
+          <div id="orderMainCatChips" class="filter-chips-row main-cats"></div>
           <div class="chips-divider"></div>
-          <div id="expenseSubCatChips" class="filter-chips-row sub-cats"></div>
+          <div id="orderSubCatChips" class="filter-chips-row sub-cats"></div>
           <div class="filter-actions-group">
-            <button class="btn-tool" id="expenseClearFilter" title="清除篩選">
+            <button class="btn-tool" id="orderClearFilter" title="清除篩選">
               <span class="material-symbols-outlined">filter_alt_off</span>
             </button>
-            <button class="btn-tool" id="expenseSortBtn" title="切換排序" data-order="desc">
-              <span class="material-symbols-outlined">sort</span>
-            </button>
-            <button class="btn-tool" id="expenseEditModeBtn" title="管理模式">
+            <button class="btn-tool" id="orderEditModeBtn" title="管理模式">
               <span class="material-symbols-outlined">edit_note</span>
             </button>
-            <button class="btn-tool" id="expenseCopyBtn" title="複製明細">
+            <button class="btn-tool" id="orderCopyBtn" title="複製訂單明細">
               <span class="material-symbols-outlined">content_copy</span>
             </button>
           </div>
         </div>
 
-        <!-- 支出紀錄（依主類別分區塊折疊式） -->
-        <div id="expenseRecordContainer"></div>
-        <div id="expenseEmpty" class="empty-state" style="display:none">
-          <span class="material-symbols-outlined">inbox</span>
-          <p>尚無支出紀錄</p>
-        </div>
-
-      </div>
-    </section>
-
-    <!-- ==================== 結餘分頁 ==================== -->
-    <section id="page-balance" class="tab-page">
-      <div class="page-inner">
-
-        <!-- 結餘金額（最上面） -->
-        <div class="balance-net-card glass">
-          <div class="balance-period-btns-wrap">
-            <div class="balance-period-btns">
-              <button class="period-btn" data-period="all">全部</button>
-              <button class="period-btn active" data-period="year">今年</button>
-              <button class="period-btn" data-period="month">本月</button>
-            </div>
-          </div>
-          <div class="balance-net-main">
-            <span class="balance-net-label">淨結餘</span>
-            <span class="balance-net-value" id="balanceNetAmount">$0</span>
-          </div>
-          <div class="balance-sub-grid">
-            <div class="balance-sub-item income-color">
-              <span class="label">市場收入</span>
-              <span class="value" id="balanceMarketIncome">$0</span>
-            </div>
-            <div class="balance-sub-item income-color">
-              <span class="label">客戶訂單</span>
-              <span class="value" id="balanceSalesIncome">$0</span>
-            </div>
-            <div class="balance-sub-item expense-color">
-              <span class="label">總支出</span>
-              <span class="value" id="balanceTotalExpense">$0</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- 結餘圓餅圖 -->
-        <div class="card glass chart-card">
-          <div class="card-header" style="justify-content:center; margin-bottom: 0;">
-            <h2>結算比例</h2>
-          </div>
-          <div style="display:flex; gap:1rem; flex-wrap:wrap;">
-            <div style="flex:1; min-width:180px;">
-              <div class="chart-container"
-                style="position: relative; height:30vh; width:100%; display:flex; justify-content:center; align-items:center;">
-                <canvas id="balancePieChart"></canvas>
-              </div>
-            </div>
-            <div id="balancePieLegend"
-              style="flex:1; min-width:150px; display:flex; flex-direction:column; justify-content:center; gap:0.5rem; padding:0.5rem;">
-            </div>
-          </div>
-        </div>
-
-        <!-- 主類別金額統計 -->
-        <div class="card glass">
-          <div class="card-header">
-            <h2>主類別金額</h2>
-          </div>
-          <div id="balanceCatGrid" class="stat-grid" style="padding:0"></div>
-        </div>
-
-        <!-- 生產數據（依年度） -->
-        <div class="card glass">
-          <div class="card-header">
-            <h2>生產農業數據</h2>
-          </div>
-          <div class="balance-summary-row grid-2">
-            <div class="summary-item default-color">
-              <span class="label">套袋數</span>
-              <span class="value" id="balanceBagCount">0</span>
-            </div>
-            <div class="summary-item default-color">
-              <span class="label">預估損耗袋數</span>
-              <span class="value" id="balanceLossBagCount">0</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- 月度/日期明細 -->
-        <div class="card glass">
-          <div class="card-header">
-            <h2>月度收支明細</h2>
-          </div>
-          <div class="table-wrap">
-            <table class="records-table">
-              <thead>
-                <tr>
-                  <th>期間</th>
-                  <th>市場收入</th>
-                  <th>客戶銷售</th>
-                  <th>支出</th>
-                  <th>淨結餘</th>
-                </tr>
-              </thead>
-              <tbody id="balanceMonthlyTableBody"></tbody>
-            </table>
-          </div>
+        <!-- 訂單紀錄（依主類別分區塊折疊式） -->
+        <div id="orderRecordContainer"></div>
+        <div id="orderEmpty" class="empty-state" style="display:none">
+          <span class="material-symbols-outlined">list_alt</span>
+          <p>尚無訂單紀錄</p>
         </div>
       </div>
-    </section>
 
-    <!-- ==================== 管理頁面 ==================== -->
-    <section id="page-admin" class="tab-page">
-      <div class="page-inner">
+  </div>
+  </section>
 
-        <!-- 客戶資料管理 -->
-        <div class="card glass admin-card">
-          <div class="card-header">
-            <h2><span class="material-symbols-outlined">people</span> 客戶資料管理</h2>
-            <button class="btn btn-sm btn-secondary" id="addCustomerBtn">
-              <span class="material-symbols-outlined">person_add</span> 新增客戶
-            </button>
+  <!-- ==================== 支出分頁 ==================== -->
+  <section id="page-expense" class="tab-page">
+    <div class="page-inner">
+
+      <!-- 支出統計圖表 -->
+      <div class="card glass chart-card" id="expenseChartCard">
+        <div class="card-header">
+          <div class="header-main">
+            <h2><span class="material-symbols-outlined">payments</span> 支出統計</h2>
+            <div id="expenseTotalSummary" class="chart-summary">總計：$0</div>
           </div>
-          <div class="table-wrap">
-            <table class="records-table">
-              <thead>
-                <tr>
-                  <th>客戶姓名</th>
-                  <th>電話</th>
-                  <th>客源</th>
-                  <th>地址</th>
-                  <th>操作</th>
-                </tr>
-              </thead>
-              <tbody id="customerListBody"></tbody>
-            </table>
+          <div class="chart-period-btns">
+            <button class="period-btn" data-period="all">全部</button>
+            <button class="period-btn active" data-period="year">今年</button>
+            <button class="period-btn" data-period="month">本月</button>
           </div>
         </div>
-
-        <!-- 收入類別管理 -->
-        <div class="card glass admin-card">
-          <div class="card-header">
-            <h2><span class="material-symbols-outlined">trending_up</span> 收入類別管理</h2>
-            <button class="btn btn-sm btn-secondary" id="addIncomeMainCatBtn">
-              <span class="material-symbols-outlined">add</span> 新增
-            </button>
+        <!-- 圓餅圖 -->
+        <div class="expense-pie-layout">
+          <div class="expense-pie-wrap">
+            <canvas id="expensePieChart"></canvas>
           </div>
-          <div class="table-wrap">
-            <table class="records-table">
-              <thead>
-                <tr>
-                  <th>主類別</th>
-                  <th>次類別</th>
-                  <th>等級</th>
-                  <th>操作</th>
-                </tr>
-              </thead>
-              <tbody id="incomeMainCatBody"></tbody>
-            </table>
-          </div>
+          <div id="expensePieLegend" class="expense-pie-legend"></div>
         </div>
-
-        <!-- 支出類別管理 -->
-        <div class="card glass admin-card">
-          <div class="card-header">
-            <h2><span class="material-symbols-outlined">trending_down</span> 支出類別管理</h2>
-            <button class="btn btn-sm btn-secondary" id="addExpenseMainCatBtn">
-              <span class="material-symbols-outlined">add</span> 新增
-            </button>
-          </div>
-          <div class="table-wrap">
-            <table class="records-table">
-              <thead>
-                <tr>
-                  <th>編號</th>
-                  <th>主類別</th>
-                  <th>次類別</th>
-                  <th>類型</th>
-                  <th>操作</th>
-                </tr>
-              </thead>
-              <tbody id="expenseMainCatBody"></tbody>
-            </table>
-          </div>
-        </div>
-
-        <!-- 工人名單管理 -->
-        <div class="card glass admin-card">
-          <div class="card-header">
-            <h2><span class="material-symbols-outlined">groups</span> 工人名單</h2>
-            <button class="btn btn-sm btn-secondary" id="addWorkerBtn">
-              <span class="material-symbols-outlined">person_add</span> 新增
-            </button>
-          </div>
-          <div class="table-wrap">
-            <table class="records-table">
-              <thead>
-                <tr>
-                  <th>姓名</th>
-                  <th>預設時薪</th>
-                  <th>預設日薪</th>
-                  <th>操作</th>
-                </tr>
-              </thead>
-              <tbody id="workerListBody"></tbody>
-            </table>
-          </div>
-        </div>
-
-        <!-- 使用者權限清單（隱藏） -->
-        <div class="card glass admin-card" style="display:none">
-          <div class="card-header">
-            <h2><span class="material-symbols-outlined">manage_accounts</span> 使用者管理</h2>
-            <button class="btn btn-sm btn-secondary" id="addUserBtn">
-              <span class="material-symbols-outlined">person_add</span> 新增
-            </button>
-          </div>
-          <div class="table-wrap">
-            <table class="records-table">
-              <thead>
-                <tr>
-                  <th>Google 帳號 Email</th>
-                  <th>角色</th>
-                  <th>操作</th>
-                </tr>
-              </thead>
-              <tbody id="userListBody"></tbody>
-            </table>
-          </div>
-        </div>
-
       </div>
-    </section>
+
+      <!-- 工人薪資詳情（點選後展開） -->
+      <div id="workerDetailPanel" class="worker-detail-panel" style="display:none">
+        <div class="panel-header">
+          <span id="workerDetailName" class="panel-title"></span>
+          <button class="btn-icon-sm" id="closeWorkerDetail">
+            <span class="material-symbols-outlined">close</span>
+          </button>
+        </div>
+        <div id="workerDetailContent"></div>
+      </div>
+
+      <!-- 新增支出按鈕 -->
+      <div class="section-action-row">
+        <h3 class="section-title">支出紀錄</h3>
+        <button class="btn btn-primary btn-sm" id="openExpenseFormBtn">
+          <span class="material-symbols-outlined">add</span> 新增支出
+        </button>
+      </div>
+
+      <!-- 支出篩選列 -->
+      <div class="filter-box" id="expenseFilterBar">
+        <div id="expenseMainCatChips" class="filter-chips-row main-cats"></div>
+        <div class="chips-divider"></div>
+        <div id="expenseSubCatChips" class="filter-chips-row sub-cats"></div>
+        <div class="filter-actions-group">
+          <button class="btn-tool" id="expenseClearFilter" title="清除篩選">
+            <span class="material-symbols-outlined">filter_alt_off</span>
+          </button>
+          <button class="btn-tool" id="expenseSortBtn" title="切換排序" data-order="desc">
+            <span class="material-symbols-outlined">sort</span>
+          </button>
+          <button class="btn-tool" id="expenseEditModeBtn" title="管理模式">
+            <span class="material-symbols-outlined">edit_note</span>
+          </button>
+          <button class="btn-tool" id="expenseCopyBtn" title="複製明細">
+            <span class="material-symbols-outlined">content_copy</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- 支出紀錄（依主類別分區塊折疊式） -->
+      <div id="expenseRecordContainer"></div>
+      <div id="expenseEmpty" class="empty-state" style="display:none">
+        <span class="material-symbols-outlined">inbox</span>
+        <p>尚無支出紀錄</p>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ==================== 結餘分頁 ==================== -->
+  <section id="page-balance" class="tab-page">
+    <div class="page-inner">
+
+      <!-- 結餘金額（最上面） -->
+      <div class="balance-net-card glass">
+        <div class="balance-period-btns-wrap">
+          <div class="balance-period-btns">
+            <button class="period-btn" data-period="all">全部</button>
+            <button class="period-btn active" data-period="year">今年</button>
+            <button class="period-btn" data-period="month">本月</button>
+          </div>
+        </div>
+        <div class="balance-net-main">
+          <span class="balance-net-label">淨結餘</span>
+          <span class="balance-net-value" id="balanceNetAmount">$0</span>
+        </div>
+        <div class="balance-sub-grid">
+          <div class="balance-sub-item income-color">
+            <span class="label">市場收入</span>
+            <span class="value" id="balanceMarketIncome">$0</span>
+          </div>
+          <div class="balance-sub-item income-color">
+            <span class="label">客戶訂單</span>
+            <span class="value" id="balanceSalesIncome">$0</span>
+          </div>
+          <div class="balance-sub-item expense-color">
+            <span class="label">總支出</span>
+            <span class="value" id="balanceTotalExpense">$0</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 結餘圓餅圖 -->
+      <div class="card glass chart-card">
+        <div class="card-header" style="justify-content:center; margin-bottom: 0;">
+          <h2>結算比例</h2>
+        </div>
+        <div style="display:flex; gap:1rem; flex-wrap:wrap;">
+          <div style="flex:1; min-width:180px;">
+            <div class="chart-container"
+              style="position: relative; height:30vh; width:100%; display:flex; justify-content:center; align-items:center;">
+              <canvas id="balancePieChart"></canvas>
+            </div>
+          </div>
+          <div id="balancePieLegend"
+            style="flex:1; min-width:150px; display:flex; flex-direction:column; justify-content:center; gap:0.5rem; padding:0.5rem;">
+          </div>
+        </div>
+      </div>
+
+      <!-- 主類別金額統計 -->
+      <div class="card glass">
+        <div class="card-header">
+          <h2>主類別金額</h2>
+        </div>
+        <div id="balanceCatGrid" class="stat-grid" style="padding:0"></div>
+      </div>
+
+      <!-- 生產數據（依年度） -->
+      <div class="card glass">
+        <div class="card-header">
+          <h2>生產農業數據</h2>
+        </div>
+        <div class="balance-summary-row grid-2">
+          <div class="summary-item default-color">
+            <span class="label">套袋數</span>
+            <span class="value" id="balanceBagCount">0</span>
+          </div>
+          <div class="summary-item default-color">
+            <span class="label">預估損耗袋數</span>
+            <span class="value" id="balanceLossBagCount">0</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 月度/日期明細 -->
+      <div class="card glass">
+        <div class="card-header">
+          <h2>月度收支明細</h2>
+        </div>
+        <div class="table-wrap">
+          <table class="records-table">
+            <thead>
+              <tr>
+                <th>期間</th>
+                <th>市場收入</th>
+                <th>客戶銷售</th>
+                <th>支出</th>
+                <th>淨結餘</th>
+              </tr>
+            </thead>
+            <tbody id="balanceMonthlyTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== 管理頁面 ==================== -->
+  <section id="page-admin" class="tab-page">
+    <div class="page-inner">
+
+      <!-- 客戶資料管理 -->
+      <div class="card glass admin-card">
+        <div class="card-header">
+          <h2><span class="material-symbols-outlined">people</span> 客戶資料管理</h2>
+          <button class="btn btn-sm btn-secondary" id="addCustomerBtn">
+            <span class="material-symbols-outlined">person_add</span> 新增客戶
+          </button>
+        </div>
+        <div class="table-wrap">
+          <table class="records-table">
+            <thead>
+              <tr>
+                <th>客戶姓名</th>
+                <th>電話</th>
+                <th>客源</th>
+                <th>地址</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="customerListBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 收入類別管理 -->
+      <div class="card glass admin-card">
+        <div class="card-header">
+          <h2><span class="material-symbols-outlined">trending_up</span> 收入類別管理</h2>
+          <button class="btn btn-sm btn-secondary" id="addIncomeMainCatBtn">
+            <span class="material-symbols-outlined">add</span> 新增
+          </button>
+        </div>
+        <div class="table-wrap">
+          <table class="records-table">
+            <thead>
+              <tr>
+                <th>主類別</th>
+                <th>次類別</th>
+                <th>等級</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="incomeMainCatBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 支出類別管理 -->
+      <div class="card glass admin-card">
+        <div class="card-header">
+          <h2><span class="material-symbols-outlined">trending_down</span> 支出類別管理</h2>
+          <button class="btn btn-sm btn-secondary" id="addExpenseMainCatBtn">
+            <span class="material-symbols-outlined">add</span> 新增
+          </button>
+        </div>
+        <div class="table-wrap">
+          <table class="records-table">
+            <thead>
+              <tr>
+                <th>編號</th>
+                <th>主類別</th>
+                <th>次類別</th>
+                <th>類型</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="expenseMainCatBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 工人名單管理 -->
+      <div class="card glass admin-card">
+        <div class="card-header">
+          <h2><span class="material-symbols-outlined">groups</span> 工人名單</h2>
+          <button class="btn btn-sm btn-secondary" id="addWorkerBtn">
+            <span class="material-symbols-outlined">person_add</span> 新增
+          </button>
+        </div>
+        <div class="table-wrap">
+          <table class="records-table">
+            <thead>
+              <tr>
+                <th>姓名</th>
+                <th>預設時薪</th>
+                <th>預設日薪</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="workerListBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 使用者權限清單（隱藏） -->
+      <div class="card glass admin-card" style="display:none">
+        <div class="card-header">
+          <h2><span class="material-symbols-outlined">manage_accounts</span> 使用者管理</h2>
+          <button class="btn btn-sm btn-secondary" id="addUserBtn">
+            <span class="material-symbols-outlined">person_add</span> 新增
+          </button>
+        </div>
+        <div class="table-wrap">
+          <table class="records-table">
+            <thead>
+              <tr>
+                <th>Google 帳號 Email</th>
+                <th>角色</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="userListBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </section>
 
   </div><!-- /workspace -->
 
@@ -560,7 +560,10 @@
         <div class="form-row">
           <div class="input-wrap">
             <label for="incomeDate">日期 *</label>
-            <input type="date" id="incomeDate" required>
+            <div class="date-input-group">
+              <input type="date" id="incomeDate" required>
+              <button type="button" class="btn-today-shortcut" onclick="setFormDateToday('incomeDate')">今天</button>
+            </div>
           </div>
           <div class="input-wrap">
             <label for="incomeMainCat">品種 *</label>
@@ -666,7 +669,10 @@
         <div class="form-row">
           <div class="input-wrap">
             <label for="expenseDate">日期 *</label>
-            <input type="date" id="expenseDate" required>
+            <div class="date-input-group">
+              <input type="date" id="expenseDate" required>
+              <button type="button" class="btn-today-shortcut" onclick="setFormDateToday('expenseDate')">今天</button>
+            </div>
           </div>
           <div class="input-wrap">
             <label for="expenseMainCat">主類別 *</label>
@@ -796,7 +802,10 @@
         <div class="form-row">
           <div class="input-wrap">
             <label for="orderDate">下定日期 *</label>
-            <input type="date" id="orderDate" required>
+            <div class="date-input-group">
+              <input type="date" id="orderDate" required>
+              <button type="button" class="btn-today-shortcut" onclick="setFormDateToday('orderDate')">今天</button>
+            </div>
           </div>
           <div class="input-wrap">
             <label for="orderStatus">訂單狀態</label>
@@ -812,7 +821,10 @@
         <!-- 到貨日期（條件顯示：已指定或預定出貨時才顯示） -->
         <div class="input-wrap" id="orderArrivalDateWrap" style="display:none">
           <label for="orderArrivalDate">到貨日期</label>
-          <input type="date" id="orderArrivalDate">
+          <div class="date-input-group">
+            <input type="date" id="orderArrivalDate">
+            <button type="button" class="btn-today-shortcut" onclick="setFormDateToday('orderArrivalDate')">今天</button>
+          </div>
           <small class="field-hint" style="color:var(--orange)">註：黑貓宅配於週日/週一無法配送到貨</small>
         </div>
 
@@ -1018,6 +1030,27 @@
 
   <!-- Toast 通知 -->
   <div id="toast" class="toast" style="display:none"></div>
+
+  <!-- ==================== 全域懸浮按鈕 (FAB) ==================== -->
+  <div class="fab-container">
+    <div class="fab-menu" id="fabMenu">
+      <div class="fab-item item-income" onclick="handleFabAction('income')">
+        <span class="fab-label">新市場收入</span>
+        <span class="material-symbols-outlined">storefront</span>
+      </div>
+      <div class="fab-item item-order" onclick="handleFabAction('order')">
+        <span class="fab-label">新客戶訂單</span>
+        <span class="material-symbols-outlined">list_alt</span>
+      </div>
+      <div class="fab-item item-expense" onclick="handleFabAction('expense')">
+        <span class="fab-label">新增支出</span>
+        <span class="material-symbols-outlined">payments</span>
+      </div>
+    </div>
+    <button class="fab-main" id="fabMain" title="快速新增">
+      <span class="material-symbols-outlined">add</span>
+    </button>
+  </div>
 
   <script src="app.js"></script>
 </body>
