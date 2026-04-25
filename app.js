@@ -1,5 +1,6 @@
 // ============================================================
-// 果園收支記帳 — app.js
+console.log('🚀 Salary App.js Loaded - v' + new Date().getTime());
+// ============================================================
 // Google Sheets 作為後端，三分頁：收入 / 支出 / 管理
 // ============================================================
 
@@ -27,6 +28,13 @@ const SHEET = {
 // ============================================================
 // 2. 全域狀態
 // ============================================================
+// --- 圖表實體與全域狀態 ---
+let _expensePieInstance = null;
+let _incomePieInstance = null; 
+let _balanceChartInstance = null;
+let _loaderCount = 0;
+let _toastTimer = null;
+
 let gapiInited = false;
 let gisInited = false;
 let tokenClient;
@@ -59,7 +67,6 @@ const filterState = {
 };
 
 // --- 工具類變數與函式 (先行定義避免 ReferenceError) ---
-let _loaderCount = 0;
 function showLoader(msg = '處理中...') {
   _loaderCount++;
   const el = document.getElementById('loaderMsg');
@@ -75,7 +82,6 @@ function hideLoader() {
   }
 }
 
-let _toastTimer;
 function showToast(msg, type = 'success') {
   const el = document.getElementById('toast');
   if (!el) return;
@@ -186,12 +192,94 @@ function maybeEnableAuth() {
     document.getElementById('authBtn').style.display = 'inline-flex';
     document.getElementById('authBtn').onclick = handleLogin;
     
-    // 嘗試自動檢查是否已授權
     const token = gapi.client.getToken();
     if (token) {
       afterLogin();
     }
   }
+}
+
+/**
+ * 開發人員捷徑：在本地環境顯示測試按鈕，避免等待 GAPI 載入
+ */
+function initDeveloperShortcuts() {
+  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+    // 確保 auth-card 存在且還沒加過
+    const checkCard = setInterval(() => {
+      const card = document.querySelector('.auth-card');
+      if (card) {
+        clearInterval(checkCard);
+        if (!document.getElementById('devLoginBtn')) {
+          const devBtn = document.createElement('button');
+          devBtn.id = 'devLoginBtn';
+          devBtn.className = 'btn';
+          devBtn.style.marginTop = '1.5rem';
+          devBtn.style.backgroundColor = '#6366f1';
+          devBtn.style.color = 'white';
+          devBtn.style.padding = '0.8rem 1.5rem';
+          devBtn.style.borderRadius = '12px';
+          devBtn.style.fontWeight = 'bold';
+          devBtn.style.cursor = 'pointer';
+          devBtn.style.border = 'none';
+          devBtn.style.display = 'inline-flex';
+          devBtn.style.alignItems = 'center';
+          devBtn.style.gap = '8px';
+          devBtn.innerHTML = '<span class="material-symbols-outlined">science</span> 開發人員測試登入 (Mock)';
+          devBtn.onclick = handleMockLogin;
+          card.appendChild(devBtn);
+        }
+      }
+    }, 100);
+  }
+}
+initDeveloperShortcuts();
+
+/**
+ * 模擬登入流程，用於測試 UI 與邏輯
+ */
+async function handleMockLogin() {
+  showLoader('正在進入測試模式...');
+  console.warn('⚠️ 注意：目前處於開發測試模式，資料將不會同步至 Google Sheets');
+  
+  // 模擬 GAPI 行為
+  if (typeof gapi === 'undefined') window.gapi = { client: {} };
+  if (!gapi.client) gapi.client = {};
+  
+  if (!gapi.client.sheets) {
+    gapi.client.sheets = {
+      spreadsheets: {
+        values: {
+          get: async () => ({ result: { values: [] } }),
+          append: async () => ({ result: {} }),
+          update: async () => ({ result: {} })
+        }
+      }
+    };
+  }
+
+  // 設定測試身分
+  currentUser = { email: 'test@example.com', role: 'admin' };
+  isAdmin = true;
+  
+  // 初始化畫布數據 (從 DEFAULT 中繼承)
+  settings.incomeMainCats = DEFAULT_INCOME_CATS.map(n => ({ 名稱: n, 次類別:[], 等級: GRADE_OPTIONS }));
+  settings.expenseMainCats = DEFAULT_EXPENSE_CATS.map(c => ({ ...c }));
+  settings.units = ['包', '罐', '箱', '件', '斤', '天', '小時'];
+  
+  // 更新 UI
+  document.getElementById('userRoleBadge').textContent = `測試管理員 · Antigravity`;
+  document.getElementById('userRoleBadge').className = `role-badge admin`;
+  document.getElementById('userInfo').style.display = 'flex';
+  document.getElementById('logoutBtn').style.display = 'inline-flex';
+  document.getElementById('tab-admin').style.display = 'flex';
+  document.getElementById('authSection').style.display = 'none';
+  document.getElementById('workspace').style.display = 'block';
+
+  switchTab('revenue');
+  renderAll();
+  
+  showToast('已進入測試模式 (Mock Mode)', 'success');
+  hideLoader();
 }
 
 function handleLogin() {
@@ -954,9 +1042,7 @@ function duplicateRecord(type, data) {
   }
 }
 
-// 原始渲染統計已不再需要，保留空函式或由複合卡片接管
-function renderIncomeChart() {}
-function renderOrderChart() {}
+// 原始渲染統計已不再需要，由複合卡片與下方 real functions 接管
 
 // 收入總覽卡片（市場+訂單合計，依今年）
 function renderRevenueSummary() {
@@ -2107,7 +2193,7 @@ document.getElementById('incomeForm').onsubmit = async (e) => {
 // ============================================================
 
 // --- 圖表 ---
-let _expensePieInstance = null;
+// _expensePieInstance 已在頂層定義
 
 function renderExpenseChart() {
   const period = filterState.expense.period;
