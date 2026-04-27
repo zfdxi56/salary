@@ -34,6 +34,8 @@ let _incomePieInstance = null;
 let _balanceChartInstance = null;
 let _loaderCount = 0;
 let _toastTimer = null;
+let currentBalancePeriod = 'all'; // 結餘分頁篩選週期
+let balanceChartInstance = null;  // 結餘分頁圖表實體
 
 let gapiInited = false;
 let gisInited = false;
@@ -274,9 +276,12 @@ async function handleMockLogin() {
   document.getElementById('tab-admin').style.display = 'flex';
   document.getElementById('authSection').style.display = 'none';
   document.getElementById('workspace').style.display = 'block';
+  const fabC = document.getElementById('fabContainer');
+  if (fabC) fabC.style.display = 'block';
+  initFAB();
 
   switchTab('revenue');
-  renderAll();
+  try { renderAll(); } catch (e) { console.error('renderAll error:', e); }
   
   showToast('已進入測試模式 (Mock Mode)', 'success');
   hideLoader();
@@ -349,6 +354,9 @@ async function afterLogin() {
 
     document.getElementById('authSection').style.display = 'none';
     document.getElementById('workspace').style.display = 'block';
+    const fabCont = document.getElementById('fabContainer');
+    if (fabCont) fabCont.style.display = 'block';
+    initFAB();
 
     switchTab('revenue');
     renderAll();
@@ -785,7 +793,51 @@ function renderAll() {
 
   if (isAdmin) renderAdminPage();
   setupEditModeToggle();
-  initFAB(); // 初始化懸浮按鈕
+}
+
+// ============================================================
+// 8b. FAB 懸浮按鈕初始化
+// ============================================================
+function initFAB() {
+  const fabMain = document.getElementById('fabMain');
+  const fabMenu = document.getElementById('fabMenu');
+  if (!fabMain || !fabMenu) return;
+  // 避免重複綁定
+  const newFabMain = fabMain.cloneNode(true);
+  fabMain.parentNode.replaceChild(newFabMain, fabMain);
+  newFabMain.addEventListener('click', (e) => {
+    e.stopPropagation();
+    fabMenu.classList.toggle('open');
+    newFabMain.classList.toggle('active');
+  });
+  document.addEventListener('click', () => {
+    fabMenu.classList.remove('open');
+    newFabMain.classList.remove('active');
+  }, { once: false });
+}
+
+function handleFabAction(type) {
+  // 關閉 FAB 選單
+  const fabMenu = document.getElementById('fabMenu');
+  const fabMain = document.getElementById('fabMain');
+  if (fabMenu) fabMenu.classList.remove('open');
+  if (fabMain) fabMain.classList.remove('active');
+
+  if (type === 'income') {
+    switchTab('revenue');
+    // 確保子頁在市場收入
+    document.querySelectorAll('.sub-tab-btn').forEach(b => b.classList.toggle('active', b.dataset.subtab === 'income'));
+    document.querySelectorAll('.sub-tab-page').forEach(p => p.classList.toggle('active', p.id === 'subpage-income'));
+    setTimeout(() => openIncomeModal(), 100);
+  } else if (type === 'order') {
+    switchTab('revenue');
+    document.querySelectorAll('.sub-tab-btn').forEach(b => b.classList.toggle('active', b.dataset.subtab === 'orders'));
+    document.querySelectorAll('.sub-tab-page').forEach(p => p.classList.toggle('active', p.id === 'subpage-orders'));
+    setTimeout(() => openOrderModal(), 100);
+  } else if (type === 'expense') {
+    switchTab('expense');
+    setTimeout(() => openExpenseModal(), 100);
+  }
 }
 
 // ============================================================
@@ -1174,7 +1226,6 @@ function setupSwipeLogic(itemEl, editCb, delCb) {
 function getAmountClass(val) {
   return (parseFloat(val) === 0) ? ' amount-zero' : '';
 }
-let _incomePieInstance = null;
 let _orderPieInstance = null;
 
 function renderIncomeChart() {
@@ -2013,49 +2064,65 @@ document.getElementById('cancelIncomeBtn').onclick = closeIncomeModal;
 
 function openIncomeModal(record = null) {
   const isEdit = !!record;
-  document.getElementById('incomeModalTitle').textContent = isEdit ? '編輯收入' : '新增收入';
-  document.getElementById('incomeRecordId').value = isEdit ? record.id : '';
-  document.getElementById('incomeDate').value = isEdit ? record.日期 : today();
-  document.getElementById('incomeNotes').value = isEdit ? record.附註 : '';
-  document.getElementById('incomeTotalPrice').value = isEdit ? record.總價 : '';
-  document.getElementById('incomeDealerPrice').value = isEdit ? record.盤商價 : '';
-  document.getElementById('incomeShippingFee').value = isEdit ? record.運費 : '';
+  const titleEl = document.getElementById('incomeModalTitle');
+  if (titleEl) titleEl.textContent = isEdit ? '編輯收入' : '新增收入';
+  
+  const idEl = document.getElementById('incomeRecordId');
+  if (idEl) idEl.value = isEdit ? record.id : '';
+  
+  const dateEl = document.getElementById('incomeDate');
+  if (dateEl) dateEl.value = isEdit ? record.日期 : today();
+  
+  const noteEl = document.getElementById('incomeNotes');
+  if (noteEl) noteEl.value = isEdit ? record.附註 : '';
+  
+  const priceEl = document.getElementById('incomeTotalPrice');
+  if (priceEl) priceEl.value = isEdit ? record.總價 : '';
+  
+  const dealerEl = document.getElementById('incomeDealerPrice');
+  if (dealerEl) dealerEl.value = isEdit ? record.盤商價 : '';
+  
+  const shipEl = document.getElementById('incomeShippingFee');
+  if (shipEl) shipEl.value = isEdit ? record.運費 : '';
 
-  // 新欄位回填
-  if (document.getElementById('incomeCustomerType')) {
-    document.getElementById('incomeCustomerType').value = isEdit ? (record.客戶類別 || '一般') : '一般';
-  }
-  if (document.getElementById('incomeCustomerName')) {
-    document.getElementById('incomeCustomerName').value = isEdit ? (record.客戶名稱 || '') : '';
-  }
-  if (document.getElementById('incomePaymentStatus')) {
-    document.getElementById('incomePaymentStatus').value = isEdit ? (record.付款狀態 || '未付款') : '未付款';
-  }
-  if (document.getElementById('incomeReconStatus')) {
-    document.getElementById('incomeReconStatus').value = isEdit ? (record.對帳狀態 || '待對帳') : '待對帳';
-  }
+  // 新欄位回填 (依據 HTML 實況決定是否存取)
+  const custTypeEl = document.getElementById('incomeCustomerType');
+  if (custTypeEl) custTypeEl.value = isEdit ? (record.客戶類別 || '一般') : '一般';
+  
+  const custNameEl = document.getElementById('incomeCustomerName');
+  if (custNameEl) custNameEl.value = isEdit ? (record.客戶名稱 || '') : '';
+  
+  const payStatusEl = document.getElementById('incomePaymentStatus');
+  if (payStatusEl) payStatusEl.value = isEdit ? (record.付款狀態 || '未付款') : '未付款';
+  
+  const reconStatusEl = document.getElementById('incomeReconStatus');
+  if (reconStatusEl) reconStatusEl.value = isEdit ? (record.對帳狀態 || '待對帳') : '待對帳';
 
   // 填充主類別
   const sel = document.getElementById('incomeMainCat');
-  sel.innerHTML = settings.incomeMainCats.map(c => `<option value="${c.名稱}">${c.名稱}</option>`).join('');
-  sel.value = isEdit ? record.主類別 : settings.incomeMainCats[0]?.名稱;
-  onIncomeMainCatChange();
+  if (sel) {
+    sel.innerHTML = settings.incomeMainCats.map(c => `<option value="${c.名稱}">${c.名稱}</option>`).join('');
+    sel.value = isEdit ? record.主類別 : (settings.incomeMainCats[0]?.名稱 || '');
+    onIncomeMainCatChange();
+  }
 
-  if (isEdit && record.次類別) {
-    document.getElementById('incomeOtherNote').value = record.次類別;
-  } else if (isEdit && record.其他備註) {
-    document.getElementById('incomeOtherNote').value = record.其他備註;
+  const otherNoteEl = document.getElementById('incomeOtherNote');
+  if (otherNoteEl && isEdit) {
+    otherNoteEl.value = record.次類別 || record.其他備註 || '';
   }
 
   // 填充等級列
   const container = document.getElementById('gradeRowsContainer');
-  container.innerHTML = '';
-  const grades = isEdit && Array.isArray(record.等級資料) && record.等級資料.length > 0
-    ? record.等級資料
-    : [{ 等級: '3A', 斤數: '', 箱數: '' }];
-  grades.forEach(g => addGradeRow(g));
+  if (container) {
+    container.innerHTML = '';
+    const grades = isEdit && Array.isArray(record.等級資料) && record.等級資料.length > 0
+      ? record.等級資料
+      : [{ 等級: '3A', 斤數: '', 箱數: '' }];
+    grades.forEach(g => addGradeRow(g));
+  }
 
-  document.getElementById('incomeModal').style.display = 'flex';
+  const modal = document.getElementById('incomeModal');
+  if (modal) modal.style.display = 'flex';
 }
 
 function openIncomeEdit(id) {
@@ -2071,10 +2138,14 @@ window.openFillPriceModal = function(id) {
 };
 
 function closeIncomeModal() {
-  document.getElementById('incomeModal').style.display = 'none';
-  document.getElementById('incomeForm').reset();
-  document.getElementById('incomeOtherNoteWrap').style.display = 'none';
-  document.getElementById('incomeCustomCatWrap').style.display = 'none';
+  const modal = document.getElementById('incomeModal');
+  if (modal) modal.style.display = 'none';
+  const form = document.getElementById('incomeForm');
+  if (form) form.reset();
+  const otherWrap = document.getElementById('incomeOtherNoteWrap');
+  if (otherWrap) otherWrap.style.display = 'none';
+  const customWrap = document.getElementById('incomeCustomCatWrap');
+  if (customWrap) customWrap.style.display = 'none';
 }
 
 document.getElementById('incomeMainCat').addEventListener('change', onIncomeMainCatChange);
@@ -2618,10 +2689,14 @@ function openExpenseEdit(id) {
 window.openExpenseEdit = openExpenseEdit;
 
 function closeExpenseModal() {
-  document.getElementById('expenseModal').style.display = 'none';
-  document.getElementById('expenseForm').reset();
-  document.getElementById('expenseCustomWorkerWrap').style.display = 'none';
-  document.getElementById('expenseCustomSubCatWrap').style.display = 'none';
+  const modal = document.getElementById('expenseModal');
+  if (modal) modal.style.display = 'none';
+  const form = document.getElementById('expenseForm');
+  if (form) form.reset();
+  const workerWrap = document.getElementById('expenseCustomWorkerWrap');
+  if (workerWrap) workerWrap.style.display = 'none';
+  const subWrap = document.getElementById('expenseCustomSubCatWrap');
+  if (subWrap) subWrap.style.display = 'none';
 }
 
 document.getElementById('expenseMainCat').addEventListener('change', () => onExpenseMainCatChange());
@@ -3086,14 +3161,16 @@ function openOrderModal(recordId = null) {
   
   // 填充客源 datalist
   const cDataList = document.getElementById('customerList');
-  cDataList.innerHTML = '';
-  // 客戶可以藉由寄件人匹配
-  let uniqueSenders = [...new Set(customersData.map(c => c.客戶姓名 || c.寄件人))].filter(Boolean);
-  uniqueSenders.forEach(s => {
-    const opt = document.createElement('option');
-    opt.value = s;
-    cDataList.appendChild(opt);
-  });
+  if (cDataList) {
+    cDataList.innerHTML = '';
+    // 客戶可以藉由寄件人匹配
+    let uniqueSenders = [...new Set(customersData.map(c => c.客戶姓名 || c.寄件人))].filter(Boolean);
+    uniqueSenders.forEach(s => {
+      const opt = document.createElement('option');
+      opt.value = s;
+      cDataList.appendChild(opt);
+    });
+  }
 
   if (recordId) {
     const r = ordersData.find(x => x.id === recordId);
@@ -3945,8 +4022,8 @@ document.addEventListener('DOMContentLoaded', () => {
 // ============================================================
 // 16. 結餘分頁邏輯
 // ============================================================
-let balanceChartInstance = null;
-let currentBalancePeriod = 'all';
+balanceChartInstance = null; // 已在全域頂部宣告
+currentBalancePeriod = 'all'; // 已在全域頂部宣告
 
 document.querySelectorAll('#page-balance .period-btn').forEach(btn => {
   btn.addEventListener('click', (e) => {
@@ -4067,11 +4144,16 @@ function renderBalancePage() {
 
   if(document.getElementById('balanceBagCount')) {
     document.getElementById('balanceBagCount').textContent = bagCount.toLocaleString();
-    document.getElementById('balanceLossBagCount').textContent = lossBagCount.toLocaleString();
-    document.getElementById('balanceExpectedKG').textContent = expectedKG.toFixed(1);
-    document.getElementById('balanceActualKG').textContent = actualKG.toFixed(1);
-    document.getElementById('balanceLossKG').textContent = actualLossKG.toFixed(1);
-    document.getElementById('balanceLossPercent').textContent = lossPercent;
+    const lossBagEl = document.getElementById('balanceLossBagCount');
+    if (lossBagEl) lossBagEl.textContent = lossBagCount.toLocaleString();
+    const expKgEl = document.getElementById('balanceExpectedKG');
+    if (expKgEl) expKgEl.textContent = expectedKG.toFixed(1);
+    const actKgEl = document.getElementById('balanceActualKG');
+    if (actKgEl) actKgEl.textContent = actualKG.toFixed(1);
+    const lossKgEl = document.getElementById('balanceLossKG');
+    if (lossKgEl) lossKgEl.textContent = actualLossKG.toFixed(1);
+    const lossPerEl = document.getElementById('balanceLossPercent');
+    if (lossPerEl) lossPerEl.textContent = lossPercent;
   }
 
   // 5. 繪製圓餅圖 (Chart.js)
@@ -4195,36 +4277,4 @@ function renderBalanceMonthlyTable(incData, expData, orderDataFiltered = []) {
 }
 // ============================================================
 // 17. 管理模式與初始化
-// ============================================================
 
-function setupEditModeToggle() {
-  const configs = [
-    { btnId: 'incomeEditModeBtn', containerId: 'incomeRecordContainer', state: filterState.income },
-    { btnId: 'orderEditModeBtn', containerId: 'orderRecordContainer', state: filterState.order },
-    { btnId: 'expenseEditModeBtn', containerId: 'expenseRecordContainer', state: filterState.expense },
-  ];
-
-  configs.forEach(cfg => {
-    const btn = document.getElementById(cfg.btnId);
-    const container = document.getElementById(cfg.containerId);
-    if (!btn || !container) return;
-
-    btn.onclick = () => {
-      cfg.state.isEditMode = !cfg.state.isEditMode;
-      btn.classList.toggle('active', cfg.state.isEditMode);
-      container.classList.toggle('edit-mode-active', cfg.state.isEditMode);
-      showToast(cfg.state.isEditMode ? '✓ 管理模式：開啟 (顯示編輯按鈕)' : '管理模式：關閉');
-    };
-  });
-}
-
-// 修改 renderAll 以包含初始化
-const originalRenderAll = typeof renderAll === 'function' ? renderAll : null;
-window.renderAll = function() {
-  if (originalRenderAll) originalRenderAll();
-  setupEditModeToggle();
-};
-
-document.addEventListener('DOMContentLoaded', () => {
-  setupEditModeToggle();
-});
