@@ -1308,7 +1308,7 @@ function renderIncomeChart() {
 }
 
 // 期間切換按鈕 — 收入
-document.querySelector('#incomeChartCard').addEventListener('click', e => {
+document.querySelector('#incomeChartCard')?.addEventListener('click', e => {
   const btn = e.target.closest('.period-btn');
   if (!btn) return;
   document.querySelectorAll('#incomeChartCard .period-btn').forEach(b => b.classList.remove('active'));
@@ -1721,7 +1721,7 @@ document.getElementById('orderClearFilter').onclick = () => {
   renderOrderTable();
 };
 
-document.querySelector('#orderChartCard').addEventListener('click', e => {
+document.querySelector('#orderChartCard')?.addEventListener('click', e => {
   const btn = e.target.closest('.period-btn');
   if (!btn) return;
   document.querySelectorAll('#orderChartCard .period-btn').forEach(b => b.classList.remove('active'));
@@ -2153,8 +2153,8 @@ function onIncomeMainCatChange() {
   const val = document.getElementById('incomeMainCat').value;
   const isOther = val === '其他';
   const isAddNew = val === 'ADD_NEW';
-  document.getElementById('incomeOtherNoteWrap').style.display = isOther ? 'flex' : 'none';
-  document.getElementById('incomeCustomCatWrap').style.display = isAddNew ? 'flex' : 'none';
+  let w1 = document.getElementById('incomeOtherNoteWrap'); if(w1) w1.style.display = isOther ? 'flex' : 'none';
+  let w2 = document.getElementById('incomeCustomCatWrap'); if(w2) w2.style.display = isAddNew ? 'flex' : 'none';
 }
 
 document.getElementById('addGradeRowBtn').onclick = () => addGradeRow();
@@ -2703,7 +2703,7 @@ document.getElementById('expenseMainCat').addEventListener('change', () => onExp
 
 // 動態計算總額
 ['expenseQty', 'expenseUnitPrice', 'expenseTotalPrice'].forEach(id => {
-  document.getElementById(id).addEventListener('input', (e) => updateExpenseTotal(e.target.id));
+  document.getElementById(id)?.addEventListener('input', (e) => updateExpenseTotal(e.target.id));
 });
 document.getElementById('includeLunch').addEventListener('change', () => updateExpenseTotal('includeLunch'));
 
@@ -3248,7 +3248,7 @@ function triggerOrderGradeChange() {
 }
 
 ['orderMainCat', 'orderSubCat', 'orderGrade', 'orderQuantity'].forEach(id => {
-  document.getElementById(id).addEventListener('input', calculateOrderPrice);
+  document.getElementById(id)?.addEventListener('input', calculateOrderPrice);
 });
 
 function calculateOrderPrice() {
@@ -3278,7 +3278,7 @@ function calculateOrderPrice() {
   }
 }
 
-document.getElementById('orderSenderName').addEventListener('input', (e) => {
+let osn = document.getElementById('orderSenderName'); if(osn) osn.addEventListener('input', (e) => {
   const val = e.target.value.trim();
   const cus = customersData.find(c => c.寄件人 === val);
   if (cus) {
@@ -3286,7 +3286,7 @@ document.getElementById('orderSenderName').addEventListener('input', (e) => {
   }
 });
 
-document.getElementById('orderSameAsSender').addEventListener('change', (e) => {
+let osas = document.getElementById('orderSameAsSender'); if(osas) osas.addEventListener('change', (e) => {
   if(e.target.checked) {
     document.getElementById('orderReceiverName').value = document.getElementById('orderSenderName').value;
     document.getElementById('orderReceiverPhone').value = document.getElementById('orderSenderPhone').value;
@@ -3294,12 +3294,12 @@ document.getElementById('orderSameAsSender').addEventListener('change', (e) => {
 });
 
 // 黑貓到貨日防呆：不允許選擇禮拜日與禮拜一
-document.getElementById('orderDeliveryType').addEventListener('change', (e) => {
+let odt = document.getElementById('orderDeliveryType'); if(odt) odt.addEventListener('change', (e) => {
   if (e.target.value === '黑貓宅配') {
     checkBlackCatDate();
   }
 });
-document.getElementById('orderArrivalDate').addEventListener('change', checkBlackCatDate);
+document.getElementById('orderArrivalDate')?.addEventListener('change', checkBlackCatDate);
 
 function checkBlackCatDate() {
   const dt = document.getElementById('orderDeliveryType').value;
@@ -3412,7 +3412,7 @@ function openCopyModal(type) {
 }
 
 ['copyDateFrom', 'copyDateTo'].forEach(id => {
-  document.getElementById(id).addEventListener('change', generateCopyText);
+  document.getElementById(id)?.addEventListener('change', generateCopyText);
 });
 
 function generateCopyText() {
@@ -3786,7 +3786,7 @@ window.deleteExpenseSubCat = function(catIdx, subIdx) {
 };
 
 // 系統初始化按鈕
-document.getElementById('initSystemBtn').onclick = async () => {
+let isb = document.getElementById('initSystemBtn'); if(isb) isb.onclick = async () => {
   if (!confirm('將把預設類別與範例工人資料寫入試算表，是否確定？')) return;
   
   showLoader('系統初始化中...');
@@ -3903,7 +3903,7 @@ function now() {
 
 // Modal 點外部關閉
 ['incomeModal', 'expenseModal', 'copyModal', 'confirmModal', 'adminModal'].forEach(id => {
-  document.getElementById(id).addEventListener('click', function(e) {
+  document.getElementById(id)?.addEventListener('click', function(e) {
     if (e.target === this) this.style.display = 'none';
   });
 });
