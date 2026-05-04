@@ -129,6 +129,9 @@ body {
 }
 .header-right {
   display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
 .user-info {
   display: flex;
   align-items: center;

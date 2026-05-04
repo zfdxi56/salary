@@ -410,6 +410,11 @@ document.getElementById('logoutBtn').onclick = () => {
   document.getElementById('tab-admin').style.display = 'none';
 };
 
+// 重新整理按鈕
+document.getElementById('refreshBtn').onclick = () => {
+  window.location.reload();
+};
+
 // ============================================================
 // 5. Google Sheets 工作表建立（初次使用）
 // ============================================================
