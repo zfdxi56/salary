@@ -172,11 +172,21 @@ body {
    Auth Screen
    ================================================ */
 .auth-screen {
-  min-height: calc(100vh - var(--header-height));
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 2rem 1rem;
+  z-index: 1000;
+  background: var(--bg);
+  background-image:
+    radial-gradient(at 0% 0%, hsla(140, 70%, 88%, 0.8) 0, transparent 55%),
+    radial-gradient(at 100% 0%, hsla(160, 60%, 85%, 0.6) 0, transparent 50%),
+    radial-gradient(at 50% 100%, hsla(120, 50%, 92%, 0.5) 0, transparent 60%);
 }
 .auth-card {
   width: 100%;

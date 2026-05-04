@@ -358,6 +358,8 @@ async function afterLogin() {
     document.getElementById('workspace').style.display = 'block';
     const fabCont = document.getElementById('fabContainer');
     if (fabCont) fabCont.style.display = 'block';
+    const refreshBtn = document.getElementById('refreshBtn');
+    if (refreshBtn) refreshBtn.style.display = 'inline-flex';
     initAllEventListeners();
 
     switchTab('revenue');
