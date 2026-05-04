@@ -252,73 +252,126 @@
   <section id="page-expense" class="tab-page">
     <div class="page-inner">
 
-      <!-- 支出統計圖表 -->
-      <div class="card glass chart-card" id="expenseChartCard">
-        <div class="card-header">
-          <div class="header-main">
-            <h2><span class="material-symbols-outlined">payments</span> 支出統計</h2>
-            <div id="expenseTotalSummary" class="chart-summary">總計：$0</div>
+      <!-- 複合式支出卡片 (區塊 1: 薪資 vs 成本 & 堆疊條形圖) -->
+      <div class="card glass composite-revenue-card composite-expense-card">
+        <div class="composite-section">
+          <div class="section-header">
+            <div class="annual-total-mini expense-bg">
+              <span class="label">年度支出總額</span>
+              <span class="value" id="expenseTotalAmount">$0</span>
+            </div>
+
+            <div class="stacked-bar-container">
+              <div class="stacked-bar-segment salary" id="barSalary" style="width: 50%">
+                <span class="segment-label">工人薪資</span>
+                <span class="segment-value" id="barSalaryVal">$0</span>
+              </div>
+              <div class="stacked-bar-segment cost" id="barCost" style="width: 50%">
+                <span class="segment-label">成本開銷</span>
+                <span class="segment-value" id="barCostVal">$0</span>
+              </div>
+            </div>
           </div>
-          <div class="chart-period-btns">
-            <button class="period-btn" data-period="all">全部</button>
-            <button class="period-btn active" data-period="year">今年</button>
-            <button class="period-btn" data-period="month">本月</button>
+
+          <div class="section-divider"></div>
+
+          <!-- 區塊 2: 明細清單 (Flex Layout) -->
+          <div class="section-details">
+            <div class="details-column">
+              <h3 class="details-title salary-color">薪資明細</h3>
+              <div id="salarySummaryDetails" class="details-list">
+                <!-- JS Render -->
+              </div>
+            </div>
+            <div class="details-column">
+              <h3 class="details-title cost-color">成本明細</h3>
+              <div id="costSummaryDetails" class="details-list">
+                <!-- JS Render -->
+              </div>
+            </div>
           </div>
-        </div>
-        <!-- 圓餅圖 -->
-        <div class="expense-pie-layout">
-          <div class="expense-pie-wrap">
-            <canvas id="expensePieChart"></canvas>
-          </div>
-          <div id="expensePieLegend" class="expense-pie-legend"></div>
         </div>
       </div>
 
-      <!-- 工人薪資詳情（點選後展開） -->
-      <div id="workerDetailPanel" class="worker-detail-panel" style="display:none">
-        <div class="panel-header">
-          <span id="workerDetailName" class="panel-title"></span>
-          <button class="btn-icon-sm" id="closeWorkerDetail">
-            <span class="material-symbols-outlined">close</span>
-          </button>
-        </div>
-        <div id="workerDetailContent"></div>
-      </div>
-
-      <!-- 新增支出按鈕 -->
-      <div class="section-action-row">
-        <h3 class="section-title">支出紀錄</h3>
-        <button class="btn btn-primary btn-sm" id="openExpenseFormBtn">
-          <span class="material-symbols-outlined">add</span> 新增支出
+      <!-- 支出切換 Tab -->
+      <div class="sub-tab-nav">
+        <button class="sub-tab-btn active" data-subtab="salary" id="stab-salary">
+          <span class="material-symbols-outlined">badge</span>
+          工人薪資
+        </button>
+        <button class="sub-tab-btn" data-subtab="costs" id="stab-costs">
+          <span class="material-symbols-outlined">shopping_cart</span>
+          成本開銷
         </button>
       </div>
 
-      <!-- 支出篩選列 -->
-      <div class="filter-box" id="expenseFilterBar">
-        <div id="expenseMainCatChips" class="filter-chips-row main-cats"></div>
-        <div class="chips-divider"></div>
-        <div id="expenseSubCatChips" class="filter-chips-row sub-cats"></div>
-        <div class="filter-actions-group">
-          <button class="btn-tool" id="expenseClearFilter" title="清除篩選">
-            <span class="material-symbols-outlined">filter_alt_off</span>
+      <!-- ---- 工人薪資子頁 ---- -->
+      <div id="subpage-salary" class="sub-tab-page">
+        <!-- 工人薪資詳情（點選後展開） -->
+        <div id="workerDetailPanel" class="worker-detail-panel" style="display:none">
+          <div class="panel-header">
+            <span id="workerDetailName" class="panel-title"></span>
+            <button class="btn-icon-sm" id="closeWorkerDetail">
+              <span class="material-symbols-outlined">close</span>
+            </button>
+          </div>
+          <div id="workerDetailContent"></div>
+        </div>
+
+        <!-- 新增支出按鈕 (薪資模式) -->
+        <div class="section-action-row">
+          <h3 class="section-title">工人薪資紀錄</h3>
+          <button class="btn btn-primary btn-sm" id="openSalaryFormBtn">
+            <span class="material-symbols-outlined">add</span> 新增薪資
           </button>
-          <button class="btn-tool" id="expenseSortBtn" title="切換排序" data-order="desc">
-            <span class="material-symbols-outlined">sort</span>
-          </button>
-          <button class="btn-tool" id="expenseEditModeBtn" title="管理模式">
-            <span class="material-symbols-outlined">edit_note</span>
-          </button>
-          <button class="btn-tool" id="expenseCopyBtn" title="複製明細">
-            <span class="material-symbols-outlined">content_copy</span>
-          </button>
+        </div>
+
+        <div class="filter-bar" id="salaryFilterBar">
+          <div class="filter-chips" id="salaryMainCatChips"></div>
+          <div class="filter-tools">
+            <button class="btn-tool" id="salaryClearFilter" title="清除篩選">
+              <span class="material-symbols-outlined">filter_alt_off</span>
+            </button>
+            <button class="btn-tool" id="salarySortBtn" title="切換排序" data-order="desc">
+              <span class="material-symbols-outlined">sort</span>
+            </button>
+          </div>
+        </div>
+
+        <div id="salaryRecordContainer"></div>
+        <div id="salaryEmpty" class="empty-state" style="display:none">
+          <span class="material-symbols-outlined">inbox</span>
+          <p>尚無薪資紀錄</p>
         </div>
       </div>
 
-      <!-- 支出紀錄（依主類別分區塊折疊式） -->
-      <div id="expenseRecordContainer"></div>
-      <div id="expenseEmpty" class="empty-state" style="display:none">
-        <span class="material-symbols-outlined">inbox</span>
-        <p>尚無支出紀錄</p>
+      <!-- ---- 成本開銷子頁 ---- -->
+      <div id="subpage-costs" class="sub-tab-page" style="display:none">
+        <!-- 新增支出按鈕 (成本模式) -->
+        <div class="section-action-row">
+          <h3 class="section-title">成本開銷紀錄</h3>
+          <button class="btn btn-primary btn-sm" id="openCostFormBtn">
+            <span class="material-symbols-outlined">add</span> 新增成本
+          </button>
+        </div>
+
+        <div class="filter-bar" id="costFilterBar">
+          <div class="filter-chips" id="costMainCatChips"></div>
+          <div class="filter-tools">
+            <button class="btn-tool" id="costClearFilter" title="清除篩選">
+              <span class="material-symbols-outlined">filter_alt_off</span>
+            </button>
+            <button class="btn-tool" id="costSortBtn" title="切換排序" data-order="desc">
+              <span class="material-symbols-outlined">sort</span>
+            </button>
+          </div>
+        </div>
+
+        <div id="costRecordContainer"></div>
+        <div id="costEmpty" class="empty-state" style="display:none">
+          <span class="material-symbols-outlined">inbox</span>
+          <p>尚無成本紀錄</p>
+        </div>
       </div>
 
     </div>
@@ -753,6 +806,30 @@
           </div>
         </div>
 
+        <!-- 薪資時間欄位 (僅在薪資類型顯示) -->
+        <div id="salaryTimeFields" style="display:none">
+          <div class="form-row">
+            <div class="input-wrap">
+              <label for="salaryMorningStart">上午-上班</label>
+              <input type="time" id="salaryMorningStart">
+            </div>
+            <div class="input-wrap">
+              <label for="salaryMorningEnd">上午-休息</label>
+              <input type="time" id="salaryMorningEnd">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="input-wrap">
+              <label for="salaryAfternoonStart">下午-上班</label>
+              <input type="time" id="salaryAfternoonStart">
+            </div>
+            <div class="input-wrap">
+              <label for="salaryAfternoonEnd">下午-下班</label>
+              <input type="time" id="salaryAfternoonEnd">
+            </div>
+          </div>
+        </div>
+
         <div class="form-row" id="priceDetailRow">
           <div class="input-wrap">
             <label for="expenseUnitPrice" id="expenseUnitLabel">單價 *</label>
@@ -762,6 +839,12 @@
             <label for="expenseTotalPrice">總額 (合計) *</label>
             <input type="number" id="expenseTotalPrice" step="1" min="0" required>
           </div>
+        </div>
+
+        <!-- 支付日期 (新增) -->
+        <div class="input-wrap" id="expensePaidDateWrap" style="display:none">
+          <label for="expensePaidDate">支付日期</label>
+          <input type="date" id="expensePaidDate">
         </div>
 
         <!-- 午餐津貼 -->

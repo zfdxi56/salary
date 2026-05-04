@@ -20,7 +20,9 @@ const SHEET = {
   WORKERS: '設定_工人名單',
   UNITS: '設定_單位清單',
   MARKET_INCOME: '市場收入',
-  EXPENSE: '支出',
+  EXPENSE_SALARY: '支出_薪資',
+  EXPENSE_COST: '支出_成本',
+  EXPENSE: '支出', // 保留舊的以防萬一
   CUSTOMERS: '客戶資料',
   ORDERS: '客戶訂單明細',
 };
@@ -467,6 +469,14 @@ async function initSheetHeaders() {
       values: [['編號', '日期', '客戶類別', '客戶名稱', '品種主類別', '品種次類別', '等級資料', '總重(斤)', '箱數', '總價', '盤商價', '運費', '附註', '付款狀態', '對帳狀態', '建立時間', '最後更新', '附註2']]
     },
     {
+      range: `${SHEET.EXPENSE_SALARY}!A1:S1`,
+      values: [['編號', '日期', '主類別', '次類別', '工人姓名', '計薪方式', '上午-上班時間', '上午-休息時間', '下午-上班時間', '下午-下班時間', '時數/天數', '時薪/日薪金額', '含午餐', '總額', '是否支付', '支付日期', '附註', '建立時間', '最後更新']]
+    },
+    {
+      range: `${SHEET.EXPENSE_COST}!A1:L1`,
+      values: [['編號', '日期', '主類別', '次類別', '數量', '單價', '總額', '是否支付', '支付日期', '附註', '建立時間', '最後更新']]
+    },
+    {
       range: `${SHEET.EXPENSE}!A1:O1`,
       values: [['編號', '日期', '主類別', '次類別', '工人姓名', '計薪方式', '數量', '單位', '單價', '總額', '含午餐', '已支付', '附註', '建立時間', '最後更新']]
     },
@@ -648,27 +658,56 @@ async function fetchIncome() {
 
 async function fetchExpense() {
   try {
-    const res = await gapi.client.sheets.spreadsheets.values.get({
-      spreadsheetId: SPREADSHEET_ID,
-      range: `${SHEET.EXPENSE}!A2:O`,
-    });
-    expenseData = (res.result.values || []).map(r => ({
+    const [resSalary, resCost] = await Promise.all([
+      gapi.client.sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: `${SHEET.EXPENSE_SALARY}!A2:S` }),
+      gapi.client.sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: `${SHEET.EXPENSE_COST}!A2:L` }),
+    ]);
+
+    const salaryItems = (resSalary.result.values || []).map(r => ({
       id: r[0] || '',
       日期: r[1] || '',
       主類別: r[2] || '',
       次類別: r[3] || '',
       工人姓名: r[4] || '',
       計薪方式: r[5] || '',
-      數量: r[6] || '',
-      單位: r[7] || '',
-      單價: r[8] || '',
-      總額: r[9] || '',
-      含午餐: r[10] === 'TRUE' || r[10] === true,
-      已支付: r[11] === 'TRUE' || r[11] === true,
-      附註: r[12] || '',
-      建立時間: r[13] || '',
+      上午上班: r[6] || '',
+      上午休息: r[7] || '',
+      下午上班: r[8] || '',
+      下午下班: r[9] || '',
+      數量: r[10] || '',
+      單價: r[11] || '',
+      含午餐: r[12] === 'TRUE' || r[12] === true,
+      總額: r[13] || '',
+      已支付: r[14] === 'TRUE' || r[14] === true,
+      支付日期: r[15] || '',
+      附註: r[16] || '',
+      建立時間: r[17] || '',
+      最後更新: r[18] || '',
+      _sourceSheet: SHEET.EXPENSE_SALARY
     }));
-  } catch (e) { expenseData = []; }
+
+    const costItems = (resCost.result.values || []).map(r => ({
+      id: r[0] || '',
+      日期: r[1] || '',
+      主類別: r[2] || '',
+      次類別: r[3] || '',
+      數量: r[4] || '',
+      單價: r[5] || '',
+      總額: r[6] || '',
+      已支付: r[7] === 'TRUE' || r[7] === true,
+      支付日期: r[8] || '',
+      附註: r[9] || '',
+      建立時間: r[10] || '',
+      最後更新: r[11] || '',
+      _sourceSheet: SHEET.EXPENSE_COST
+    }));
+
+    // 合併資料以維持現有渲染邏輯
+    expenseData = [...salaryItems, ...costItems];
+  } catch (e) { 
+    console.error('fetchExpense 失敗:', e);
+    expenseData = []; 
+  }
 }
 
 async function fetchCustomers() {
@@ -791,6 +830,7 @@ function renderAll() {
   renderExpenseChart();
   renderExpenseTable();
   renderExpenseFilterChips();
+  initExpenseSubTabs(); // 初始化支出子頁切換
 
   renderBalancePage();
   renderOrderFilterChips();
@@ -965,9 +1005,108 @@ function renderUnshippedAlerts() {
   if (htmlArray.length > 0) {
     container.innerHTML = htmlArray.join('');
     container.style.display = 'block';
-  } else {
-    container.style.display = 'none';
   }
+}
+
+// ============================================================
+// 9b. 複合式支出統計
+// ============================================================
+
+function renderCompositeExpenseCard() {
+  const period = filterState.expense.period;
+  const data = getFilteredByPeriod(expenseData, '日期', period);
+
+  // 1. 計算金額
+  const salaryRows = data.filter(r => {
+    const cat = settings.expenseMainCats.find(c => c.名稱 === r.主類別);
+    return cat?.類型 === 'worker';
+  });
+  const costRows = data.filter(r => {
+    const cat = settings.expenseMainCats.find(c => c.名稱 === r.主類別);
+    return cat?.類型 !== 'worker';
+  });
+
+  const salaryTotal = salaryRows.reduce((s, r) => s + calcExpenseTotal(r), 0);
+  const costTotal = costRows.reduce((s, r) => s + calcExpenseTotal(r), 0);
+  const grandTotal = salaryTotal + costTotal;
+
+  // 2. 更新數字與進度條
+  const elTotal = document.getElementById('expenseTotalAmount');
+  if (elTotal) elTotal.textContent = `$${grandTotal.toLocaleString()}`;
+
+  const barSalary = document.getElementById('barSalary');
+  const barCost = document.getElementById('barCost');
+  const valSalary = document.getElementById('barSalaryVal');
+  const valCost = document.getElementById('barCostVal');
+
+  const salaryPercent = grandTotal > 0 ? (salaryTotal / grandTotal * 100) : 50;
+  const costPercent = grandTotal > 0 ? (costTotal / grandTotal * 100) : 50;
+
+  if (barSalary) barSalary.style.width = `${salaryPercent}%`;
+  if (barCost) barCost.style.width = `${costPercent}%`;
+
+  if (valSalary) valSalary.textContent = `$${salaryTotal.toLocaleString()} (${Math.round(salaryPercent)}%)`;
+  if (valCost) valCost.textContent = `$${costTotal.toLocaleString()} (${Math.round(costPercent)}%)`;
+
+  // 3. 渲染明細
+  renderExpenseSummaryDetails(salaryRows, costRows);
+}
+
+function renderExpenseSummaryDetails(sRows, cRows) {
+  const leftEl = document.getElementById('salarySummaryDetails');
+  const rightEl = document.getElementById('costSummaryDetails');
+  if (!leftEl || !rightEl) return;
+
+  const groupByCat = (rows) => {
+    const map = {};
+    rows.forEach(r => {
+      const cat = r.主類別 || '其他';
+      map[cat] = (map[cat] || 0) + calcExpenseTotal(r);
+    });
+    return map;
+  };
+
+  const salaryMap = groupByCat(sRows);
+  const costMap = groupByCat(cRows);
+
+  const buildHtml = (map) => {
+    const entries = Object.entries(map).sort((a,b) => b[1] - a[1]);
+    if (entries.length === 0) return '<div class="detail-item"><span class="detail-name">暫無數據</span></div>';
+    return entries.map(([name, val]) => `
+      <div class="detail-item">
+        <span class="detail-name">${name}</span>
+        <span class="detail-amount">$${val.toLocaleString()}</span>
+      </div>
+    `).join('');
+  };
+
+  leftEl.innerHTML = buildHtml(salaryMap);
+  rightEl.innerHTML = buildHtml(costMap);
+}
+
+function initExpenseSubTabs() {
+  const salaryBtn = document.getElementById('stab-salary');
+  const costsBtn = document.getElementById('stab-costs');
+  if (!salaryBtn || !costsBtn) return;
+
+  const setSubTab = (type) => {
+    filterState.expense.type = type === 'salary' ? 'worker' : 'material';
+    filterState.expense.mainCat = null;
+    filterState.expense.subCat = null;
+    
+    // UI 切換
+    document.getElementById('subpage-salary').style.display = type === 'salary' ? 'block' : 'none';
+    document.getElementById('subpage-costs').style.display = type === 'costs' ? 'block' : 'none';
+    
+    salaryBtn.classList.toggle('active', type === 'salary');
+    costsBtn.classList.toggle('active', type === 'costs');
+    
+    renderExpenseFilterChips();
+    renderExpenseTable();
+  };
+
+  salaryBtn.onclick = () => setSubTab('salary');
+  costsBtn.onclick = () => setSubTab('costs');
 }
 
 // ============================================================
@@ -1006,7 +1145,12 @@ function handleFabAction(action) {
     document.getElementById('openOrderFormBtn').click();
   } else if (action === 'expense') {
     switchTab('expense');
-    document.getElementById('openExpenseFormBtn').click();
+    const isCosts = filterState.expense.type === 'material';
+    if (isCosts) {
+      document.getElementById('openCostFormBtn').click();
+    } else {
+      document.getElementById('openSalaryFormBtn').click();
+    }
   }
 }
 
@@ -1080,7 +1224,7 @@ function duplicateRecord(type, data) {
       }, 50);
     }, 100);
   } else if (type === 'expense') {
-    openExpenseForm(null);
+    openExpenseModal(null);
     setTimeout(() => {
       if (document.getElementById('expenseMainCat')) {
         document.getElementById('expenseMainCat').value = data.主類別 || '';
@@ -2272,68 +2416,7 @@ document.getElementById('incomeForm').onsubmit = async (e) => {
 // _expensePieInstance 已在頂層定義
 
 function renderExpenseChart() {
-  const period = filterState.expense.period;
-  const data = getFilteredByPeriod(expenseData, '日期', period);
-
-  let grandTotal = 0;
-  data.forEach(r => grandTotal += calcExpenseTotal(r));
-  document.getElementById('expenseTotalSummary').textContent = `總計：$${grandTotal.toLocaleString()}`;
-
-  // 主類別統計
-  const mainCatMap = {};
-  data.forEach(r => {
-    if (!mainCatMap[r.主類別]) {
-      const clr = getCategoryColor(r.主類別, Object.keys(mainCatMap).length);
-      mainCatMap[r.主類別] = { total: 0, count: 0, unpaid: 0, ...clr };
-    }
-    const amt = calcExpenseTotal(r);
-    mainCatMap[r.主類別].total += amt;
-    mainCatMap[r.主類別].count++;
-    if (!r.已支付) mainCatMap[r.主類別].unpaid += amt;
-  });
-
-  const entries = Object.entries(mainCatMap).filter(([, v]) => v.count > 0);
-
-  // 圓餅圖
-  const ctx = document.getElementById('expensePieChart');
-  if (ctx) {
-    if (_expensePieInstance) _expensePieInstance.destroy();
-    if (entries.length > 0) {
-      _expensePieInstance = new Chart(ctx, {
-        type: 'doughnut',
-        data: {
-          labels: entries.map(([n]) => n),
-          datasets: [{ data: entries.map(([, v]) => v.total), backgroundColor: entries.map(([n]) => mainCatMap[n]?.color || '#64748b'), borderWidth: 2, borderColor: 'white' }]
-        },
-        options: { responsive: true, maintainAspectRatio: false, cutout: '65%',
-          plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => ` $${c.parsed.toLocaleString()}` } } }
-        }
-      });
-    }
-  }
-
-  // 圖例
-  const legend = document.getElementById('expensePieLegend');
-  if (legend) {
-    legend.innerHTML = '';
-    entries.sort((a,b) => b[1].total - a[1].total).forEach(([name, v]) => {
-      const color = mainCatMap[name]?.color || '#64748b';
-      const d = document.createElement('div');
-      d.className = 'pie-legend-item';
-      d.style.cursor = 'pointer';
-      d.innerHTML = `
-        <span class="pie-legend-dot" style="background:${color}"></span>
-        <span class="pie-legend-name">${name}<span style="color:var(--text-muted);font-size:0.7rem;margin-left:4px">${v.count}筆${v.unpaid>0?`·⚠️未付`:''}</span></span>
-        <span class="pie-legend-val" style="color:${color}">$${v.total.toLocaleString()}</span>`;
-      d.onclick = () => {
-        filterState.expense.mainCat = filterState.expense.mainCat === name ? null : name;
-        filterState.expense.subCat = null;
-        renderExpenseFilterChips();
-        renderExpenseTable();
-      };
-      legend.appendChild(d);
-    });
-  }
+  renderCompositeExpenseCard();
 }
 
 
@@ -2412,11 +2495,31 @@ window.togglePaid = async function(id) {
   const r = expenseData.find(x => x.id === id);
   if (!r) return;
   const newVal = !r.已支付;
-  const rowIdx = expenseData.findIndex(x => x.id === id) + 2;
+  const targetSheet = r._sourceSheet || SHEET.EXPENSE;
+  
+  // 找出行號
+  const res = await gapi.client.sheets.spreadsheets.values.get({
+    spreadsheetId: SPREADSHEET_ID,
+    range: `${targetSheet}!A:A`
+  });
+  const ids = (res.result.values || []).map(row => row[0]);
+  const rowIdx = ids.indexOf(id) + 1;
+
+  if (rowIdx <= 0) {
+    showToast('找不到紀錄，無法更新狀態', 'error');
+    return;
+  }
+
+  // 取得對應工作表的欄位索引 (已支付欄位)
+  let col = '';
+  if (targetSheet === SHEET.EXPENSE_SALARY) col = 'O'; // 15th col
+  else if (targetSheet === SHEET.EXPENSE_COST) col = 'H'; // 8th col
+  else col = 'K'; // 舊版
+
   try {
     await gapi.client.sheets.spreadsheets.values.update({
       spreadsheetId: SPREADSHEET_ID,
-      range: `${SHEET.EXPENSE}!K${rowIdx}`,
+      range: `${targetSheet}!${col}${rowIdx}`,
       valueInputOption: 'USER_ENTERED',
       resource: { values: [[newVal ? 'TRUE' : 'FALSE']] }
     });
@@ -2433,38 +2536,14 @@ window.togglePaid = async function(id) {
 
 // --- 篩選 chips ---
 function renderExpenseFilterChips() {
-  const mainContainer = document.getElementById('expenseMainCatChips');
-  const subContainer = document.getElementById('expenseSubCatChips');
-  if (!mainContainer || !subContainer) return;
-  mainContainer.innerHTML = '';
-  subContainer.innerHTML = '';
+  const isSalaryTab = filterState.expense.type === 'worker';
+  const container = document.getElementById(isSalaryTab ? 'salaryMainCatChips' : 'costMainCatChips');
+  if (!container) return;
+  container.innerHTML = '';
 
-  const typesMap = [
-    { id: 'worker', label: '勞工' },
-    { id: 'material', label: '成本' },
-    { id: 'meal', label: '開銷' }
-  ];
-
-  // 1. 類型標籤
-  typesMap.forEach(t => {
-    const btn = document.createElement('button');
-    const isActive = filterState.expense.type === t.id;
-    btn.className = `filter-chip${isActive ? ' active' : ''}`;
-    btn.textContent = t.label;
-    btn.onclick = () => {
-      filterState.expense.type = t.id;
-      filterState.expense.mainCat = null; // 切換類型時清空主類別，以顯示該類型下所有卡片
-      filterState.expense.subCat = null;
-      renderExpenseFilterChips();
-      renderExpenseTable();
-    };
-    mainContainer.appendChild(btn);
-  });
-
-  // 2. 主類別標籤 (選填，若未選則顯示該類型下所有類別卡片)
   const relMainCats = settings.expenseMainCats.filter(c => {
-    if (filterState.expense.type === 'meal') return c.類型 === 'meal' || c.類型 === 'other';
-    return c.類型 === filterState.expense.type;
+    if (isSalaryTab) return c.類型 === 'worker';
+    return c.類型 !== 'worker';
   });
 
   relMainCats.forEach(cat => {
@@ -2473,24 +2552,35 @@ function renderExpenseFilterChips() {
     btn.className = `filter-chip${isActive ? ' active' : ''}`;
     btn.textContent = cat.名稱;
     btn.onclick = () => {
-      filterState.expense.mainCat = cat.名稱;
+      filterState.expense.mainCat = filterState.expense.mainCat === cat.名稱 ? null : cat.名稱;
       filterState.expense.subCat = null;
       renderExpenseFilterChips();
       renderExpenseTable();
     };
-    subContainer.appendChild(btn);
+    container.appendChild(btn);
   });
 }
 
-
-document.getElementById('expenseClearFilter').onclick = () => {
+document.getElementById('salaryClearFilter').onclick = () => {
   filterState.expense.mainCat = null;
   filterState.expense.subCat = null;
   renderExpenseFilterChips();
   renderExpenseTable();
 };
 
-document.getElementById('expenseSortBtn').onclick = function() {
+document.getElementById('costClearFilter').onclick = () => {
+  filterState.expense.mainCat = null;
+  filterState.expense.subCat = null;
+  renderExpenseFilterChips();
+  renderExpenseTable();
+};
+
+document.getElementById('salarySortBtn').onclick = function() {
+  filterState.expense.sortOrder = filterState.expense.sortOrder === 'desc' ? 'asc' : 'desc';
+  renderExpenseTable();
+};
+
+document.getElementById('costSortBtn').onclick = function() {
   filterState.expense.sortOrder = filterState.expense.sortOrder === 'desc' ? 'asc' : 'desc';
   renderExpenseTable();
 };
@@ -2499,17 +2589,16 @@ document.getElementById('expenseCopyBtn').onclick = () => openCopyModal('expense
 
 // --- 表格（折疊式卡片版） ---
 function renderExpenseTable() {
+  const isSalaryTab = filterState.expense.type === 'worker';
   let data = [...expenseData];
   
-  // 先過濾類型 (worker, material, meal/other)
-  if (filterState.expense.type) {
-    data = data.filter(r => {
-      const cat = settings.expenseMainCats.find(c => c.名稱 === r.主類別);
-      if (!cat) return false;
-      if (filterState.expense.type === 'meal') return cat.類型 === 'meal' || cat.類型 === 'other';
-      return cat.類型 === filterState.expense.type;
-    });
-  }
+  // 先過濾類型
+  data = data.filter(r => {
+    const cat = settings.expenseMainCats.find(c => c.名稱 === r.主類別);
+    if (!cat) return false;
+    if (isSalaryTab) return cat.類型 === 'worker';
+    return cat.類型 !== 'worker';
+  });
 
   // 再過濾主類別與次類別
   if (filterState.expense.mainCat) data = data.filter(r => r.主類別 === filterState.expense.mainCat);
@@ -2524,8 +2613,8 @@ function renderExpenseTable() {
     return filterState.expense.sortOrder === 'desc' ? -diff : diff;
   });
 
-  const container = document.getElementById('expenseRecordContainer');
-  const empty = document.getElementById('expenseEmpty');
+  const container = document.getElementById(isSalaryTab ? 'salaryRecordContainer' : 'costRecordContainer');
+  const empty = document.getElementById(isSalaryTab ? 'salaryEmpty' : 'costEmpty');
   if (!container) return;
   container.innerHTML = '';
   container.classList.add('horizontal-scroll-row');
@@ -2539,8 +2628,8 @@ function renderExpenseTable() {
 
   // 依主類別分區塊
   const relMainCats = settings.expenseMainCats.filter(c => {
-    if (filterState.expense.type === 'meal') return c.類型 === 'meal' || c.類型 === 'other';
-    return c.類型 === filterState.expense.type;
+    if (isSalaryTab) return c.類型 === 'worker';
+    return c.類型 !== 'worker';
   });
 
   const mainCatSet = filterState.expense.mainCat
@@ -2657,11 +2746,12 @@ function renderExpenseTable() {
 // ============================================================
 // 12. 支出表單 Modal
 // ============================================================
-document.getElementById('openExpenseFormBtn').onclick = () => openExpenseModal();
+document.getElementById('openSalaryFormBtn').onclick = () => openExpenseModal(null, 'worker');
+document.getElementById('openCostFormBtn').onclick = () => openExpenseModal(null, 'material');
 document.getElementById('closeExpenseModal').onclick = closeExpenseModal;
 document.getElementById('cancelExpenseBtn').onclick = closeExpenseModal;
 
-function openExpenseModal(record = null) {
+function openExpenseModal(record = null, defaultType = null) {
   const isEdit = !!record;
   document.getElementById('expenseModalTitle').textContent = isEdit ? '編輯支出' : '新增支出';
   document.getElementById('expenseRecordId').value = isEdit ? record.id : '';
@@ -2671,6 +2761,16 @@ function openExpenseModal(record = null) {
   document.getElementById('includeLunch').checked = isEdit ? record.含午餐 : false;
   document.getElementById('expenseUnit').value = isEdit ? (record.單位 || '') : '';
   
+  // 新欄位：時間
+  document.getElementById('salaryMorningStart').value = isEdit ? (record.上午上班 || '') : '';
+  document.getElementById('salaryMorningEnd').value = isEdit ? (record.上午休息 || '') : '';
+  document.getElementById('salaryAfternoonStart').value = isEdit ? (record.下午上班 || '') : '';
+  document.getElementById('salaryAfternoonEnd').value = isEdit ? (record.下午下班 || '') : '';
+  
+  // 新欄位：支付日期
+  const paidDateEl = document.getElementById('expensePaidDate');
+  if (paidDateEl) paidDateEl.value = isEdit ? (record.支付日期 || '') : '';
+  
   // 更新單位下拉選單
   const unitList = document.getElementById('unitOptions');
   if (unitList) {
@@ -2679,8 +2779,14 @@ function openExpenseModal(record = null) {
 
   // 主類別選單
   const mainSel = document.getElementById('expenseMainCat');
-  mainSel.innerHTML = settings.expenseMainCats.map(c => `<option value="${c.名稱}">${c.名稱}</option>`).join('');
-  mainSel.value = isEdit ? record.主類別 : settings.expenseMainCats[0]?.名稱;
+  const availableCats = settings.expenseMainCats.filter(c => {
+    if (defaultType === 'worker' || record?.計薪方式) return c.類型 === 'worker';
+    if (defaultType === 'material') return c.類型 !== 'worker';
+    return true;
+  });
+  
+  mainSel.innerHTML = availableCats.map(c => `<option value="${c.名稱}">${c.名稱}</option>`).join('');
+  mainSel.value = isEdit ? record.主類別 : availableCats[0]?.名稱;
 
   onExpenseMainCatChange(record);
 
@@ -2744,6 +2850,8 @@ function onExpenseMainCatChange(editRecord = null) {
   document.getElementById('generalSubCatWrap').style.display = isWorker ? 'none' : 'flex';
   document.getElementById('lunchAllowanceWrap').style.display = isWorker ? 'flex' : 'none';
   document.getElementById('expenseUnitWrap').style.display = isWorker ? 'none' : 'flex';
+  document.getElementById('salaryTimeFields').style.display = isWorker ? 'block' : 'none'; // 顯示時間欄位
+  document.getElementById('expensePaidDateWrap').style.display = 'flex'; // 支付日期一直顯示
   document.getElementById('expenseBulkInputWrap').style.display = 'none'; // 切換類別時先隱藏批次輸入
   document.getElementById('quantityPriceRow').style.display = 'grid';
   document.getElementById('priceDetailRow').style.display = 'grid';
@@ -2972,10 +3080,16 @@ document.getElementById('expenseForm').onsubmit = async (e) => {
       總額: total,
       含午餐: lunch,
       已支付: document.getElementById('expenseIsPaid').checked,
+      支付日期: document.getElementById('expensePaidDate').value,
       附註: document.getElementById('expenseNotes').value,
+      上午上班: document.getElementById('salaryMorningStart').value,
+      上午休息: document.getElementById('salaryMorningEnd').value,
+      下午上班: document.getElementById('salaryAfternoonStart').value,
+      下午下班: document.getElementById('salaryAfternoonEnd').value,
       isNewWorker,
       isNewSubCat,
-      isNewUnit
+      isNewUnit,
+      _sourceSheet: isWorker ? SHEET.EXPENSE_SALARY : SHEET.EXPENSE_COST
     });
   }
 
@@ -2995,24 +3109,55 @@ document.getElementById('expenseForm').onsubmit = async (e) => {
       // 如果有新增 Settings 則重新讀取
       if (r.isNewWorker || r.isNewSubCat || r.isNewUnit) await fetchSettings();
 
-      const rowData = [
-        r.id || generateId(), r.日期, r.主類別, r.次類別, r.工人姓名, r.計薪方式,
-        r.數量, r.單位, r.單價, r.總額, r.含午餐 ? 'TRUE' : 'FALSE',
-        r.已支付 ? 'TRUE' : 'FALSE', r.附註,
-        isEdit ? (expenseData.find(x => x.id === id)?.建立時間 || now()) : now(),
-        now()
-      ];
+      let rowData = [];
+      let targetSheet = r._sourceSheet;
+
+      if (targetSheet === SHEET.EXPENSE_SALARY) {
+        rowData = [
+          r.id, r.日期, r.主類別, r.次類別, r.工人姓名, r.計薪方式,
+          r.上午上班, r.上午休息, r.下午上班, r.下午下班,
+          r.數量, r.單價, r.含午餐 ? 'TRUE' : 'FALSE', r.總額,
+          r.已支付 ? 'TRUE' : 'FALSE', r.支付日期, r.附註,
+          isEdit ? (expenseData.find(x => x.id === id)?.建立時間 || now()) : now(),
+          now()
+        ];
+      } else {
+        rowData = [
+          r.id, r.日期, r.主類別, r.次類別, r.數量, r.單價, r.總額,
+          r.已支付 ? 'TRUE' : 'FALSE', r.支付日期, r.附註,
+          isEdit ? (expenseData.find(x => x.id === id)?.建立時間 || now()) : now(),
+          now()
+        ];
+      }
 
       if (isEdit) {
-        const rowIdx = expenseData.findIndex(x => x.id === id) + 2;
-        await gapi.client.sheets.spreadsheets.values.update({
-          spreadsheetId: SPREADSHEET_ID, range: `${SHEET.EXPENSE}!A${rowIdx}:O${rowIdx}`,
-          valueInputOption: 'USER_ENTERED', resource: { values: [rowData] }
+        // 需要找到在該工作表中的正確行號
+        // 這裡暫時依賴 expenseData 的 index 可能不準確，因為是合併的
+        // 更好的做法是 fetch 時記錄原始 row index，但目前可以用 id 搜尋
+        const res = await gapi.client.sheets.spreadsheets.values.get({
+          spreadsheetId: SPREADSHEET_ID,
+          range: `${targetSheet}!A:A`
         });
+        const ids = (res.result.values || []).map(row => row[0]);
+        const rowIdx = ids.indexOf(id) + 1; // sheets 是 1-based
+        
+        if (rowIdx > 0) {
+          await gapi.client.sheets.spreadsheets.values.update({
+            spreadsheetId: SPREADSHEET_ID,
+            range: `${targetSheet}!A${rowIdx}`,
+            valueInputOption: 'USER_ENTERED',
+            resource: { values: [rowData] }
+          });
+        } else {
+          // 如果在新的表找不到，可能是在舊的「支出」表，或是出錯
+          showToast('找不到原始紀錄，可能已搬移', 'warning');
+        }
       } else {
         await gapi.client.sheets.spreadsheets.values.append({
-          spreadsheetId: SPREADSHEET_ID, range: `${SHEET.EXPENSE}!A:O`,
-          valueInputOption: 'USER_ENTERED', resource: { values: [rowData] }
+          spreadsheetId: SPREADSHEET_ID,
+          range: `${targetSheet}!A:A`,
+          valueInputOption: 'USER_ENTERED',
+          resource: { values: [rowData] }
         });
       }
     }
@@ -3103,14 +3248,35 @@ document.getElementById('confirmOk').onclick = async () => {
 };
 
 async function deleteRecord(type, id) {
-  const sheetName = type === 'income' ? SHEET.INCOME : SHEET.EXPENSE;
-  const dataArr = type === 'income' ? incomeData : expenseData;
-  const rowIdx = dataArr.findIndex(r => r.id === id) + 2;
+  let targetSheet = '';
+  let dataArr = [];
+
+  if (type === 'income') {
+    targetSheet = SHEET.MARKET_INCOME;
+    dataArr = incomeData;
+  } else {
+    const r = expenseData.find(x => x.id === id);
+    targetSheet = r?._sourceSheet || SHEET.EXPENSE;
+    dataArr = expenseData;
+  }
+
+  // 找出行號
+  const res = await gapi.client.sheets.spreadsheets.values.get({
+    spreadsheetId: SPREADSHEET_ID,
+    range: `${targetSheet}!A:A`
+  });
+  const ids = (res.result.values || []).map(row => row[0]);
+  const rowIdx = ids.indexOf(id) + 1;
+
+  if (rowIdx <= 0) {
+    showToast('找不到紀錄，無法刪除', 'error');
+    return;
+  }
 
   showLoader('刪除中...');
   try {
     const ss = await gapi.client.sheets.spreadsheets.get({ spreadsheetId: SPREADSHEET_ID });
-    const sheet = ss.result.sheets.find(s => s.properties.title === sheetName);
+    const sheet = ss.result.sheets.find(s => s.properties.title === targetSheet);
     if (!sheet) throw new Error('找不到工作表');
     await gapi.client.sheets.spreadsheets.batchUpdate({
       spreadsheetId: SPREADSHEET_ID,
