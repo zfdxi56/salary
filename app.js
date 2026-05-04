@@ -358,7 +358,7 @@ async function afterLogin() {
     document.getElementById('workspace').style.display = 'block';
     const fabCont = document.getElementById('fabContainer');
     if (fabCont) fabCont.style.display = 'block';
-    initFAB();
+    initAllEventListeners();
 
     switchTab('revenue');
     renderAll();
@@ -847,17 +847,20 @@ function initFAB() {
   const fabMain = document.getElementById('fabMain');
   const fabMenu = document.getElementById('fabMenu');
   if (!fabMain || !fabMenu) return;
+
   // 避免重複綁定
-  const newFabMain = fabMain.cloneNode(true);
-  fabMain.parentNode.replaceChild(newFabMain, fabMain);
-  newFabMain.addEventListener('click', (e) => {
+  if (fabMain._init) return;
+  fabMain._init = true;
+
+  fabMain.addEventListener('click', (e) => {
     e.stopPropagation();
     fabMenu.classList.toggle('open');
-    newFabMain.classList.toggle('active');
+    fabMain.classList.toggle('active');
   });
+
   document.addEventListener('click', () => {
     fabMenu.classList.remove('open');
-    newFabMain.classList.remove('active');
+    fabMain.classList.remove('active');
   }, { once: false });
 }
 
@@ -870,18 +873,25 @@ function handleFabAction(type) {
 
   if (type === 'income') {
     switchTab('revenue');
-    // 確保子頁在市場收入
-    document.querySelectorAll('.sub-tab-btn').forEach(b => b.classList.toggle('active', b.dataset.subtab === 'income'));
-    document.querySelectorAll('.sub-tab-page').forEach(p => p.classList.toggle('active', p.id === 'subpage-income'));
+    // 切換至市場收入子頁
+    const btn = document.getElementById('stab-income');
+    if (btn) btn.click();
     setTimeout(() => openIncomeModal(), 100);
   } else if (type === 'order') {
     switchTab('revenue');
-    document.querySelectorAll('.sub-tab-btn').forEach(b => b.classList.toggle('active', b.dataset.subtab === 'orders'));
-    document.querySelectorAll('.sub-tab-page').forEach(p => p.classList.toggle('active', p.id === 'subpage-orders'));
+    // 切換至客戶訂單子頁
+    const btn = document.getElementById('stab-orders');
+    if (btn) btn.click();
     setTimeout(() => openOrderModal(), 100);
   } else if (type === 'expense') {
     switchTab('expense');
-    setTimeout(() => openExpenseModal(), 100);
+    // 根據目前的支出子頁類型開啟對應表單
+    const isCosts = filterState.expense.type === 'material';
+    if (isCosts) {
+      setTimeout(() => openExpenseModal(null, 'material'), 100);
+    } else {
+      setTimeout(() => openExpenseModal(null, 'worker'), 100);
+    }
   }
 }
 
@@ -1110,49 +1120,8 @@ function initExpenseSubTabs() {
 }
 
 // ============================================================
-// 10. FAB 與快捷功能
+// 10. 快捷功能工具
 // ============================================================
-
-function initFAB() {
-  const mainBtn = document.getElementById('fabMain');
-  const menu = document.getElementById('fabMenu');
-  if (!mainBtn) return;
-
-  // 避免重複綁定
-  if (mainBtn._init) return;
-  mainBtn._init = true;
-
-  mainBtn.onclick = (e) => {
-    e.stopPropagation();
-    mainBtn.classList.toggle('open');
-    menu.classList.toggle('open');
-  };
-
-  document.addEventListener('click', () => {
-    mainBtn.classList.remove('open');
-    menu.classList.remove('open');
-  });
-}
-
-function handleFabAction(action) {
-  if (action === 'income') {
-    switchTab('revenue');
-    document.getElementById('stab-income').click();
-    document.getElementById('openIncomeFormBtn').click();
-  } else if (action === 'order') {
-    switchTab('revenue');
-    document.getElementById('stab-orders').click();
-    document.getElementById('openOrderFormBtn').click();
-  } else if (action === 'expense') {
-    switchTab('expense');
-    const isCosts = filterState.expense.type === 'material';
-    if (isCosts) {
-      document.getElementById('openCostFormBtn').click();
-    } else {
-      document.getElementById('openSalaryFormBtn').click();
-    }
-  }
-}
 
 function setFormDateToday(id) {
   const el = document.getElementById(id);
@@ -1243,7 +1212,9 @@ function duplicateRecord(type, data) {
   }
 }
 
-// 原始渲染統計已不再需要，由複合卡片與下方 real functions 接管
+// ============================================================
+// 10. 快捷功能工具
+// ============================================================
 
 // 收入總覽卡片（市場+訂單合計，依今年）
 function renderRevenueSummary() {
@@ -1251,7 +1222,7 @@ function renderRevenueSummary() {
 }
 
 // ============================================================
-// 9. 收入分頁
+// 12. 收入分頁
 // ============================================================
 
 /* Helper: 取得類別圖示 */
@@ -2206,10 +2177,9 @@ function setupEditModeToggle() {
 // ============================================================
 // 10. 收入表單 Modal
 // ============================================================
-document.getElementById('openIncomeFormBtn').onclick = () => openIncomeModal();
-document.getElementById('openOrderFormBtn').onclick = () => openOrderModal();
-document.getElementById('closeIncomeModal').onclick = closeIncomeModal;
-document.getElementById('cancelIncomeBtn').onclick = closeIncomeModal;
+// ============================================================
+// 11. 收入表單 Modal
+// ============================================================
 
 function openIncomeModal(record = null) {
   const isEdit = !!record;
@@ -2746,11 +2716,9 @@ function renderExpenseTable() {
 // ============================================================
 // 12. 支出表單 Modal
 // ============================================================
-document.getElementById('openSalaryFormBtn').onclick = () => openExpenseModal(null, 'worker');
-document.getElementById('openCostFormBtn').onclick = () => openExpenseModal(null, 'material');
-document.getElementById('closeExpenseModal').onclick = closeExpenseModal;
-document.getElementById('cancelExpenseBtn').onclick = closeExpenseModal;
-
+// ============================================================
+// 12. 支出表單 Modal
+// ============================================================
 function openExpenseModal(record = null, defaultType = null) {
   const isEdit = !!record;
   document.getElementById('expenseModalTitle').textContent = isEdit ? '編輯支出' : '新增支出';
@@ -3312,9 +3280,9 @@ async function deleteRecord(type, id) {
 // ============================================================
 // 12. 訂單表單 Modal & 邏輯
 // ============================================================
-document.getElementById('openOrderFormBtn').onclick = () => openOrderModal();
-document.getElementById('closeOrderModal').onclick = closeOrderModal;
-document.getElementById('cancelOrderBtn').onclick = closeOrderModal;
+// ============================================================
+// 13. 訂單分頁邏輯與表單
+// ============================================================
 
 function openOrderModal(recordId = null) {
   document.getElementById('orderForm').reset();
@@ -4447,5 +4415,39 @@ function renderBalanceMonthlyTable(incData, expData, orderDataFiltered = []) {
   });
 }
 // ============================================================
-// 17. 管理模式與初始化
+// 17. 全域事件初始化
+// ============================================================
 
+function initAllEventListeners() {
+  // 避免重複執行
+  if (window._listenersInited) return;
+  window._listenersInited = true;
+
+  console.log("Initializing all global event listeners...");
+
+  // 1. FAB 與 Tab
+  initFAB();
+  
+  // 2. 收入 Modal 關閉
+  document.getElementById('closeIncomeModal')?.addEventListener('click', closeIncomeModal);
+  document.getElementById('cancelIncomeBtn')?.addEventListener('click', closeIncomeModal);
+  
+  // 3. 支出 Modal 關閉
+  document.getElementById('closeExpenseModal')?.addEventListener('click', closeExpenseModal);
+  document.getElementById('cancelExpenseBtn')?.addEventListener('click', closeExpenseModal);
+  
+  // 4. 訂單 Modal 關閉
+  document.getElementById('closeOrderModal')?.addEventListener('click', closeOrderModal);
+  document.getElementById('cancelOrderBtn')?.addEventListener('click', closeOrderModal);
+
+  // 5. 其他 Modal (管理頁、複製預覽等)
+  document.getElementById('closeAdminModal')?.addEventListener('click', () => {
+    document.getElementById('adminModal').style.display = 'none';
+  });
+  document.getElementById('cancelCopyBtn')?.addEventListener('click', () => {
+    document.getElementById('copyModal').style.display = 'none';
+  });
+}
+
+// 在登入後或頁面載入完成後執行
+// 目前在 afterLogin 內調用
