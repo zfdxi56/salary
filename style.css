@@ -244,19 +244,25 @@ body {
    ================================================ */
 .tab-nav {
   position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
+  bottom: 1.25rem;
+  left: 50%;
+  transform: translateX(-50%);
+  width: calc(100% - 2.5rem);
+  max-width: 600px;
   z-index: 1000;
-  height: var(--tab-height);
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(10px);
-  border-top: 1px solid var(--border);
+  height: 68px;
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--border-warm);
+  border-radius: var(--radius-xl);
   display: grid;
   grid-template-columns: 1fr auto 1fr;
   align-items: center;
-  padding: 0 0.5rem;
-  box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
+  padding: 0 1rem;
+  box-shadow: 
+    0 10px 25px -5px rgba(80, 60, 20, 0.12),
+    0 8px 10px -6px rgba(80, 60, 20, 0.08);
 }
 .tab-group {
   display: flex;
@@ -336,12 +342,13 @@ body {
 }
 .fab-main .material-symbols-outlined { font-size: 26px; }
 
-/* FAB 展開選單（向下彈出） */
+/* FAB 展開選單（向上彈出） */
 .tab-fab-menu {
   position: absolute;
-  top: calc(100% + 8px);
+  bottom: calc(100% + 12px);
   left: 50%;
-  transform: translateX(-50%) translateY(-8px) scale(0.9);
+  transform: translateX(-50%) translateY(8px) scale(0.9);
+
   opacity: 0;
   pointer-events: none;
   display: flex;
@@ -387,9 +394,10 @@ body {
   display: block;
 }
 .page-inner {
-  max-width: 900px;
+  max-width: 860px;
   margin: 0 auto;
-  padding: 1rem;
+  padding: 1rem 1.25rem;
+  padding-bottom: 100px; /* 留給懸浮導覽列的空間 */
 }
 
 /* ================================================
@@ -1047,14 +1055,15 @@ body {
 .modal-overlay {
   position: fixed;
   inset: 0;
-  z-index: 100;
-  background: rgba(30, 20, 5, 0.45);
-  backdrop-filter: blur(6px);
+  z-index: 3000;
+  background: rgba(15, 10, 5, 0.6);
+  backdrop-filter: blur(8px);
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: center;
-  padding: 0;
+  padding: 1.5rem;
 }
+
 @media (min-width: 600px) {
   .modal-overlay { align-items: center; padding: 1rem; }
 }
@@ -1509,10 +1518,12 @@ input::placeholder { color: var(--text-xs); }
    ================================================ */
 .income-chart-layout {
   display: flex;
-  gap: 1rem;
+  gap: 2rem;
   align-items: center;
   flex-wrap: wrap;
   margin-top: 0.5rem;
+  padding: 0 0.5rem;
+  justify-content: center; /* 置中圖表內容 */
 }
 .income-pie-wrap {
   flex-shrink: 0;
@@ -2169,56 +2180,48 @@ input::placeholder { color: var(--text-xs); }
 
 
 .bulk-action-bar {
-
   position: fixed;
-
-  bottom: calc(var(--tab-height) + 20px);
-
+  bottom: 100px;
   left: 50%;
-
-  transform: translateX(-50%) translateY(100px);
-
+  transform: translateX(-50%) translateY(150px);
   background: white;
-
-  padding: 12px 24px;
-
-  border-radius: 30px;
-
-  box-shadow: 0 10px 25px rgba(0,0,0,0.15);
-
+  padding: 0.75rem 1.25rem;
+  border-radius: var(--radius-full);
+  box-shadow: var(--shadow-lg);
   display: flex;
-
   align-items: center;
-
-  gap: 16px;
-
-  z-index: 100;
-
-  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-
+  gap: 1rem;
+  z-index: 1001;
+  transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
   border: 1px solid var(--border-warm);
-
+  white-space: nowrap;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
 }
 
-
-
-.bulk-action-bar.visible {
-
+.bulk-action-bar.active {
   transform: translateX(-50%) translateY(0);
-
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
 }
+
 
 
 
 .bulk-info {
-
   font-size: 14px;
-
   color: var(--text);
-
   font-weight: 600;
-
 }
+
+/* 管理操作按鈕預設隱藏 */
+.admin-action, .btn-table-edit, .btn-table-del {
+  display: none;
+}
+
+
 
 
 

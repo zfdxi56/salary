@@ -167,10 +167,11 @@ async function fetchInitialData() {
   await fetchUsers(); // 檢查權限
   
   // 檢查是否為管理員
-  const userRecord = usersData.find(u => u.Email === currentUser.email);
-  isAdmin = userRecord && (userRecord.角色 === '管理員' || userRecord.角色 === 'admin');
+  const userRecord = usersData.find(u => (u.email || '').toLowerCase() === currentUser.email.toLowerCase());
+  isAdmin = userRecord && (userRecord.role === '管理員' || userRecord.role === 'admin');
   if (isAdmin) {
-    document.getElementById('tab-admin').style.display = 'inline-flex';
+    const tabAdmin = document.getElementById('tab-admin');
+    if (tabAdmin) tabAdmin.style.display = 'flex';
     const badge = document.getElementById('userRoleBadge');
     if (badge) { badge.textContent = '管理員'; badge.style.display = 'inline-block'; }
   }
@@ -271,10 +272,11 @@ const fieldMap = {
   '是否支付': '已支付',
   '支付日期': '支付日期',
 
-  // 共用
   '附註': '附註',
   '建立時間': '建立時間',
-  '最後更新': '最後更新'
+  '最後更新': '最後更新',
+  '角色': 'role',
+  'Email': 'email'
 };
 
 /**
@@ -537,7 +539,7 @@ async function afterLogin() {
     } else {
       currentUser = { email, role: userRow.role };
     }
-    isAdmin = currentUser.role === 'admin';
+    isAdmin = (currentUser.role === 'admin' || currentUser.role === '管理員');
 
     // 更新 header
     const currentName = userRow?.nickname || (email ? email.split('@')[0] : '訪客');
@@ -4048,7 +4050,7 @@ document.getElementById('doCopyBtn').onclick = () => {
 // ============================================================
 // 15. 管理頁面
 // ============================================================
-function renderAdminPage() {
+function renderAdminDashboard() {
   renderUserListAdmin();
   renderIncomeMainCatAdmin();
   renderExpenseMainCatAdmin();
@@ -4064,7 +4066,7 @@ function renderUserListAdmin() {
       <td>${u.email}</td>
       <td><span class="status-badge ${u.role === 'admin' ? 'paid' : 'pending'}">${u.role === 'admin' ? '管理員' : '使用者'}</span></td>
       <td><div class="table-actions">
-        <button class="btn-table-del" onclick="deleteUser(${i})" title="刪除"><span class="material-symbols-outlined">delete</span></button>
+        <button class="btn-table-del admin-action" onclick="deleteUser(${i})" title="刪除"><span class="material-symbols-outlined">delete</span></button>
       </div></td>`;
     tbody.appendChild(tr);
   });
@@ -4081,7 +4083,7 @@ function renderIncomeMainCatAdmin() {
         <td><strong>${c.名稱}</strong></td>
         <td>—</td>
         <td><div class="table-actions">
-          <button class="btn-table-del" onclick="deleteIncomeMainCat(${i})" title="刪除"><span class="material-symbols-outlined">delete</span></button>
+          <button class="btn-table-del admin-action" onclick="deleteIncomeMainCat(${i})" title="刪除"><span class="material-symbols-outlined">delete</span></button>
         </div></td>`;
       tbody.appendChild(tr);
     } else {
@@ -4090,7 +4092,7 @@ function renderIncomeMainCatAdmin() {
         tr.innerHTML = `
           <td>${si === 0 ? `<strong>${c.名稱}</strong>` : ''}</td>
           <td><span class="badge-sub">${sub}</span></td>
-          <td>${si === 0 ? `<div class="table-actions"><button class="btn-table-del" onclick="deleteIncomeMainCat(${i})" title="刪除"><span class="material-symbols-outlined">delete</span></button></div>` : ''}</td>`;
+          <td>${si === 0 ? `<div class="table-actions"><button class="btn-table-del admin-action" onclick="deleteIncomeMainCat(${i})" title="刪除"><span class="material-symbols-outlined">delete</span></button></div>` : ''}</td>`;
         tbody.appendChild(tr);
       });
     }
@@ -4110,8 +4112,8 @@ function renderExpenseMainCatAdmin() {
         <td>${sub.名稱}</td>
         <td>${sub.預設金額 ? `$${sub.預設金額}` : '—'}</td>
         <td><div class="table-actions">
-          ${si === 0 ? `<button class="btn-table-edit" onclick="editExpenseCat(${ci})" title="編輯主類別"><span class="material-symbols-outlined">edit</span></button>` : ''}
-          <button class="btn-table-del" onclick="deleteExpenseSubCat(${ci},${si})" title="刪除次類別"><span class="material-symbols-outlined">delete</span></button>
+          ${si === 0 ? `<button class="btn-table-edit admin-action" onclick="editExpenseCat(${ci})" title="編輯主類別"><span class="material-symbols-outlined">edit</span></button>` : ''}
+          <button class="btn-table-del admin-action" onclick="deleteExpenseSubCat(${ci},${si})" title="刪除次類別"><span class="material-symbols-outlined">delete</span></button>
         </div></td>`;
       tbody.appendChild(tr);
     });
@@ -4122,8 +4124,8 @@ function renderExpenseMainCatAdmin() {
         <td><span class="status-badge pending">${typeLabel}</span></td>
         <td>—</td><td>—</td>
         <td><div class="table-actions">
-           <button class="btn-table-edit" onclick="editExpenseCat(${ci})" title="編輯主類別"><span class="material-symbols-outlined">edit</span></button>
-          <button class="btn-table-del" onclick="deleteExpenseMainCat(${ci})" title="刪除主類別"><span class="material-symbols-outlined">delete</span></button>
+           <button class="btn-table-edit admin-action" onclick="editExpenseCat(${ci})" title="編輯主類別"><span class="material-symbols-outlined">edit</span></button>
+          <button class="btn-table-del admin-action" onclick="deleteExpenseMainCat(${ci})" title="刪除主類別"><span class="material-symbols-outlined">delete</span></button>
         </div></td>`;
       tbody.appendChild(tr);
     }
@@ -4140,8 +4142,8 @@ function renderWorkerListAdmin() {
       <td>$${w.預設時薪 || 190}</td>
       <td>$${w.預設日薪 || 1500}</td>
       <td><div class="table-actions">
-        <button class="btn-table-edit" onclick="editWorker(${i})" title="編輯"><span class="material-symbols-outlined">edit</span></button>
-        <button class="btn-table-del" onclick="deleteWorker(${i})" title="刪除"><span class="material-symbols-outlined">delete</span></button>
+        <button class="btn-table-edit admin-action" onclick="editWorker(${i})" title="編輯"><span class="material-symbols-outlined">edit</span></button>
+        <button class="btn-table-del admin-action" onclick="deleteWorker(${i})" title="刪除"><span class="material-symbols-outlined">delete</span></button>
       </div></td>`;
     tbody.appendChild(tr);
   });
@@ -5103,7 +5105,7 @@ window.toggleAdminEdit = function(btn) {
   }
 
   // 控制所有管理按鈕的顯示
-  document.querySelectorAll('.admin-action, .btn-row-edit, .btn-row-delete').forEach(el => {
+  document.querySelectorAll('.admin-action, .btn-table-edit, .btn-table-del, .btn-row-edit, .btn-row-delete').forEach(el => {
     el.style.display = adminEditMode ? 'inline-flex' : 'none';
   });
 
@@ -5239,3 +5241,196 @@ async function fetchUsers() {
 document.querySelectorAll('.tab-btn').forEach(btn => {
   btn.onclick = () => switchTab(btn.dataset.tab);
 });
+
+// ============================================================
+// 5. FAB 與 Modal 控制邏輯
+// ============================================================
+
+// --- FAB 控制 ---
+window.onload_fab = function() { 
+  const fabMain = document.getElementById('fabMain');
+  const fabMenu = document.getElementById('fabMenu');
+  
+  if (fabMain) {
+    fabMain.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const isActive = fabMain.classList.contains('active');
+      if (isActive) {
+        fabMain.classList.remove('active');
+        fabMenu.classList.remove('active');
+      } else {
+        fabMain.classList.add('active');
+        fabMenu.classList.add('active');
+      }
+    });
+  }
+
+  // 點擊外面關閉 FAB 選單
+  document.addEventListener('click', (e) => {
+    if (fabMenu && fabMenu.classList.contains('active') && !e.target.closest('#fabContainer')) {
+      fabMain.classList.remove('active');
+      fabMenu.classList.remove('active');
+    }
+  });
+};
+// 立即執行綁定
+setTimeout(window.onload_fab, 1000);
+
+window.handleFabAction = function(type) {
+  const fabMain = document.getElementById('fabMain');
+  const fabMenu = document.getElementById('fabMenu');
+  if (fabMain) fabMain.classList.remove('active');
+  if (fabMenu) fabMenu.classList.remove('active');
+  
+  if (type === 'income') {
+    openIncomeModal();
+  } else if (type === 'expense') {
+    openExpenseModal();
+  }
+};
+
+// --- Modal 控制 ---
+window.openIncomeModal = function() {
+  const modal = document.getElementById('incomeModal');
+  if (modal) modal.style.display = 'flex';
+  
+  // 隱藏 FAB
+  const fabWrap = document.getElementById('fabContainer');
+  if (fabWrap) fabWrap.style.display = 'none';
+
+  // 預設日期為今日
+  const dateInput = document.getElementById('incomeDate');
+  if (dateInput) {
+    const today = new Date();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
+    dateInput.value = `${today.getFullYear()}-${mm}-${dd}`;
+  }
+
+  // 載入主類別
+  const mainCatSelect = document.getElementById('incomeMainCat');
+  if (mainCatSelect) {
+    mainCatSelect.innerHTML = '<option value="">請選擇</option>';
+    settings.incomeMainCats.forEach(cat => {
+      mainCatSelect.innerHTML += `<option value="${cat.名稱}">${cat.名稱}</option>`;
+    });
+    
+    // 綁定聯動事件
+    mainCatSelect.onchange = () => {
+      const selectedMainCat = mainCatSelect.value;
+      
+      // 如果是水蜜桃，自動帶入等級
+      const gradesContainer = document.getElementById('incomeGradesContainer');
+      if (gradesContainer) {
+        gradesContainer.innerHTML = ''; // 清空現有
+        if (selectedMainCat.includes('水蜜桃')) {
+          const defaultGrades = ['2A', '3A', '4A', '5A', '6A'];
+          defaultGrades.forEach(grade => {
+            gradesContainer.innerHTML += `
+              <div class="grade-row" style="display:flex; gap:10px; margin-bottom:10px;">
+                <input type="text" value="${grade}" placeholder="等級" class="grade-name" style="width:60px;" readonly>
+                <input type="number" placeholder="箱數" class="grade-boxes" style="width:80px;">
+                <input type="number" placeholder="總重" class="grade-weight" style="width:80px;">
+                <button type="button" class="btn-icon-sm" style="color:var(--red);" onclick="this.parentElement.remove()">
+                  <span class="material-symbols-outlined">delete</span>
+                </button>
+              </div>
+            `;
+          });
+        } else {
+           // 預設一筆空資料
+           gradesContainer.innerHTML = `
+              <div class="grade-row" style="display:flex; gap:10px; margin-bottom:10px;">
+                <input type="text" placeholder="等級" class="grade-name" style="width:60px;">
+                <input type="number" placeholder="箱數" class="grade-boxes" style="width:80px;">
+                <input type="number" placeholder="總重" class="grade-weight" style="width:80px;">
+                <button type="button" class="btn-icon-sm" style="color:var(--red);" onclick="this.parentElement.remove()">
+                  <span class="material-symbols-outlined">delete</span>
+                </button>
+              </div>
+            `;
+        }
+      }
+    };
+  }
+};
+
+window.closeIncomeModal = function() {
+  const modal = document.getElementById('incomeModal');
+  if (modal) modal.style.display = 'none';
+  
+  // 恢復 FAB
+  const fabWrap = document.getElementById('fabContainer');
+  if (fabWrap) fabWrap.style.display = 'flex';
+};
+
+window.openExpenseModal = function() {
+  const modal = document.getElementById('expenseModal');
+  if (modal) modal.style.display = 'flex';
+  
+  // 隱藏 FAB
+  const fabWrap = document.getElementById('fabContainer');
+  if (fabWrap) fabWrap.style.display = 'none';
+
+  // 預設日期為今日
+  const dateInput = document.getElementById('expenseDate');
+  if (dateInput) {
+    const today = new Date();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
+    dateInput.value = `${today.getFullYear()}-${mm}-${dd}`;
+  }
+
+  // 載入主類別
+  const mainCatSelect = document.getElementById('expenseMainCat');
+  if (mainCatSelect) {
+    mainCatSelect.innerHTML = '<option value="">請選擇</option>';
+    mainCatSelect.innerHTML += '<option value="工人薪資">工人薪資</option>';
+    mainCatSelect.innerHTML += '<option value="資材成本">資材成本</option>';
+    
+    mainCatSelect.onchange = () => {
+      const type = mainCatSelect.value;
+      const workerFields = document.getElementById('expenseWorkerFields');
+      const materialFields = document.getElementById('expenseMaterialFields');
+      
+      if (type === '工人薪資') {
+        if(workerFields) workerFields.style.display = 'block';
+        if(materialFields) materialFields.style.display = 'none';
+        
+        // 預設薪資 200, 預設時間 7:00-12:00, 13:00-16:00
+        const wageInput = document.getElementById('workerWage');
+        if (wageInput) wageInput.value = '200';
+        
+        const amIn = document.getElementById('timeAmIn');
+        const amOut = document.getElementById('timeAmOut');
+        const pmIn = document.getElementById('timePmIn');
+        const pmOut = document.getElementById('timePmOut');
+        
+        if(amIn) amIn.value = '07:00';
+        if(amOut) amOut.value = '12:00';
+        if(pmIn) pmIn.value = '13:00';
+        if(pmOut) pmOut.value = '16:00';
+      } else {
+        if(workerFields) workerFields.style.display = 'none';
+        if(materialFields) materialFields.style.display = 'block';
+      }
+    };
+  }
+};
+
+window.closeExpenseModal = function() {
+  const modal = document.getElementById('expenseModal');
+  if (modal) modal.style.display = 'none';
+  
+  // 恢復 FAB
+  const fabWrap = document.getElementById('fabContainer');
+  if (fabWrap) fabWrap.style.display = 'flex';
+};
+
+// 綁定取消按鈕
+setTimeout(() => {
+  const btnIn = document.getElementById('cancelIncomeBtn');
+  const btnEx = document.getElementById('cancelExpenseBtn');
+  if(btnIn && !btnIn.onclick) btnIn.onclick = closeIncomeModal;
+  if(btnEx && !btnEx.onclick) btnEx.onclick = closeExpenseModal;
+}, 1500);

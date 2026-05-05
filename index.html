@@ -171,39 +171,40 @@
           </button>
         </div>
 
-        <!-- 收入篩選列 -->
+        <!-- ---- 市場收入子頁 ---- -->
+        <div id="subpage-income" class="sub-tab-page active">
+          <!-- 收入篩選列 -->
+          <div class="filter-bar" id="incomeFilterBar">
+            <div class="filter-chips" id="incomeMainCatChips"></div>
+            <div class="filter-chips sub" id="incomeSubCatChips" style="display:none"></div>
+            <div class="filter-tools">
+              <button class="btn-tool" id="incomeMultiSelectBtn" onclick="toggleMultiSelect('income')" title="多選模式">
+                <span class="material-symbols-outlined">checklist</span>
+              </button>
+              <button class="btn-tool" id="incomeClearFilter" title="清除篩選">
+                <span class="material-symbols-outlined">filter_alt_off</span>
+              </button>
+              <button class="btn-tool" id="incomeSortBtn" title="切換排序" data-order="desc">
+                <span class="material-symbols-outlined">sort</span>
+              </button>
+              <button class="btn-tool" id="incomeCopyBtn" title="複製明細">
+                <span class="material-symbols-outlined">content_copy</span>
+              </button>
+            </div>
+          </div>
 
-        <!-- 收入篩選列 -->
-        <div class="filter-bar" id="incomeFilterBar">
-          <div class="filter-chips" id="incomeMainCatChips"></div>
-          <div class="filter-chips sub" id="incomeSubCatChips" style="display:none"></div>
-          <div class="filter-tools">
-            <button class="btn-tool" id="incomeMultiSelectBtn" onclick="toggleMultiSelect('income')" title="多選模式">
-              <span class="material-symbols-outlined">checklist</span>
-            </button>
-            <button class="btn-tool" id="incomeClearFilter" title="清除篩選">
-              <span class="material-symbols-outlined">filter_alt_off</span>
-            </button>
-            <button class="btn-tool" id="incomeSortBtn" title="切換排序" data-order="desc">
-              <span class="material-symbols-outlined">sort</span>
-            </button>
-            <button class="btn-tool" id="incomeCopyBtn" title="複製明細">
-              <span class="material-symbols-outlined">content_copy</span>
-            </button>
+          <!-- 收入紀錄（折疊式） -->
+          <div id="incomeRecordContainer"></div>
+          <div id="incomeEmpty" class="empty-state" style="display:none">
+            <span class="material-symbols-outlined">inbox</span>
+            <p>尚無收入紀錄</p>
           </div>
         </div>
 
-        <!-- 收入紀錄（折疊式） -->
-        <div id="incomeRecordContainer"></div>
-        <div id="incomeEmpty" class="empty-state" style="display:none">
-          <span class="material-symbols-outlined">inbox</span>
-          <p>尚無收入紀錄</p>
-        </div>
-      </div>
+
 
       <!-- ---- 客戶訂單子頁 ---- -->
       <div id="subpage-orders" class="sub-tab-page">
-
         <!-- 訂單統計 -->
         <div class="card glass chart-card" id="orderChartCard">
           <div class="card-header">
@@ -217,14 +218,12 @@
               <button class="period-btn" data-period="month">本月</button>
             </div>
           </div>
-          <!-- 訂單圓餅圖 + 方格 -->
           <div class="income-chart-layout">
             <div class="income-pie-wrap">
               <canvas id="orderPieChart"></canvas>
             </div>
             <div id="orderChartArea" class="chart-area income-chart-right"></div>
           </div>
-          <!-- 未出貨等級/數量 -->
           <div id="orderUnshippedSummary" class="order-unshipped-summary" style="margin-top:0.75rem"></div>
         </div>
 
@@ -245,16 +244,17 @@
           </div>
         </div>
 
-        <!-- 訂單紀錄（依主類別分區塊折疊式） -->
         <div id="orderRecordContainer"></div>
         <div id="orderEmpty" class="empty-state" style="display:none">
           <span class="material-symbols-outlined">list_alt</span>
           <p>尚無訂單紀錄</p>
         </div>
       </div>
-
-  </div>
+    </div> <!-- .page-inner 正確關閉處，確保包含所有子分頁 -->
   </section>
+
+
+
 
   <!-- ==================== 支出分頁 ==================== -->
   <section id="page-expense" class="tab-page">
