@@ -56,25 +56,23 @@ let ordersData = [];    // 訂單資料
 let sheetHeadersCache = {}; // 快取試算表第一列標題
 
 // ============================================================
-// 3. Google API / GIS 初始化與登入邏輯
+// Google API / GIS 初始化與登入邏輯
 // ============================================================
-window.onload = function() {
-  console.log('Window Loaded - Initializing GAPI/GIS');
-  gapiLoaded();
-  gisLoaded();
-};
 
 function gapiLoaded() {
   gapi.load('client', intializeGapiClient);
 }
 
 async function intializeGapiClient() {
-  await gapi.client.init({
-    apiKey: '', // 如果需要 apiKey 可填寫
-    discoveryDocs: ['https://sheets.googleapis.com/$discovery/rest?version=v4'],
-  });
-  gapiInited = true;
-  maybeEnableAuth();
+  try {
+    await gapi.client.init({
+      discoveryDocs: ['https://sheets.googleapis.com/$discovery/rest?version=v4'],
+    });
+    gapiInited = true;
+    maybeEnableAuth();
+  } catch (err) {
+    console.error('GAPI Init Failed', err);
+  }
 }
 
 function gisLoaded() {
@@ -736,15 +734,15 @@ async function initSheetHeaders() {
   const ranges = [
     {
       range: `${SHEET.INCOME_CATS}!A1:F1`,
-      values: [['品種名稱', '備用', '品種次類別:, '產季', '等級', '備註']]
+      values: [['品種名稱', '備用', '品種次類別', '產季', '等級', '備註']]
     },
     {
       range: `${SHEET.RETAIL_PRICE}!A1:G1`,
-      values: [['品種主類別:, '品種次類別:, '等級', '單位(箱/袋)', '顆數', '收費(已含運)', '備註']]
+      values: [['品種主類別', '品種次類別', '等級', '單位(箱/袋)', '顆數', '收費(已含運)', '備註']]
     },
     {
       range: `${SHEET.EXPENSE_CATS}!A1:E1`,
-      values: [['主類別:, '次類別:, '類型', '預設金額', '備註']]
+      values: [['主類別', '次類別', '類型', '預設金額', '備註']]
     },
     {
       range: `${SHEET.WORKERS}!A1:C1`,
@@ -756,19 +754,19 @@ async function initSheetHeaders() {
     },
     {
       range: `${SHEET.MARKET_INCOME}!A1:R1`,
-      values: [['編號', '日期', '客戶類別', '客戶名稱', '品種主類別:, '品種次類別:, '等級資料', '總重(斤)', '箱數', '總價', '盤商價', '運費', '附註', '付款狀態', '對帳狀態', '建立時間', '最後更新', '附註2']]
+      values: [['編號', '日期', '客戶類別', '客戶名稱', '品種主類別', '品種次類別', '等級資料', '總重(斤)', '箱數', '總價', '盤商價', '運費', '附註', '付款狀態', '對帳狀態', '建立時間', '最後更新', '附註2']]
     },
     {
       range: `${SHEET.EXPENSE_SALARY}!A1:S1`,
-      values: [['編號', '日期', '主類別:, '次類別:, '工人姓名', '計薪方式', '上午-上班時間', '上午-休息時間', '下午-上班時間', '下午-下班時間', '時數/天數', '時薪/日薪金額', '含午餐', '總額', '是否支付', '支付日期', '附註', '建立時間', '最後更新']]
+      values: [['編號', '日期', '主類別', '次類別', '工人姓名', '計薪方式', '上午-上班時間', '上午-休息時間', '下午-上班時間', '下午-下班時間', '時數/天數', '時薪/日薪金額', '含午餐', '總額', '是否支付', '支付日期', '附註', '建立時間', '最後更新']]
     },
     {
       range: `${SHEET.EXPENSE_COST}!A1:L1`,
-      values: [['編號', '日期', '主類別:, '次類別:, '數量', '單價', '總額', '是否支付', '支付日期', '附註', '建立時間', '最後更新']]
+      values: [['編號', '日期', '主類別', '次類別', '數量', '單價', '總額', '是否支付', '支付日期', '附註', '建立時間', '最後更新']]
     },
     {
       range: `${SHEET.EXPENSE}!A1:O1`,
-      values: [['編號', '日期', '主類別:, '次類別:, '工人姓名', '計薪方式', '數量', '單位', '單價', '總額', '含午餐', '已支付', '附註', '建立時間', '最後更新']]
+      values: [['編號', '日期', '主類別', '次類別', '工人姓名', '計薪方式', '數量', '單位', '單價', '總額', '含午餐', '已支付', '附註', '建立時間', '最後更新']]
     },
     {
       range: `${SHEET.CUSTOMERS}!A1:G1`,
@@ -1260,7 +1258,7 @@ function renderCompositeDetails(mRows, oRows) {
     return map;
   };
 
-  const marketMap = groupByCat(mRows, '主類別:);
+  const marketMap = groupByCat(mRows, '主類別');
   const orderMap = groupByCat(oRows, '訂購品項');
 
   const buildHtml = (map) => {
