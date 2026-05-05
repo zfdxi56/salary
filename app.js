@@ -1026,50 +1026,44 @@ function initFAB() {
   const fabMenu = document.getElementById('fabMenu');
   if (!fabMain || !fabMenu) return;
 
-  // 避免重複綁定
   if (fabMain._init) return;
   fabMain._init = true;
 
   fabMain.addEventListener('click', (e) => {
     e.stopPropagation();
-    fabMenu.classList.toggle('open');
-    fabMain.classList.toggle('active');
+    const isOpen = fabMenu.classList.contains('open');
+    if (isOpen) {
+      fabMenu.classList.remove('open');
+      fabMain.classList.remove('open'); // 這是 CSS 用來旋轉 + 號的 class
+    } else {
+      fabMenu.classList.add('open');
+      fabMain.classList.add('open');
+    }
   });
 
-  document.addEventListener('click', () => {
-    fabMenu.classList.remove('open');
-    fabMain.classList.remove('active');
-  }, { once: false });
+  document.addEventListener('click', (e) => {
+    if (!fabMain.contains(e.target) && !fabMenu.contains(e.target)) {
+      fabMenu.classList.remove('open');
+      fabMain.classList.remove('open');
+    }
+  });
 }
 
 function handleFabAction(type) {
-  // 關閉 FAB 選單
   const fabMenu = document.getElementById('fabMenu');
   const fabMain = document.getElementById('fabMain');
   if (fabMenu) fabMenu.classList.remove('open');
-  if (fabMain) fabMain.classList.remove('active');
+  if (fabMain) fabMain.classList.remove('open');
 
   if (type === 'income') {
     switchTab('revenue');
-    // 切換至市場收入子頁
-    const btn = document.getElementById('stab-income');
-    if (btn) btn.click();
+    // 預設開啟市場收入，Modal 內可切換
     setTimeout(() => openIncomeModal(), 100);
-  } else if (type === 'order') {
-    switchTab('revenue');
-    // 切換至客戶訂單子頁
-    const btn = document.getElementById('stab-orders');
-    if (btn) btn.click();
-    setTimeout(() => openOrderModal(), 100);
   } else if (type === 'expense') {
     switchTab('expense');
-    // 根據目前的支出子頁類型開啟對應表單
+    // 根據目前的支出子頁類型開啟對應表單，Modal 內可切換
     const isCosts = filterState.expense.type === 'material';
-    if (isCosts) {
-      setTimeout(() => openExpenseModal(null, 'material'), 100);
-    } else {
-      setTimeout(() => openExpenseModal(null, 'worker'), 100);
-    }
+    setTimeout(() => openExpenseModal(null, isCosts ? 'material' : 'worker'), 100);
   }
 }
 
@@ -2362,8 +2356,15 @@ function setupEditModeToggle() {
 function openIncomeModal(record = null) {
   const isEdit = !!record;
   const titleEl = document.getElementById('incomeModalTitle');
-  if (titleEl) titleEl.textContent = isEdit ? '編輯收入' : '新增收入';
+  if (titleEl) titleEl.textContent = isEdit ? '編輯市場收入' : '市場收入';
   
+  const modal = document.getElementById('incomeModal');
+  if (modal) modal.style.display = 'flex';
+  
+  // 重置切換器
+  const toggle = document.querySelector('input[name="incomeTypeToggle"][value="income"]');
+  if (toggle) toggle.checked = true;
+
   const idEl = document.getElementById('incomeRecordId');
   if (idEl) idEl.value = isEdit ? record.id : '';
   
@@ -2418,7 +2419,6 @@ function openIncomeModal(record = null) {
     grades.forEach(g => addGradeRow(g));
   }
 
-  const modal = document.getElementById('incomeModal');
   if (modal) modal.style.display = 'flex';
 }
 
@@ -2928,8 +2928,13 @@ function renderExpenseTable() {
 // ============================================================
 function openExpenseModal(record = null, defaultType = null) {
   const isEdit = !!record;
-  document.getElementById('expenseModalTitle').textContent = isEdit ? '編輯支出' : '新增支出';
+  document.getElementById('expenseModalTitle').textContent = isEdit ? '編輯支出紀錄' : '支出紀錄';
   document.getElementById('expenseRecordId').value = isEdit ? record.id : '';
+  
+  // 同步切換器狀態
+  const typeVal = defaultType === 'material' ? 'cost' : 'salary';
+  const toggle = document.querySelector(`input[name="expenseTypeToggle"][value="${typeVal}"]`);
+  if (toggle) toggle.checked = true;
   document.getElementById('expenseDate').value = isEdit ? record.日期 : today();
   document.getElementById('expenseNotes').value = isEdit ? record.附註 : '';
   document.getElementById('expenseIsPaid').checked = isEdit ? record.已支付 : false;
@@ -3519,7 +3524,12 @@ async function deleteRecord(type, id) {
 function openOrderModal(recordId = null) {
   document.getElementById('orderForm').reset();
   document.getElementById('orderRecordId').value = recordId || '';
-  document.getElementById('orderModalTitle').textContent = recordId ? '編輯訂單' : '新增訂單';
+  document.getElementById('orderModalTitle').textContent = recordId ? '編輯客戶訂單' : '客戶訂單';
+  document.getElementById('orderModal').style.display = 'flex';
+
+  // 同步切換器狀態
+  const toggle = document.querySelector('input[name="orderTypeToggle"][value="order"]');
+  if (toggle) toggle.checked = true;
   
   // 填充下拉
   const catSel = document.getElementById('orderMainCat');
@@ -4650,17 +4660,65 @@ function renderBalanceMonthlyTable(incData, expData, orderDataFiltered = []) {
 // 17. 全域事件初始化
 // ============================================================
 
+function initModalTypeSwitchers() {
+  // 1. 收入 Modal 切換器
+  document.querySelectorAll('input[name="incomeTypeToggle"]').forEach(radio => {
+    radio.addEventListener('change', (e) => {
+      if (e.target.value === 'order') {
+        const date = document.getElementById('incomeDate').value;
+        closeIncomeModal();
+        openOrderModal();
+        if (date) document.getElementById('orderDate').value = date;
+        // 同步切換器狀態
+        const orderToggle = document.querySelector('input[name="orderTypeToggle"][value="order"]');
+        if (orderToggle) orderToggle.checked = true;
+      }
+    });
+  });
+
+  // 2. 訂單 Modal 切換器
+  document.querySelectorAll('input[name="orderTypeToggle"]').forEach(radio => {
+    radio.addEventListener('change', (e) => {
+      if (e.target.value === 'income') {
+        const date = document.getElementById('orderDate').value;
+        closeOrderModal();
+        openIncomeModal();
+        if (date) document.getElementById('incomeDate').value = date;
+        // 同步切換器狀態
+        const incomeToggle = document.querySelector('input[name="incomeTypeToggle"][value="income"]');
+        if (incomeToggle) incomeToggle.checked = true;
+      }
+    });
+  });
+
+  // 3. 支出 Modal 切換器
+  document.querySelectorAll('input[name="expenseTypeToggle"]').forEach(radio => {
+    radio.addEventListener('change', (e) => {
+      const type = e.target.value === 'salary' ? 'worker' : 'material';
+      // 取得目前的日期
+      const date = document.getElementById('expenseDate').value;
+      const recordId = document.getElementById('expenseRecordId').value;
+      
+      // 重新開啟 Modal 並指定類型（這會觸發 UI 更新）
+      openExpenseModal(recordId ? expenseData.find(r => r.id === recordId) : null, type);
+      if (date) document.getElementById('expenseDate').value = date;
+      
+      // 確保切換器狀態正確
+      const toggle = document.querySelector(`input[name="expenseTypeToggle"][value="${e.target.value}"]`);
+      if (toggle) toggle.checked = true;
+    });
+  });
+}
+
 function initAllEventListeners() {
-  // 避免重複執行
   if (window._listenersInited) return;
   window._listenersInited = true;
 
   console.log("Initializing all global event listeners...");
 
-  // 1. FAB 與 Tab
   initFAB();
+  initModalTypeSwitchers();
   
-  // 2. 收入 Modal 關閉
   document.getElementById('closeIncomeModal')?.addEventListener('click', closeIncomeModal);
   document.getElementById('cancelIncomeBtn')?.addEventListener('click', closeIncomeModal);
   
