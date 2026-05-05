@@ -15,16 +15,18 @@ const SCOPES = 'https://www.googleapis.com/auth/spreadsheets https://www.googlea
 const SHEET = {
   USERS: '使用者',
   INCOME_CATS: '設定_品種',
-  RETAIL_PRICE: '設定_對外販售金額',
+  RETAIL_PRICE: '設定_對外販售等級',
   EXPENSE_CATS: '設定_支出類別',
   WORKERS: '設定_工人名單',
   UNITS: '設定_單位清單',
   MARKET_INCOME: '市場收入',
   EXPENSE_SALARY: '支出_薪資',
   EXPENSE_COST: '支出_成本',
-  EXPENSE: '支出', // 保留舊的以防萬一
+  EXPENSE: '支出', // 保留舊名以防萬一
   CUSTOMERS: '客戶資料',
   ORDERS: '客戶訂單明細',
+  SETTINGS: '設定',
+  RETAIL_ORDERS: '零售訂單'
 };
 
 // ============================================================
@@ -52,6 +54,141 @@ let usersData = [];    // 使用者清單
 let customersData = []; // 客戶資料
 let ordersData = [];    // 訂單資料
 let sheetHeadersCache = {}; // 快取試算表第一列標題
+
+// ============================================================
+// 3. Google API / GIS 初始化與登入邏輯
+// ============================================================
+window.onload = function() {
+  console.log('Window Loaded - Initializing GAPI/GIS');
+  gapiLoaded();
+  gisLoaded();
+};
+
+function gapiLoaded() {
+  gapi.load('client', intializeGapiClient);
+}
+
+async function intializeGapiClient() {
+  await gapi.client.init({
+    apiKey: '', // 如果需要 apiKey 可填寫
+    discoveryDocs: ['https://sheets.googleapis.com/$discovery/rest?version=v4'],
+  });
+  gapiInited = true;
+  maybeEnableAuth();
+}
+
+function gisLoaded() {
+  tokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: CLIENT_ID,
+    scope: SCOPES,
+    callback: '', // 後續動態設定
+  });
+  gisInited = true;
+  maybeEnableAuth();
+}
+
+function maybeEnableAuth() {
+  if (gapiInited && gisInited) {
+    const authBtn = document.getElementById('authBtn');
+    if (authBtn) {
+      authBtn.style.display = 'inline-flex';
+      authBtn.onclick = handleAuthClick;
+    }
+  }
+}
+
+function handleAuthClick() {
+  tokenClient.callback = async (resp) => {
+    if (resp.error !== undefined) {
+      throw (resp);
+    }
+    // 儲存 Token
+    const token = gapi.client.getToken();
+    if (token) {
+      // 獲取使用者資訊
+      await fetchUserInfo();
+      await initializeApp();
+    }
+  };
+
+  if (gapi.client.getToken() === null) {
+    tokenClient.requestAccessToken({prompt: 'consent'});
+  } else {
+    tokenClient.requestAccessToken({prompt: ''});
+  }
+}
+
+async function fetchUserInfo() {
+  try {
+    const resp = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+      headers: { Authorization: `Bearer ${gapi.client.getToken().access_token}` }
+    });
+    const info = await resp.json();
+    currentUser = { email: info.email, name: info.name, picture: info.picture };
+    console.log('Logged in as:', currentUser.email);
+  } catch (err) {
+    console.error('Fetch user info failed', err);
+  }
+}
+
+async function initializeApp() {
+  showLoader('載入系統資料...');
+  try {
+    // 隱藏登入畫面，顯示主工作區
+    document.getElementById('authSection').style.display = 'none';
+    document.getElementById('workspace').style.display = 'block';
+    
+    // 更新 UI 使用者資訊
+    const nameEl = document.getElementById('userNameDisplay');
+    if (nameEl) nameEl.textContent = currentUser.name || currentUser.email.split('@')[0];
+    document.getElementById('userInfo').style.display = 'flex';
+    document.getElementById('logoutBtn').style.display = 'inline-flex';
+    document.getElementById('refreshBtn').style.display = 'inline-flex';
+
+    // 載入所有資料
+    await fetchInitialData();
+    
+    // 預設進入收入分頁
+    switchTab('revenue');
+    
+    showToast('系統初始化完成');
+  } catch (err) {
+    console.error('Init App Failed', err);
+    showToast('初始化失敗：' + err.message, 'error');
+  } finally {
+    hideLoader();
+  }
+}
+
+async function fetchInitialData() {
+  await fetchSettings();
+  await fetchIncome();
+  await fetchExpense();
+  await fetchCustomers();
+  await fetchOrders();
+  await fetchUsers(); // 檢查權限
+  
+  // 檢查是否為管理員
+  const userRecord = usersData.find(u => u.Email === currentUser.email);
+  isAdmin = userRecord && (userRecord.角色 === '管理員' || userRecord.角色 === 'admin');
+  if (isAdmin) {
+    document.getElementById('tab-admin').style.display = 'inline-flex';
+    const badge = document.getElementById('userRoleBadge');
+    if (badge) { badge.textContent = '管理員'; badge.style.display = 'inline-block'; }
+  }
+}
+
+// 登出邏輯
+window.handleLogout = function() {
+  const token = gapi.client.getToken();
+  if (token !== null) {
+    google.accounts.oauth2.revoke(token.access_token);
+    gapi.client.setToken('');
+    location.reload();
+  }
+};
+document.getElementById('logoutBtn').onclick = handleLogout;
+document.getElementById('refreshBtn').onclick = () => location.reload();
 
 // Settings 資料
 let settings = {
@@ -599,15 +736,15 @@ async function initSheetHeaders() {
   const ranges = [
     {
       range: `${SHEET.INCOME_CATS}!A1:F1`,
-      values: [['品種名稱', '備用', '品種次類別', '產季', '等級', '備註']]
+      values: [['品種名稱', '備用', '品種次類別:, '產季', '等級', '備註']]
     },
     {
       range: `${SHEET.RETAIL_PRICE}!A1:G1`,
-      values: [['品種主類別', '品種次類別', '等級', '單位(箱/袋)', '顆數', '收費(已含運)', '備註']]
+      values: [['品種主類別:, '品種次類別:, '等級', '單位(箱/袋)', '顆數', '收費(已含運)', '備註']]
     },
     {
       range: `${SHEET.EXPENSE_CATS}!A1:E1`,
-      values: [['主類別', '次類別', '類型', '預設金額', '備註']]
+      values: [['主類別:, '次類別:, '類型', '預設金額', '備註']]
     },
     {
       range: `${SHEET.WORKERS}!A1:C1`,
@@ -619,19 +756,19 @@ async function initSheetHeaders() {
     },
     {
       range: `${SHEET.MARKET_INCOME}!A1:R1`,
-      values: [['編號', '日期', '客戶類別', '客戶名稱', '品種主類別', '品種次類別', '等級資料', '總重(斤)', '箱數', '總價', '盤商價', '運費', '附註', '付款狀態', '對帳狀態', '建立時間', '最後更新', '附註2']]
+      values: [['編號', '日期', '客戶類別', '客戶名稱', '品種主類別:, '品種次類別:, '等級資料', '總重(斤)', '箱數', '總價', '盤商價', '運費', '附註', '付款狀態', '對帳狀態', '建立時間', '最後更新', '附註2']]
     },
     {
       range: `${SHEET.EXPENSE_SALARY}!A1:S1`,
-      values: [['編號', '日期', '主類別', '次類別', '工人姓名', '計薪方式', '上午-上班時間', '上午-休息時間', '下午-上班時間', '下午-下班時間', '時數/天數', '時薪/日薪金額', '含午餐', '總額', '是否支付', '支付日期', '附註', '建立時間', '最後更新']]
+      values: [['編號', '日期', '主類別:, '次類別:, '工人姓名', '計薪方式', '上午-上班時間', '上午-休息時間', '下午-上班時間', '下午-下班時間', '時數/天數', '時薪/日薪金額', '含午餐', '總額', '是否支付', '支付日期', '附註', '建立時間', '最後更新']]
     },
     {
       range: `${SHEET.EXPENSE_COST}!A1:L1`,
-      values: [['編號', '日期', '主類別', '次類別', '數量', '單價', '總額', '是否支付', '支付日期', '附註', '建立時間', '最後更新']]
+      values: [['編號', '日期', '主類別:, '次類別:, '數量', '單價', '總額', '是否支付', '支付日期', '附註', '建立時間', '最後更新']]
     },
     {
       range: `${SHEET.EXPENSE}!A1:O1`,
-      values: [['編號', '日期', '主類別', '次類別', '工人姓名', '計薪方式', '數量', '單位', '單價', '總額', '含午餐', '已支付', '附註', '建立時間', '最後更新']]
+      values: [['編號', '日期', '主類別:, '次類別:, '工人姓名', '計薪方式', '數量', '單位', '單價', '總額', '含午餐', '已支付', '附註', '建立時間', '最後更新']]
     },
     {
       range: `${SHEET.CUSTOMERS}!A1:G1`,
@@ -1123,7 +1260,7 @@ function renderCompositeDetails(mRows, oRows) {
     return map;
   };
 
-  const marketMap = groupByCat(mRows, '主類別');
+  const marketMap = groupByCat(mRows, '主類別:);
   const orderMap = groupByCat(oRows, '訂購品項');
 
   const buildHtml = (map) => {
@@ -2355,6 +2492,7 @@ function setupEditModeToggle() {
 // ============================================================
 
 function openIncomeModal(record = null) {
+  document.getElementById('fabContainer') ? (document.getElementById('fabContainer').style.display = 'none') : null;
   const fabWrap = document.getElementById('fabContainer');
   if (fabWrap) fabWrap.style.display = 'none';
 
@@ -2417,9 +2555,23 @@ function openIncomeModal(record = null) {
   const container = document.getElementById('gradeRowsContainer');
   if (container) {
     container.innerHTML = '';
-    const grades = isEdit && Array.isArray(record.等級資料) && record.等級資料.length > 0
-      ? record.等級資料
-      : [{ 等級: '3A', 斤數: '', 箱數: '' }];
+    let grades = [];
+    if (isEdit && Array.isArray(record.等級資料) && record.等級資料.length > 0) {
+      grades = record.等級資料;
+    } else {
+      const mainCat = sel.value || '';
+      if (mainCat.includes('水蜜桃')) {
+        grades = [
+          { 等級: '2A', 斤數: '', 箱數: '' },
+          { 等級: '3A', 斤數: '', 箱數: '' },
+          { 等級: '4A', 斤數: '', 箱數: '' },
+          { 等級: '5A', 斤數: '', 箱數: '' },
+          { 等級: '6A', 斤數: '', 箱數: '' }
+        ];
+      } else {
+        grades = [{ 等級: '3A', 斤數: '', 箱數: '' }];
+      }
+    }
     grades.forEach(g => addGradeRow(g));
   }
 
@@ -2940,6 +3092,7 @@ function renderExpenseTable() {
 // 12. 支出表單 Modal
 // ============================================================
 function openExpenseModal(record = null, defaultType = null) {
+  document.getElementById('fabContainer') ? (document.getElementById('fabContainer').style.display = 'none') : null;
   const fabWrap = document.getElementById('fabContainer');
   if (fabWrap) fabWrap.style.display = 'none';
   const isEdit = !!record;
@@ -2956,11 +3109,11 @@ function openExpenseModal(record = null, defaultType = null) {
   document.getElementById('includeLunch').checked = isEdit ? record.含午餐 : false;
   document.getElementById('expenseUnit').value = isEdit ? (record.單位 || '') : '';
   
-  // 新欄位：時間
-  document.getElementById('salaryMorningStart').value = isEdit ? (record.上午上班 || '') : '';
-  document.getElementById('salaryMorningEnd').value = isEdit ? (record.上午休息 || '') : '';
-  document.getElementById('salaryAfternoonStart').value = isEdit ? (record.下午上班 || '') : '';
-  document.getElementById('salaryAfternoonEnd').value = isEdit ? (record.下午下班 || '') : '';
+  // 新欄位：時間 (預設 7:00-12:00, 13:00-16:00)
+  document.getElementById('salaryMorningStart').value = isEdit ? (record.上午上班 || '') : '07:00';
+  document.getElementById('salaryMorningEnd').value = isEdit ? (record.上午休息 || '') : '12:00';
+  document.getElementById('salaryAfternoonStart').value = isEdit ? (record.下午上班 || '') : '13:00';
+  document.getElementById('salaryAfternoonEnd').value = isEdit ? (record.下午下班 || '') : '16:00';
   
   // 新欄位：支付日期
   const paidDateEl = document.getElementById('expensePaidDate');
@@ -3177,7 +3330,7 @@ document.querySelectorAll('input[name="wageType"]').forEach(radio => {
 
     if (wageType === 'hourly') {
       document.getElementById('expenseQty').value = '8';
-      document.getElementById('expenseUnitPrice').value = worker?.預設時薪 || '190';
+      document.getElementById('expenseUnitPrice').value = worker?.預設時薪 || '200';
     } else {
       document.getElementById('expenseQty').value = '1';
       document.getElementById('expenseUnitPrice').value = worker?.預設日薪 || '1500';
@@ -3194,7 +3347,7 @@ document.getElementById('expenseWorker').addEventListener('change', () => {
   if (!worker) return;
   const wageType = document.querySelector('input[name="wageType"]:checked').value;
   if (wageType === 'hourly') {
-    document.getElementById('expenseUnitPrice').value = worker.預設時薪 || '190';
+    document.getElementById('expenseUnitPrice').value = worker.預設時薪 || '200';
   } else {
     document.getElementById('expenseUnitPrice').value = worker.預設日薪 || '1500';
   }
@@ -4771,3 +4924,320 @@ function initAllEventListeners() {
 
 // 在登入後或頁面載入完成後執行
 // 目前在 afterLogin 內調用
+
+// --- 補全缺失的事件監聽器 ---
+document.getElementById('cancelIncomeBtn')?.addEventListener('click', closeIncomeModal);
+document.getElementById('cancelExpenseBtn')?.addEventListener('click', closeExpenseModal);
+document.getElementById('confirmCancel')?.addEventListener('click', () => {
+  const modal = document.getElementById('confirmModal');
+  if (modal) modal.style.display = 'none';
+});
+
+// ============================================================
+// 15. 批量操作邏輯 (一鍵對帳/結清)
+// ============================================================
+let multiSelectMode = { active: false, type: null };
+let selectedIds = new Set();
+
+window.toggleMultiSelect = function(type) {
+  if (multiSelectMode.active && multiSelectMode.type === type) {
+    cancelMultiSelect();
+    return;
+  }
+  
+  multiSelectMode.active = true;
+  multiSelectMode.type = type;
+  selectedIds.clear();
+  
+  // 顯示批量工具列
+  const bar = document.getElementById('bulkActionBar');
+  if (bar) bar.classList.add('active');
+  updateBulkCount();
+  
+  // 在所有紀錄項目上添加 Checkbox 或點擊選取樣式
+  document.querySelectorAll('.record-item').forEach(item => {
+    if (item.dataset.type === type || (type === 'salary' && item.dataset.type === 'expense')) {
+      item.classList.add('multi-select-ready');
+      item.onclick = (e) => {
+        if (multiSelectMode.active) {
+          e.preventDefault();
+          e.stopPropagation();
+          const id = item.dataset.id;
+          if (selectedIds.has(id)) {
+            selectedIds.delete(id);
+            item.classList.remove('selected');
+          } else {
+            selectedIds.add(id);
+            item.classList.add('selected');
+          }
+          updateBulkCount();
+        }
+      };
+    }
+  });
+};
+
+window.cancelMultiSelect = function() {
+  multiSelectMode.active = false;
+  multiSelectMode.type = null;
+  selectedIds.clear();
+  
+  const bar = document.getElementById('bulkActionBar');
+  if (bar) bar.classList.remove('active');
+  
+  document.querySelectorAll('.record-item').forEach(item => {
+    item.classList.remove('multi-select-ready', 'selected');
+    // 恢復原始點擊 (如果有)
+    item.onclick = null; 
+  });
+  
+  // 重新渲染表格以恢復原始事件
+  if (currentTab === 'revenue') renderIncomeTable();
+  if (currentTab === 'expense') renderExpenseTable();
+};
+
+function updateBulkCount() {
+  const countEl = document.getElementById('bulkCount');
+  if (countEl) countEl.textContent = selectedIds.size;
+}
+
+window.handleBulkSettle = async function() {
+  if (selectedIds.size === 0) {
+    showToast('請先選擇要處理的項目', 'warning');
+    return;
+  }
+  
+  const type = multiSelectMode.type;
+  const idsToUpdate = Array.from(selectedIds);
+  
+  showLoader('批次更新中...');
+  try {
+    // 根據類型決定更新哪個欄位
+    let field = '';
+    let newValue = '';
+    let targetSheet = '';
+    
+    if (type === 'income') {
+      field = '對帳狀態';
+      newValue = 'OK';
+      targetSheet = SHEET.MARKET_INCOME;
+    } else if (type === 'order') {
+      field = '對帳狀態';
+      newValue = 'OK';
+      targetSheet = SHEET.ORDERS;
+    } else if (type === 'salary') {
+      field = '已支付';
+      newValue = 'TRUE';
+      targetSheet = SHEET.EXPENSE_SALARY;
+    } else if (type === 'cost') {
+      field = '已支付';
+      newValue = 'TRUE';
+      targetSheet = SHEET.EXPENSE_COST;
+    }
+
+    // 呼叫後端批次更新 (假設後端有 updateRecords)
+    // 這裡使用循環調用作為備案，如果量大建議改用後端 batchUpdate
+    for (const id of idsToUpdate) {
+      await updateRecordInSheet(targetSheet, id, field, newValue);
+    }
+    
+    showToast(`✓ 已成功處理 ${idsToUpdate.length} 筆項目`);
+    cancelMultiSelect();
+    
+    // 重新載入數據
+    if (type === 'income' || type === 'order') await fetchIncome();
+    if (type === 'salary' || type === 'cost') await fetchExpense();
+    
+    renderIncomeTable();
+    renderExpenseTable();
+    renderIncomeChart();
+    renderExpenseChart();
+  } catch (err) {
+    console.error(err);
+    showToast('批次處理失敗', 'error');
+  } finally {
+    hideLoader();
+  }
+};
+
+async function updateRecordInSheet(sheetName, id, field, value) {
+  const res = await gapi.client.sheets.spreadsheets.values.get({
+    spreadsheetId: SPREADSHEET_ID,
+    range: `${sheetName}!A:A`
+  });
+  const ids = (res.result.values || []).map(row => row[0]);
+  const rowIdx = ids.indexOf(id) + 1;
+  if (rowIdx <= 0) return;
+
+  // 根據 sheetName 和 field 決定 Column
+  let col = 'A';
+  if (sheetName === SHEET.MARKET_INCOME) {
+    if (field === '對帳狀態') col = 'P'; // 假設 P 欄
+  } else if (sheetName === SHEET.EXPENSE_SALARY) {
+    if (field === '已支付') col = 'O'; 
+  } else if (sheetName === SHEET.EXPENSE_COST) {
+    if (field === '已支付') col = 'H';
+  }
+  
+  await gapi.client.sheets.spreadsheets.values.update({
+    spreadsheetId: SPREADSHEET_ID,
+    range: `${sheetName}!${col}${rowIdx}`,
+    valueInputOption: 'USER_ENTERED',
+    resource: { values: [[value]] }
+  });
+}
+
+// ============================================================
+// 16. 管理頁面編輯模式控管
+// ============================================================
+let adminEditMode = false;
+
+window.toggleAdminEdit = function(btn) {
+  adminEditMode = !adminEditMode;
+  
+  // 切換圖示顏色或內容
+  if (btn) {
+    btn.classList.toggle('active', adminEditMode);
+    const icon = btn.querySelector('.material-symbols-outlined');
+    if (icon) {
+      icon.textContent = adminEditMode ? 'edit_off' : 'edit_note';
+    }
+  }
+
+  // 控制所有管理按鈕的顯示
+  document.querySelectorAll('.admin-action, .btn-row-edit, .btn-row-delete').forEach(el => {
+    el.style.display = adminEditMode ? 'inline-flex' : 'none';
+  });
+
+  showToast(adminEditMode ? '已開啟管理編輯模式' : '已關閉管理編輯模式', 'info');
+};
+
+// 確保渲染表格時考慮編輯模式
+// (需在各個 renderAdminXXX 函數中加入對 adminEditMode 的判斷，
+//  或者透過 CSS 直接控制，這裡建議透過 CSS 類別更優雅)
+
+// ============================================================
+// 4. 通用導航與資料獲取
+// ============================================================
+window.switchTab = function(tabName) {
+  currentTab = tabName;
+  document.querySelectorAll('.tab-page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  
+  const page = document.getElementById('page-' + tabName);
+  const btn = document.querySelector(`.tab-btn[data-tab="${tabName}"]`);
+  if (page) page.classList.add('active');
+  if (btn) btn.classList.add('active');
+  
+  if (tabName === 'revenue') { renderIncomeChart(); renderIncomeTable(); }
+  if (tabName === 'expense') { renderExpenseChart(); renderExpenseTable(); }
+  if (tabName === 'balance') { renderBalancePage(); }
+  if (tabName === 'admin') { renderAdminDashboard(); }
+};
+let currentTab = 'revenue';
+
+async function fetchSettings() {
+  const res = await gapi.client.sheets.spreadsheets.values.get({
+    spreadsheetId: SPREADSHEET_ID,
+    range: `${SHEET.SETTINGS}!A:E`
+  });
+  const rows = res.result.values || [];
+  // 解析 settings... (簡化版)
+  settings.incomeMainCats = [];
+  rows.forEach(r => {
+    if (r[0] === '收入主類別') settings.incomeMainCats.push({ 名稱: r[1], 次類別: [], 等級: [] });
+  });
+}
+
+async function fetchIncome() {
+  const res = await gapi.client.sheets.spreadsheets.values.get({
+    spreadsheetId: SPREADSHEET_ID,
+    range: `${SHEET.MARKET_INCOME}!A:R`
+  });
+  const rows = res.result.values || [];
+  const headers = rows[0];
+  incomeData = rows.slice(1).map(r => {
+    let obj = {};
+    headers.forEach((h, i) => { obj[fieldMap[h] || h] = r[i]; });
+    // 特殊處理等級資料
+    try { obj.等級資料 = JSON.parse(obj.等級資料 || '[]'); } catch(e) { obj.等級資料 = []; }
+    return obj;
+  });
+}
+
+async function fetchExpense() {
+  const resSalary = await gapi.client.sheets.spreadsheets.values.get({
+    spreadsheetId: SPREADSHEET_ID,
+    range: `${SHEET.EXPENSE_SALARY}!A:O`
+  });
+  const resCost = await gapi.client.sheets.spreadsheets.values.get({
+    spreadsheetId: SPREADSHEET_ID,
+    range: `${SHEET.EXPENSE_COST}!A:H`
+  });
+  
+  const salaryRows = resSalary.result.values || [];
+  const salaryHeaders = salaryRows[0];
+  const salaryData = salaryRows.slice(1).map(r => {
+    let obj = { _sourceSheet: SHEET.EXPENSE_SALARY };
+    salaryHeaders.forEach((h, i) => { obj[fieldMap[h] || h] = r[i]; });
+    return obj;
+  });
+
+  const costRows = resCost.result.values || [];
+  const costHeaders = costRows[0];
+  const costData = costRows.slice(1).map(r => {
+    let obj = { _sourceSheet: SHEET.EXPENSE_COST };
+    costHeaders.forEach((h, i) => { obj[fieldMap[h] || h] = r[i]; });
+    return obj;
+  });
+
+  expenseData = [...salaryData, ...costData];
+}
+
+async function fetchCustomers() {
+  const res = await gapi.client.sheets.spreadsheets.values.get({
+    spreadsheetId: SPREADSHEET_ID,
+    range: `${SHEET.CUSTOMERS}!A:E`
+  });
+  const rows = res.result.values || [];
+  const headers = rows[0];
+  customersData = rows.slice(1).map(r => {
+    let obj = {};
+    headers.forEach((h, i) => { obj[fieldMap[h] || h] = r[i]; });
+    return obj;
+  });
+}
+
+async function fetchOrders() {
+  const res = await gapi.client.sheets.spreadsheets.values.get({
+    spreadsheetId: SPREADSHEET_ID,
+    range: `${SHEET.ORDERS}!A:R`
+  });
+  const rows = res.result.values || [];
+  const headers = rows[0];
+  ordersData = rows.slice(1).map(r => {
+    let obj = {};
+    headers.forEach((h, i) => { obj[fieldMap[h] || h] = r[i]; });
+    try { obj.等級資料 = JSON.parse(obj.等級資料 || '[]'); } catch(e) { obj.等級資料 = []; }
+    return obj;
+  });
+}
+
+async function fetchUsers() {
+  const res = await gapi.client.sheets.spreadsheets.values.get({
+    spreadsheetId: SPREADSHEET_ID,
+    range: `${SHEET.USERS}!A:C`
+  });
+  const rows = res.result.values || [];
+  const headers = rows[0];
+  usersData = rows.slice(1).map(r => {
+    let obj = {};
+    headers.forEach((h, i) => { obj[fieldMap[h] || h] = r[i]; });
+    return obj;
+  });
+}
+
+// 綁定 Tab 點擊事件
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.onclick = () => switchTab(btn.dataset.tab);
+});

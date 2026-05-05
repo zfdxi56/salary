@@ -178,14 +178,14 @@
           <div class="filter-chips" id="incomeMainCatChips"></div>
           <div class="filter-chips sub" id="incomeSubCatChips" style="display:none"></div>
           <div class="filter-tools">
+            <button class="btn-tool" id="incomeMultiSelectBtn" onclick="toggleMultiSelect('income')" title="多選模式">
+              <span class="material-symbols-outlined">checklist</span>
+            </button>
             <button class="btn-tool" id="incomeClearFilter" title="清除篩選">
               <span class="material-symbols-outlined">filter_alt_off</span>
             </button>
             <button class="btn-tool" id="incomeSortBtn" title="切換排序" data-order="desc">
               <span class="material-symbols-outlined">sort</span>
-            </button>
-            <button class="btn-tool" id="incomeEditModeBtn" title="管理模式">
-              <span class="material-symbols-outlined">edit_note</span>
             </button>
             <button class="btn-tool" id="incomeCopyBtn" title="複製明細">
               <span class="material-symbols-outlined">content_copy</span>
@@ -233,11 +233,11 @@
           <div class="chips-divider"></div>
           <div id="orderSubCatChips" class="filter-chips-row sub-cats"></div>
           <div class="filter-actions-group">
+            <button class="btn-tool" id="orderMultiSelectBtn" onclick="toggleMultiSelect('order')" title="多選模式">
+              <span class="material-symbols-outlined">checklist</span>
+            </button>
             <button class="btn-tool" id="orderClearFilter" title="清除篩選">
               <span class="material-symbols-outlined">filter_alt_off</span>
-            </button>
-            <button class="btn-tool" id="orderEditModeBtn" title="管理模式">
-              <span class="material-symbols-outlined">edit_note</span>
             </button>
             <button class="btn-tool" id="orderCopyBtn" title="複製訂單明細">
               <span class="material-symbols-outlined">content_copy</span>
@@ -329,6 +329,9 @@
         <div class="filter-bar" id="salaryFilterBar">
           <div class="filter-chips" id="salaryMainCatChips"></div>
           <div class="filter-tools">
+            <button class="btn-tool" id="salaryMultiSelectBtn" onclick="toggleMultiSelect('salary')" title="多選模式">
+              <span class="material-symbols-outlined">checklist</span>
+            </button>
             <button class="btn-tool" id="salaryClearFilter" title="清除篩選">
               <span class="material-symbols-outlined">filter_alt_off</span>
             </button>
@@ -350,6 +353,9 @@
         <div class="filter-bar" id="costFilterBar">
           <div class="filter-chips" id="costMainCatChips"></div>
           <div class="filter-tools">
+            <button class="btn-tool" id="costMultiSelectBtn" onclick="toggleMultiSelect('cost')" title="多選模式">
+              <span class="material-symbols-outlined">checklist</span>
+            </button>
             <button class="btn-tool" id="costClearFilter" title="清除篩選">
               <span class="material-symbols-outlined">filter_alt_off</span>
             </button>
@@ -475,10 +481,17 @@
       <!-- 客戶資料管理 -->
       <div class="card glass admin-card">
         <div class="card-header">
-          <h2><span class="material-symbols-outlined">people</span> 客戶資料管理</h2>
-          <button class="btn btn-sm btn-secondary" id="addCustomerBtn">
-            <span class="material-symbols-outlined">person_add</span> 新增客戶
-          </button>
+          <div class="header-main">
+            <h2><span class="material-symbols-outlined">people</span> 客戶資料管理</h2>
+          </div>
+          <div class="header-actions" style="display:flex; gap:8px;">
+            <button class="btn btn-sm btn-secondary admin-action" id="addCustomerBtn">
+              <span class="material-symbols-outlined">person_add</span> 新增客戶
+            </button>
+            <button class="btn-edit-toggle" onclick="toggleAdminEdit(this)" title="切換編輯模式">
+              <span class="material-symbols-outlined">edit_note</span>
+            </button>
+          </div>
         </div>
         <div class="table-wrap">
           <table class="records-table">
@@ -499,10 +512,17 @@
       <!-- 收入類別管理 -->
       <div class="card glass admin-card">
         <div class="card-header">
-          <h2><span class="material-symbols-outlined">trending_up</span> 收入類別管理</h2>
-          <button class="btn btn-sm btn-secondary" id="addIncomeMainCatBtn">
-            <span class="material-symbols-outlined">add</span> 新增
-          </button>
+          <div class="header-main">
+            <h2><span class="material-symbols-outlined">trending_up</span> 收入類別管理</h2>
+          </div>
+          <div class="header-actions" style="display:flex; gap:8px;">
+            <button class="btn btn-sm btn-secondary admin-action" id="addIncomeMainCatBtn">
+              <span class="material-symbols-outlined">add</span> 新增
+            </button>
+            <button class="btn-edit-toggle" onclick="toggleAdminEdit(this)" title="切換編輯模式">
+              <span class="material-symbols-outlined">edit_note</span>
+            </button>
+          </div>
         </div>
         <div class="table-wrap">
           <table class="records-table">
@@ -522,10 +542,17 @@
       <!-- 支出類別管理 -->
       <div class="card glass admin-card">
         <div class="card-header">
-          <h2><span class="material-symbols-outlined">trending_down</span> 支出類別管理</h2>
-          <button class="btn btn-sm btn-secondary" id="addExpenseMainCatBtn">
-            <span class="material-symbols-outlined">add</span> 新增
-          </button>
+          <div class="header-main">
+            <h2><span class="material-symbols-outlined">trending_down</span> 支出類別管理</h2>
+          </div>
+          <div class="header-actions" style="display:flex; gap:8px;">
+            <button class="btn btn-sm btn-secondary admin-action" id="addExpenseMainCatBtn">
+              <span class="material-symbols-outlined">add</span> 新增
+            </button>
+            <button class="btn-edit-toggle" onclick="toggleAdminEdit(this)" title="切換編輯模式">
+              <span class="material-symbols-outlined">edit_note</span>
+            </button>
+          </div>
         </div>
         <div class="table-wrap">
           <table class="records-table">
@@ -546,10 +573,17 @@
       <!-- 工人名單管理 -->
       <div class="card glass admin-card">
         <div class="card-header">
-          <h2><span class="material-symbols-outlined">groups</span> 工人名單</h2>
-          <button class="btn btn-sm btn-secondary" id="addWorkerBtn">
-            <span class="material-symbols-outlined">person_add</span> 新增
-          </button>
+          <div class="header-main">
+            <h2><span class="material-symbols-outlined">groups</span> 工人名單</h2>
+          </div>
+          <div class="header-actions" style="display:flex; gap:8px;">
+            <button class="btn btn-sm btn-secondary admin-action" id="addWorkerBtn">
+              <span class="material-symbols-outlined">person_add</span> 新增
+            </button>
+            <button class="btn-edit-toggle" onclick="toggleAdminEdit(this)" title="切換編輯模式">
+              <span class="material-symbols-outlined">edit_note</span>
+            </button>
+          </div>
         </div>
         <div class="table-wrap">
           <table class="records-table">
@@ -569,10 +603,17 @@
       <!-- 使用者權限清單（隱藏） -->
       <div class="card glass admin-card" style="display:none">
         <div class="card-header">
-          <h2><span class="material-symbols-outlined">manage_accounts</span> 使用者管理</h2>
-          <button class="btn btn-sm btn-secondary" id="addUserBtn">
-            <span class="material-symbols-outlined">person_add</span> 新增
-          </button>
+          <div class="header-main">
+            <h2><span class="material-symbols-outlined">manage_accounts</span> 使用者管理</h2>
+          </div>
+          <div class="header-actions" style="display:flex; gap:8px;">
+            <button class="btn btn-sm btn-secondary admin-action" id="addUserBtn">
+              <span class="material-symbols-outlined">person_add</span> 新增
+            </button>
+            <button class="btn-edit-toggle" onclick="toggleAdminEdit(this)" title="切換編輯模式">
+              <span class="material-symbols-outlined">edit_note</span>
+            </button>
+          </div>
         </div>
         <div class="table-wrap">
           <table class="records-table">
@@ -834,21 +875,21 @@
           <div class="form-row">
             <div class="input-wrap">
               <label for="salaryMorningStart">上午-上班</label>
-              <input type="time" id="salaryMorningStart">
+              <input type="time" id="salaryMorningStart" step="1800">
             </div>
             <div class="input-wrap">
               <label for="salaryMorningEnd">上午-休息</label>
-              <input type="time" id="salaryMorningEnd">
+              <input type="time" id="salaryMorningEnd" step="1800">
             </div>
           </div>
           <div class="form-row">
             <div class="input-wrap">
               <label for="salaryAfternoonStart">下午-上班</label>
-              <input type="time" id="salaryAfternoonStart">
+              <input type="time" id="salaryAfternoonStart" step="1800">
             </div>
             <div class="input-wrap">
               <label for="salaryAfternoonEnd">下午-下班</label>
-              <input type="time" id="salaryAfternoonEnd">
+              <input type="time" id="salaryAfternoonEnd" step="1800">
             </div>
           </div>
         </div>
@@ -1158,7 +1199,19 @@
 
 
 
+  <!-- 批量操作列 -->
+  <div id="bulkActionBar" class="bulk-action-bar">
+    <div class="bulk-info">已選擇 <span id="bulkCount">0</span> 筆紀錄</div>
+    <div class="bulk-btns">
+      <button class="btn-bulk btn-bulk-settle" onclick="handleBulkSettle()">
+        <span class="material-symbols-outlined">payments</span> 一鍵結清/對帳
+      </button>
+      <button class="btn-bulk btn-bulk-cancel" onclick="cancelMultiSelect()">
+        取消
+      </button>
+    </div>
+  </div>
+
   <script src="app.js"></script>
 </body>
-
 </html>
