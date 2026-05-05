@@ -51,6 +51,7 @@ let expenseData = [];  // 支出紀錄
 let usersData = [];    // 使用者清單
 let customersData = []; // 客戶資料
 let ordersData = [];    // 訂單資料
+let sheetHeadersCache = {}; // 快取試算表第一列標題
 
 // Settings 資料
 let settings = {
@@ -90,10 +91,79 @@ function showToast(msg, type = 'success') {
   const el = document.getElementById('toast');
   if (!el) return;
   el.textContent = msg;
-  el.style.background = type === 'error' ? 'var(--red)' : 'var(--text)';
+  // 依據 type 賦予 class，配合 CSS 變化
+  el.className = `toast ${type === 'error' ? 'toast-error' : 'toast-success'}`;
   el.style.display = 'block';
   clearTimeout(_toastTimer);
   _toastTimer = setTimeout(() => { el.style.display = 'none'; }, 3000);
+}
+
+// --- 動態欄位對齊 (Dynamic Field Mapping) ---
+// 這裡將「試算表欄位名稱(中文)」映射到 JS 準備寫入的屬性鍵值
+const fieldMap = {
+  // 收入/通用
+  '編號': 'id',
+  '日期': '日期',
+  '客戶類別': '客戶類別',
+  '客戶名稱': '客戶名稱',
+  '品種主類別': '主類別',
+  '品種次類別': '次類別',
+  '等級資料': '等級資料',
+  '總重(斤)': '總重',
+  '箱數': '箱數',
+  '總價': '總價',
+  '盤商價': '盤商價',
+  '運費': '運費',
+  '付款狀態': '付款狀態',
+  '對帳狀態': '對帳狀態',
+  
+  // 支出專用 (含薪資與成本)
+  '主類別': '主類別',
+  '次類別': '次類別',
+  '工人姓名': '工人姓名',
+  '計薪方式': '計薪方式',
+  '上午-上班時間': '上午上班',
+  '上午-休息時間': '上午休息',
+  '下午-上班時間': '下午上班',
+  '下午-下班時間': '下午下班',
+  '時數/天數': '時數天數',
+  '時薪/日薪金額': '單價',
+  '含午餐': '含午餐',
+  '數量': '數量',
+  '單位': '單位',
+  '單價': '單價',
+  '總額': '總額',
+  '是否支付': '已支付',
+  '支付日期': '支付日期',
+
+  // 共用
+  '附註': '附註',
+  '建立時間': '建立時間',
+  '最後更新': '最後更新'
+};
+
+/**
+ * 動態對齊函式
+ * @param {string} sheetName 目標工作表名稱
+ * @param {object} dataObj 準備寫入的資料物件 (Key 為 fieldMap 的 value)
+ * @returns {Array} 排序好的資料陣列
+ */
+function syncHeadersAndPrepareData(sheetName, dataObj) {
+  const headers = sheetHeadersCache[sheetName];
+  if (!headers || headers.length === 0) {
+    console.warn(`找不到 ${sheetName} 的標頭快取，可能發生錯誤。回退為空陣列。`);
+    return [];
+  }
+  const rowData = [];
+  headers.forEach((header) => {
+    const dataKey = fieldMap[header];
+    if (dataKey && dataObj.hasOwnProperty(dataKey)) {
+      rowData.push(dataObj[dataKey] !== undefined && dataObj[dataKey] !== null ? dataObj[dataKey] : '');
+    } else {
+      rowData.push(''); // 找不到對應的值則填空
+    }
+  });
+  return rowData;
 }
 
 // ============================================================
@@ -372,13 +442,93 @@ async function afterLogin() {
 }
 
 /**
+ * 處理 Token 過期的 UI 提示
+ */
+function showTokenRefreshPrompt() {
+  const btn = document.getElementById('tokenRefreshBtn');
+  if (btn) {
+    btn.style.display = 'flex';
+    btn.onclick = () => {
+      tokenClient.requestAccessToken({ prompt: 'consent' });
+      btn.style.display = 'none';
+    };
+  } else {
+    showToast('登入逾時，請重新登入', 'error');
+  }
+}
+
+/**
+ * 安全封裝的 Append (捕捉 401 錯誤並靜默重試)
+ */
+async function safeSheetsAppend(requestBody) {
+  try {
+    return await gapi.client.sheets.spreadsheets.values.append(requestBody);
+  } catch (err) {
+    if (err.status === 401) {
+      console.warn('Token 逾時，嘗試靜默更新...');
+      return new Promise((resolve, reject) => {
+        tokenClient.callback = async (resp) => {
+          if (resp.error) {
+            showTokenRefreshPrompt();
+            reject(resp);
+            return;
+          }
+          gapi.client.setToken(resp);
+          // 重試
+          try {
+            const retryRes = await gapi.client.sheets.spreadsheets.values.append(requestBody);
+            resolve(retryRes);
+          } catch (retryErr) {
+            reject(retryErr);
+          }
+        };
+        tokenClient.requestAccessToken({ prompt: '' });
+      });
+    }
+    throw err;
+  }
+}
+
+/**
+ * 安全封裝的 Update (捕捉 401 錯誤並靜默重試)
+ */
+async function safeSheetsUpdate(requestBody) {
+  try {
+    return await gapi.client.sheets.spreadsheets.values.update(requestBody);
+  } catch (err) {
+    if (err.status === 401) {
+      console.warn('Token 逾時，嘗試靜默更新...');
+      return new Promise((resolve, reject) => {
+        tokenClient.callback = async (resp) => {
+          if (resp.error) {
+            showTokenRefreshPrompt();
+            reject(resp);
+            return;
+          }
+          gapi.client.setToken(resp);
+          // 重試
+          try {
+            const retryRes = await gapi.client.sheets.spreadsheets.values.update(requestBody);
+            resolve(retryRes);
+          } catch (retryErr) {
+            reject(retryErr);
+          }
+        };
+        tokenClient.requestAccessToken({ prompt: '' });
+      });
+    }
+    throw err;
+  }
+}
+
+/**
  * 將使用者加入試算表
  */
 async function addUserToSheet(email, role) {
   try {
     const defaultNickname = email.split('@')[0];
     const row = [defaultNickname, email, role, now()];
-    await gapi.client.sheets.spreadsheets.values.append({
+    await safeSheetsAppend({
       spreadsheetId: SPREADSHEET_ID,
       range: `${SHEET.USERS}!A:D`,
       valueInputOption: 'USER_ENTERED',
@@ -393,7 +543,7 @@ async function addUserToSheet(email, role) {
  * 通用的附加資料到工作表
  */
 async function appendToSheet(sheetName, row) {
-  await gapi.client.sheets.spreadsheets.values.append({
+  await safeSheetsAppend({
     spreadsheetId: SPREADSHEET_ID,
     range: `${sheetName}!A:E`,
     valueInputOption: 'USER_ENTERED',
@@ -496,7 +646,7 @@ async function initSheetHeaders() {
     },
   ];
   for (const r of ranges) {
-    await gapi.client.sheets.spreadsheets.values.update({
+    await safeSheetsUpdate({
       spreadsheetId: SPREADSHEET_ID,
       range: r.range,
       valueInputOption: 'USER_ENTERED',
@@ -510,6 +660,7 @@ async function initSheetHeaders() {
 // ============================================================
 async function fetchAllData() {
   try {
+    await fetchHeadersCache(); // 先快取標頭
     await Promise.all([
       fetchUsers(),
       fetchSettings(),
@@ -521,6 +672,31 @@ async function fetchAllData() {
   } catch (e) {
     console.error(e);
     showToast('讀取資料失敗', 'error');
+  }
+}
+
+async function fetchHeadersCache() {
+  try {
+    const ranges = [
+      `${SHEET.MARKET_INCOME}!1:1`,
+      `${SHEET.EXPENSE_SALARY}!1:1`,
+      `${SHEET.EXPENSE_COST}!1:1`
+    ];
+    const res = await gapi.client.sheets.spreadsheets.values.batchGet({
+      spreadsheetId: SPREADSHEET_ID,
+      ranges: ranges
+    });
+    
+    if (res.result.valueRanges) {
+      res.result.valueRanges.forEach(vr => {
+        const sheetName = vr.range.split('!')[0].replace(/'/g, ''); // 移除可能的單引號
+        const values = vr.values ? vr.values[0] : [];
+        sheetHeadersCache[sheetName] = values;
+      });
+      console.log('Sheet headers cached:', sheetHeadersCache);
+    }
+  } catch (e) {
+    console.error('fetchHeadersCache 失敗:', e);
   }
 }
 
@@ -2298,6 +2474,17 @@ function addGradeRow(data = null) {
 
 document.getElementById('incomeForm').onsubmit = async (e) => {
   e.preventDefault();
+  const submitType = e.submitter ? e.submitter.value : 'close';
+  const btns = document.querySelectorAll('#incomeForm button[type="submit"]');
+  
+  const totalPrice = document.getElementById('incomeTotalPrice').value;
+  if (totalPrice && parseFloat(totalPrice) < 0) {
+    showToast('金額不可小於 0', 'error');
+    return;
+  }
+
+  btns.forEach(b => b.disabled = true);
+
   const id = document.getElementById('incomeRecordId').value;
   const isEdit = !!id;
 
@@ -2321,30 +2508,35 @@ document.getElementById('incomeForm').onsubmit = async (e) => {
   let isNewCat = false;
   if (mainCat === 'ADD_NEW') {
     mainCat = document.getElementById('incomeCustomCat').value.trim();
-    if (!mainCat) { showToast('請輸入新品種名稱', 'error'); return; }
+    if (!mainCat) { 
+      showToast('請輸入新品種名稱', 'error'); 
+      btns.forEach(b => b.disabled = false);
+      return; 
+    }
     isNewCat = true;
   }
 
-  const rowData = [
-    id || generateId(),
-    document.getElementById('incomeDate').value,
-    document.getElementById('incomeCustomerType') ? document.getElementById('incomeCustomerType').value : '一般',
-    document.getElementById('incomeCustomerName') ? document.getElementById('incomeCustomerName').value : '',
-    mainCat,
-    mainCat === '其他' ? document.getElementById('incomeOtherNote').value : (document.getElementById('incomeOtherNote').value || ''),
-    JSON.stringify(gradeData),
-    totalWeight || '',
-    totalBoxes || '',
-    document.getElementById('incomeTotalPrice').value,
-    document.getElementById('incomeDealerPrice').value,
-    document.getElementById('incomeShippingFee').value,
-    document.getElementById('incomeNotes').value,
-    document.getElementById('incomePaymentStatus') ? document.getElementById('incomePaymentStatus').value : '未付款',
-    document.getElementById('incomeReconStatus') ? document.getElementById('incomeReconStatus').value : '待對帳',
-    isEdit ? (incomeData.find(r => r.id === id)?.建立時間 || now()) : now(),
-    now(),
-    ''
-  ];
+  const dataObj = {
+    id: id || generateId(),
+    日期: document.getElementById('incomeDate').value,
+    客戶類別: document.getElementById('incomeCustomerType') ? document.getElementById('incomeCustomerType').value : '一般',
+    客戶名稱: document.getElementById('incomeCustomerName') ? document.getElementById('incomeCustomerName').value : '',
+    主類別: mainCat,
+    次類別: mainCat === '其他' ? document.getElementById('incomeOtherNote').value : (document.getElementById('incomeOtherNote').value || ''),
+    等級資料: JSON.stringify(gradeData),
+    總重: totalWeight || '',
+    箱數: totalBoxes || '',
+    總價: totalPrice,
+    盤商價: document.getElementById('incomeDealerPrice').value,
+    運費: document.getElementById('incomeShippingFee').value,
+    附註: document.getElementById('incomeNotes').value,
+    付款狀態: document.getElementById('incomePaymentStatus') ? document.getElementById('incomePaymentStatus').value : '未付款',
+    對帳狀態: document.getElementById('incomeReconStatus') ? document.getElementById('incomeReconStatus').value : '待對帳',
+    建立時間: isEdit ? (incomeData.find(r => r.id === id)?.建立時間 || now()) : now(),
+    最後更新: now()
+  };
+
+  const rowData = syncHeadersAndPrepareData(SHEET.MARKET_INCOME, dataObj);
 
   showLoader(isEdit ? '更新中...' : '儲存中...');
   try {
@@ -2354,14 +2546,14 @@ document.getElementById('incomeForm').onsubmit = async (e) => {
     }
     if (isEdit) {
       const rowIdx = incomeData.findIndex(r => r.id === id) + 2;
-      await gapi.client.sheets.spreadsheets.values.update({
+      await safeSheetsUpdate({
         spreadsheetId: SPREADSHEET_ID,
         range: `${SHEET.MARKET_INCOME}!A${rowIdx}:R${rowIdx}`,
         valueInputOption: 'USER_ENTERED',
         resource: { values: [rowData] }
       });
     } else {
-      await gapi.client.sheets.spreadsheets.values.append({
+      await safeSheetsAppend({
         spreadsheetId: SPREADSHEET_ID,
         range: `${SHEET.MARKET_INCOME}!A:R`,
         valueInputOption: 'USER_ENTERED',
@@ -2371,13 +2563,26 @@ document.getElementById('incomeForm').onsubmit = async (e) => {
     await fetchIncome();
     renderIncomeChart();
     renderIncomeTable();
-    closeIncomeModal();
+    
     showToast(isEdit ? '✓ 更新成功' : '✓ 收入已記錄');
+    
+    if (submitType === 'addNext') {
+      const currentDate = document.getElementById('incomeDate').value;
+      document.getElementById('incomeForm').reset();
+      document.getElementById('incomeRecordId').value = '';
+      document.getElementById('incomeDate').value = currentDate;
+      document.getElementById('gradeRowsContainer').innerHTML = '';
+      document.getElementById('incomeTotalPrice').focus();
+    } else {
+      closeIncomeModal();
+    }
   } catch (err) {
     console.error(err);
     showToast('儲存失敗：' + err.message, 'error');
+  } finally {
+    btns.forEach(b => b.disabled = false);
+    hideLoader();
   }
-  hideLoader();
 };
 
 // ============================================================
@@ -2976,6 +3181,17 @@ document.getElementById('expenseWorker').addEventListener('change', () => {
 
 document.getElementById('expenseForm').onsubmit = async (e) => {
   e.preventDefault();
+  const submitType = e.submitter ? e.submitter.value : 'close';
+  const btns = document.querySelectorAll('#expenseForm button[type="submit"]');
+
+  const qty = document.getElementById('expenseQty').value;
+  if (qty && parseFloat(qty) <= 0) {
+    showToast('數量必須大於 0', 'error');
+    return;
+  }
+
+  btns.forEach(b => b.disabled = true);
+
   const id = document.getElementById('expenseRecordId').value;
   const date = document.getElementById('expenseDate').value;
   const isEdit = !!id;
@@ -2996,10 +3212,13 @@ document.getElementById('expenseForm').onsubmit = async (e) => {
       計薪方式: '',
       含午餐: false,
       已支付: document.getElementById('expenseIsPaid').checked,
+      支付日期: document.getElementById('expensePaidDate').value,
       附註: document.getElementById('expenseNotes').value,
+      _sourceSheet: SHEET.EXPENSE_COST
     }));
     if (recordsToSave.length === 0) {
       showToast('請輸入有效的批次內容', 'error');
+      btns.forEach(b => b.disabled = false);
       return;
     }
   } else {
@@ -3016,14 +3235,22 @@ document.getElementById('expenseForm').onsubmit = async (e) => {
       workerName = document.getElementById('expenseWorker').value;
       if (workerName === 'ADD_NEW') {
         workerName = document.getElementById('expenseCustomWorker').value.trim();
-        if (!workerName) { showToast('請輸入姓名', 'error'); return; }
+        if (!workerName) { 
+          showToast('請輸入姓名', 'error'); 
+          btns.forEach(b => b.disabled = false);
+          return; 
+        }
         isNewWorker = true;
       }
     } else {
       subCat = subCatVal;
       if (subCat === 'ADD_NEW') {
         subCat = document.getElementById('expenseCustomSubCat').value.trim();
-        if (!subCat) { showToast('請輸入次類別項目名稱', 'error'); return; }
+        if (!subCat) { 
+          showToast('請輸入次類別項目名稱', 'error'); 
+          btns.forEach(b => b.disabled = false);
+          return; 
+        }
         isNewSubCat = true;
       }
     }
@@ -3032,7 +3259,6 @@ document.getElementById('expenseForm').onsubmit = async (e) => {
     if (unit && !settings.units.includes(unit)) isNewUnit = true;
 
     const wageType = isWorker ? document.querySelector('input[name="wageType"]:checked').value : '';
-    const qty = document.getElementById('expenseQty').value;
     const unitPrice = document.getElementById('expenseUnitPrice').value;
     const total = document.getElementById('expenseTotalPrice').value;
     const lunch = isWorker && document.getElementById('includeLunch').checked;
@@ -3048,14 +3274,16 @@ document.getElementById('expenseForm').onsubmit = async (e) => {
       單位: unit,
       單價: unitPrice,
       總額: total,
-      含午餐: lunch,
-      已支付: document.getElementById('expenseIsPaid').checked,
+      含午餐: lunch ? 'TRUE' : 'FALSE',
+      已支付: document.getElementById('expenseIsPaid').checked ? 'TRUE' : 'FALSE',
       支付日期: document.getElementById('expensePaidDate').value,
       附註: document.getElementById('expenseNotes').value,
       上午上班: document.getElementById('salaryMorningStart').value,
       上午休息: document.getElementById('salaryMorningEnd').value,
       下午上班: document.getElementById('salaryAfternoonStart').value,
       下午下班: document.getElementById('salaryAfternoonEnd').value,
+      建立時間: isEdit ? (expenseData.find(x => x.id === id)?.建立時間 || now()) : now(),
+      最後更新: now(),
       isNewWorker,
       isNewSubCat,
       isNewUnit,
@@ -3079,31 +3307,11 @@ document.getElementById('expenseForm').onsubmit = async (e) => {
       // 如果有新增 Settings 則重新讀取
       if (r.isNewWorker || r.isNewSubCat || r.isNewUnit) await fetchSettings();
 
-      let rowData = [];
       let targetSheet = r._sourceSheet;
-
-      if (targetSheet === SHEET.EXPENSE_SALARY) {
-        rowData = [
-          r.id, r.日期, r.主類別, r.次類別, r.工人姓名, r.計薪方式,
-          r.上午上班, r.上午休息, r.下午上班, r.下午下班,
-          r.數量, r.單價, r.含午餐 ? 'TRUE' : 'FALSE', r.總額,
-          r.已支付 ? 'TRUE' : 'FALSE', r.支付日期, r.附註,
-          isEdit ? (expenseData.find(x => x.id === id)?.建立時間 || now()) : now(),
-          now()
-        ];
-      } else {
-        rowData = [
-          r.id, r.日期, r.主類別, r.次類別, r.數量, r.單價, r.總額,
-          r.已支付 ? 'TRUE' : 'FALSE', r.支付日期, r.附註,
-          isEdit ? (expenseData.find(x => x.id === id)?.建立時間 || now()) : now(),
-          now()
-        ];
-      }
+      // 使用動態欄位對齊來產生陣列
+      let rowData = syncHeadersAndPrepareData(targetSheet, r);
 
       if (isEdit) {
-        // 需要找到在該工作表中的正確行號
-        // 這裡暫時依賴 expenseData 的 index 可能不準確，因為是合併的
-        // 更好的做法是 fetch 時記錄原始 row index，但目前可以用 id 搜尋
         const res = await gapi.client.sheets.spreadsheets.values.get({
           spreadsheetId: SPREADSHEET_ID,
           range: `${targetSheet}!A:A`
@@ -3112,18 +3320,17 @@ document.getElementById('expenseForm').onsubmit = async (e) => {
         const rowIdx = ids.indexOf(id) + 1; // sheets 是 1-based
         
         if (rowIdx > 0) {
-          await gapi.client.sheets.spreadsheets.values.update({
+          await safeSheetsUpdate({
             spreadsheetId: SPREADSHEET_ID,
             range: `${targetSheet}!A${rowIdx}`,
             valueInputOption: 'USER_ENTERED',
             resource: { values: [rowData] }
           });
         } else {
-          // 如果在新的表找不到，可能是在舊的「支出」表，或是出錯
           showToast('找不到原始紀錄，可能已搬移', 'warning');
         }
       } else {
-        await gapi.client.sheets.spreadsheets.values.append({
+        await safeSheetsAppend({
           spreadsheetId: SPREADSHEET_ID,
           range: `${targetSheet}!A:A`,
           valueInputOption: 'USER_ENTERED',
@@ -3135,13 +3342,36 @@ document.getElementById('expenseForm').onsubmit = async (e) => {
     await fetchExpense();
     renderExpenseChart();
     renderExpenseTable();
-    closeExpenseModal();
+    
     showToast(isEdit ? '✓ 更新成功' : `✓ 已記錄 ${recordsToSave.length} 筆項目`);
+    
+    if (submitType === 'addNext') {
+      const currentDate = document.getElementById('expenseDate').value;
+      const currentMainCat = document.getElementById('expenseMainCat').value;
+      document.getElementById('expenseForm').reset();
+      document.getElementById('expenseRecordId').value = '';
+      document.getElementById('expenseDate').value = currentDate;
+      document.getElementById('expenseMainCat').value = currentMainCat;
+      document.getElementById('expenseMainCat').dispatchEvent(new Event('change')); // 觸發畫面更新
+      
+      setTimeout(() => {
+        const workerSel = document.getElementById('expenseWorker');
+        if (workerSel && workerSel.offsetParent !== null) {
+            workerSel.focus();
+        } else {
+            document.getElementById('expenseQty').focus();
+        }
+      }, 50);
+    } else {
+      closeExpenseModal();
+    }
   } catch (err) {
     console.error(err);
     showToast('儲存失敗：系統發生錯誤，請重試', 'error');
+  } finally {
+    btns.forEach(b => b.disabled = false);
+    hideLoader();
   }
-  hideLoader();
 };
 
 /**

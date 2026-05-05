@@ -28,6 +28,12 @@
 
 <body>
 
+  <!-- Token 過期重新驗證按鈕 -->
+  <button id="tokenRefreshBtn" class="token-refresh-btn glass glass-effect" style="display:none">
+    <span class="material-symbols-outlined">key</span>
+    登入逾時，請點此重新驗證
+  </button>
+
   <!-- 頂部 Header -->
   <header class="app-header">
     <div class="header-left">
@@ -674,7 +680,8 @@
 
         <div class="modal-actions">
           <button type="button" class="btn btn-secondary" id="cancelIncomeBtn">取消</button>
-          <button type="submit" class="btn btn-primary" id="saveIncomeBtn">儲存</button>
+          <button type="submit" class="btn btn-primary" id="saveIncomeBtn" name="submitType" value="close">存並關閉</button>
+          <button type="submit" class="btn btn-primary" id="saveIncomeAddNextBtn" name="submitType" value="addNext">存並新增</button>
         </div>
       </form>
     </div>
@@ -836,7 +843,8 @@
 
         <div class="modal-actions">
           <button type="button" class="btn btn-secondary" id="cancelExpenseBtn">取消</button>
-          <button type="submit" class="btn btn-primary" id="saveExpenseBtn">儲存</button>
+          <button type="submit" class="btn btn-primary" id="saveExpenseBtn" name="submitType" value="close">存並關閉</button>
+          <button type="submit" class="btn btn-primary" id="saveExpenseAddNextBtn" name="submitType" value="addNext">存並新增</button>
         </div>
       </form>
     </div>
@@ -1079,7 +1087,7 @@
   </div>
 
   <!-- Loading Overlay -->
-  <div id="loader" class="loader-overlay" style="display:none">
+  <div id="loader" class="loader-overlay glass-effect" style="display:none">
     <div class="spinner"></div>
     <div class="loader-msg" id="loaderMsg">處理中...</div>
   </div>
