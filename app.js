@@ -473,9 +473,18 @@ async function handleMockLogin() {
   isAdmin = true;
   
   // 初始化畫布數據 (從 DEFAULT 中繼承)
-  settings.incomeMainCats = DEFAULT_INCOME_CATS.map(n => ({ 名稱: n, 次類別:[], 等級: GRADE_OPTIONS }));
+  settings.incomeMainCats = DEFAULT_INCOME_CATS.map(n => ({ 名稱: n, 次類別: [], 等級: GRADE_OPTIONS }));
   settings.expenseMainCats = DEFAULT_EXPENSE_CATS.map(c => ({ ...c }));
   settings.units = ['包', '罐', '箱', '件', '斤', '天', '小時'];
+  settings.workers = [
+    { 姓名: '阿土伯', 預設時薪: '200', 預設日薪: '1600' },
+    { 姓名: '小翠', 預設時薪: '190', 預設日薪: '1500' }
+  ];
+  customersData = [
+    { 客戶編號: 'C001', 客戶姓名: '林小姐', 電話: '0912-345678', 地址: '台中市...', 客戶來源: '介紹' },
+    { 客戶編號: 'C002', 客戶姓名: '王先生', 電話: '0921-888777', 地址: '台北市...', 客戶來源: 'FB' }
+  ];
+  ordersData = []; // 初始設為空，供後續測試新增用
   
   // 更新 UI
   document.getElementById('userRoleBadge').textContent = `測試管理員 · Antigravity`;
@@ -494,6 +503,7 @@ async function handleMockLogin() {
   try { renderAll(); } catch (e) { console.error('renderAll error:', e); }
   
   showToast('已進入測試模式 (Mock Mode)', 'success');
+  _loaderCount = 0;
   hideLoader();
 }
 
@@ -2763,7 +2773,7 @@ function renderExpenseChart() {
 
 
 // 期間切換 — 支出
-document.querySelector('#expenseChartCard').addEventListener('click', e => {
+document.querySelector('#expenseChartCard')?.addEventListener('click', e => {
   const btn = e.target.closest('.period-btn');
   if (!btn) return;
   document.querySelectorAll('#expenseChartCard .period-btn').forEach(b => b.classList.remove('active'));
@@ -2927,7 +2937,8 @@ document.getElementById('costSortBtn').onclick = function() {
   renderExpenseTable();
 };
 
-document.getElementById('expenseCopyBtn').onclick = () => openCopyModal('expense');
+const expenseCopyBtn = document.getElementById('expenseCopyBtn');
+if (expenseCopyBtn) expenseCopyBtn.onclick = () => openCopyModal('expense');
 
 // --- 表格（折疊式卡片版） ---
 function renderExpenseTable() {

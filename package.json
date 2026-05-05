@@ -22,6 +22,7 @@
   },
   "homepage": "https://github.com/zfdxi56/salary#readme",
   "dependencies": {
-    "chart.js": "^4.5.1"
+    "chart.js": "^4.5.1",
+    "jsdom": "^29.1.1"
   }
 }
