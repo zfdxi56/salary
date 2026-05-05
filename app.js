@@ -349,8 +349,9 @@ async function handleMockLogin() {
   document.getElementById('authSection').style.display = 'none';
   document.getElementById('workspace').style.display = 'block';
   const fabC = document.getElementById('fabContainer');
-  if (fabC) fabC.style.display = 'block';
+  if (fabC) fabC.style.display = 'flex';
   initFAB();
+  initAllEventListeners();
 
   switchTab('revenue');
   try { renderAll(); } catch (e) { console.error('renderAll error:', e); }
@@ -427,7 +428,7 @@ async function afterLogin() {
     document.getElementById('authSection').style.display = 'none';
     document.getElementById('workspace').style.display = 'block';
     const fabCont = document.getElementById('fabContainer');
-    if (fabCont) fabCont.style.display = 'block';
+    if (fabCont) fabCont.style.display = 'flex';
     const refreshBtn = document.getElementById('refreshBtn');
     if (refreshBtn) refreshBtn.style.display = 'inline-flex';
     initAllEventListeners();
@@ -2354,6 +2355,9 @@ function setupEditModeToggle() {
 // ============================================================
 
 function openIncomeModal(record = null) {
+  const fabWrap = document.getElementById('fabContainer');
+  if (fabWrap) fabWrap.style.display = 'none';
+
   const isEdit = !!record;
   const titleEl = document.getElementById('incomeModalTitle');
   if (titleEl) titleEl.textContent = isEdit ? '編輯市場收入' : '市場收入';
@@ -2437,6 +2441,8 @@ window.openFillPriceModal = function(id) {
 function closeIncomeModal() {
   const modal = document.getElementById('incomeModal');
   if (modal) modal.style.display = 'none';
+  const fabWrap = document.getElementById('fabContainer');
+  if (fabWrap) fabWrap.style.display = 'flex';
   const form = document.getElementById('incomeForm');
   if (form) form.reset();
   const otherWrap = document.getElementById('incomeOtherNoteWrap');
@@ -2568,10 +2574,17 @@ document.getElementById('incomeForm').onsubmit = async (e) => {
     
     if (submitType === 'addNext') {
       const currentDate = document.getElementById('incomeDate').value;
+      const currentMainCat = document.getElementById('incomeMainCat').value;
       document.getElementById('incomeForm').reset();
       document.getElementById('incomeRecordId').value = '';
       document.getElementById('incomeDate').value = currentDate;
+      document.getElementById('incomeMainCat').value = currentMainCat;
+      // 重置次類別與客戶
+      const subCatWrap = document.getElementById('incomeSubCatWrap');
+      if (subCatWrap) subCatWrap.style.display = 'none';
       document.getElementById('gradeRowsContainer').innerHTML = '';
+      // 觸發 mainCat change 以重新填充等級列
+      document.getElementById('incomeMainCat').dispatchEvent(new Event('change'));
       document.getElementById('incomeTotalPrice').focus();
     } else {
       closeIncomeModal();
@@ -2927,6 +2940,8 @@ function renderExpenseTable() {
 // 12. 支出表單 Modal
 // ============================================================
 function openExpenseModal(record = null, defaultType = null) {
+  const fabWrap = document.getElementById('fabContainer');
+  if (fabWrap) fabWrap.style.display = 'none';
   const isEdit = !!record;
   document.getElementById('expenseModalTitle').textContent = isEdit ? '編輯支出紀錄' : '支出紀錄';
   document.getElementById('expenseRecordId').value = isEdit ? record.id : '';
@@ -2982,6 +2997,8 @@ window.openExpenseEdit = openExpenseEdit;
 function closeExpenseModal() {
   const modal = document.getElementById('expenseModal');
   if (modal) modal.style.display = 'none';
+  const fabWrap = document.getElementById('fabContainer');
+  if (fabWrap) fabWrap.style.display = 'flex';
   const form = document.getElementById('expenseForm');
   if (form) form.reset();
   const workerWrap = document.getElementById('expenseCustomWorkerWrap');
@@ -3357,8 +3374,15 @@ document.getElementById('expenseForm').onsubmit = async (e) => {
       document.getElementById('expenseRecordId').value = '';
       document.getElementById('expenseDate').value = currentDate;
       document.getElementById('expenseMainCat').value = currentMainCat;
-      document.getElementById('expenseMainCat').dispatchEvent(new Event('change')); // 觸發畫面更新
-      
+      // 重置所有條件顯示欄位
+      ['workerNameWrap','expenseCustomWorkerWrap','wageTypeWrap','workerSubCatWrap',
+       'generalSubCatWrap','expenseCustomSubCatWrap','expenseBulkInputWrap',
+       'salaryTimeFields','expensePaidDateWrap','lunchAllowanceWrap'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = 'none';
+      });
+      // 觸發 change 重建 UI
+      document.getElementById('expenseMainCat').dispatchEvent(new Event('change'));
       setTimeout(() => {
         const workerSel = document.getElementById('expenseWorker');
         if (workerSel && workerSel.offsetParent !== null) {
@@ -3390,39 +3414,39 @@ function parseBulkInput(text) {
   const result = [];
   
   lines.forEach(line => {
-    // 正則：(項目) (數量) (單位) (價格標誌) (數字)
-    // 範例：農藥A 1包 $500
-    // 範例：農藥B 2包 =400
-    const match = line.match(/^(.+?)\s+([\d.]+)\s*(\S+?)\s+([$=])?\s*(\d+)$/);
-    if (match) {
-      const name = match[1];
-      const qty = parseFloat(match[2]);
-      const unit = match[3];
-      const type = match[4]; // '$' or '='
-      const priceVal = parseFloat(match[5]);
-      
-      let unitPrice = 0;
-      let total = 0;
-      
-      if (type === '=') {
-        total = priceVal;
-        unitPrice = Math.round(total / qty);
-      } else {
-        // 預設為單價 (含 $ 或無標誌)
-        unitPrice = priceVal;
-        total = Math.round(qty * unitPrice);
-      }
-      
-      result.push({
-        id: generateId(),
-        次類別: name,
-        工人姓名: '',
-        數量: qty,
-        單位: unit,
-        單價: unitPrice,
-        總額: total,
-      });
+    // 格式 1：項目 數量 單位 $單價   → 以單價計算總額
+    // 格式 2：項目 數量 單位 =總額   → 以總額反推單價
+    // 格式 3：項目 數量 單位 數字    → 預設視為單價
+    const match = line.match(/^(.+?)\s+([\d.]+)\s*(\S+)\s+[$=]?\s*([\d.]+)$/);
+    if (!match) return;
+
+    const name = match[1].trim();
+    const qty = parseFloat(match[2]);
+    const unit = match[3].trim();
+    const rawPriceStr = line.slice(match[0].lastIndexOf(match[3]) + match[3].length).trim();
+    const isTotal = rawPriceStr.startsWith('=');
+    const priceVal = parseFloat(match[4]);
+    
+    if (!name || isNaN(qty) || qty <= 0 || isNaN(priceVal)) return;
+
+    let unitPrice, total;
+    if (isTotal) {
+      total = priceVal;
+      unitPrice = qty > 0 ? Math.round(total / qty) : 0;
+    } else {
+      unitPrice = priceVal;
+      total = Math.round(qty * unitPrice);
     }
+    
+    result.push({
+      id: generateId(),
+      次類別: name,
+      工人姓名: '',
+      數量: qty,
+      單位: unit,
+      單價: unitPrice,
+      總額: total,
+    });
   });
   return result;
 }
@@ -3522,6 +3546,8 @@ async function deleteRecord(type, id) {
 // ============================================================
 
 function openOrderModal(recordId = null) {
+  const fabWrap = document.getElementById('fabContainer');
+  if (fabWrap) fabWrap.style.display = 'none';
   document.getElementById('orderForm').reset();
   document.getElementById('orderRecordId').value = recordId || '';
   document.getElementById('orderModalTitle').textContent = recordId ? '編輯客戶訂單' : '客戶訂單';
@@ -3590,7 +3616,11 @@ function openOrderModal(recordId = null) {
   document.getElementById('orderModal').style.display = 'flex';
 }
 
-function closeOrderModal() { document.getElementById('orderModal').style.display = 'none'; }
+function closeOrderModal() {
+  document.getElementById('orderModal').style.display = 'none';
+  const fabWrap = document.getElementById('fabContainer');
+  if (fabWrap) fabWrap.style.display = 'flex';
+}
 
 document.getElementById('orderMainCat').addEventListener('change', triggerOrderMainCatChange);
 document.getElementById('orderSubCat').addEventListener('change', triggerOrderGradeChange);

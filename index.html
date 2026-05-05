@@ -6,24 +6,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>假日果園收支記帳</title>
   <meta name="description" content="山上果園種植成本與收入記帳管理系統">
+  <link rel="icon" type="image/png" href="./icon.png">
+  <link rel="apple-touch-icon" href="./icon.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="./icon.png">
   <link rel="stylesheet" href="style.css">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0"
-    rel="stylesheet">
-  <link rel="icon"
-    href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🍎</text></svg>">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700;900&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet">
   <script src="https://accounts.google.com/gsi/client" async defer></script>
   <script src="https://apis.google.com/js/api.js"></script>
-  <!-- 引入 Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-  <head>
-    <!--  放入這三行開始 -->
-    <link rel="icon" type="image/png" href="./icon.png">
-    <link rel="apple-touch-icon" href="./icon.png">
-    <link rel="apple-touch-icon" sizes="180x180" href="./icon.png">
-    <!--  放入這三行結束 -->
-  </head>
 </head>
 
 <body>
@@ -74,23 +65,48 @@
   <div id="workspace" style="display:none">
 
     <!-- Tab 導航 -->
-    <nav class="tab-nav">
-      <button class="tab-btn active" data-tab="revenue" id="tab-revenue">
-        <span class="material-symbols-outlined">payments</span>
-        <span>收入</span>
-      </button>
-      <button class="tab-btn" data-tab="expense" id="tab-expense">
-        <span class="material-symbols-outlined">trending_down</span>
-        <span>支出</span>
-      </button>
-      <button class="tab-btn" data-tab="balance" id="tab-balance">
-        <span class="material-symbols-outlined">account_balance_wallet</span>
-        <span>結餘</span>
-      </button>
-      <button class="tab-btn" data-tab="admin" id="tab-admin" style="display:none">
-        <span class="material-symbols-outlined">settings</span>
-        <span>管理</span>
-      </button>
+    <nav class="tab-nav" id="tabNav">
+      <!-- 左側 tabs -->
+      <div class="tab-group">
+        <button class="tab-btn active" data-tab="revenue" id="tab-revenue">
+          <span class="material-symbols-outlined">payments</span>
+          <span>收入</span>
+        </button>
+        <button class="tab-btn" data-tab="expense" id="tab-expense">
+          <span class="material-symbols-outlined">trending_down</span>
+          <span>支出</span>
+        </button>
+      </div>
+
+      <!-- 中央 FAB -->
+      <div class="tab-fab-wrap" id="fabContainer" style="display:none">
+        <!-- 彈出選單 -->
+        <div class="tab-fab-menu" id="fabMenu">
+          <div class="fab-item item-income" onclick="handleFabAction('income')">
+            <span class="material-symbols-outlined">add_card</span>
+            <span class="fab-label">新增收入</span>
+          </div>
+          <div class="fab-item item-expense" onclick="handleFabAction('expense')">
+            <span class="material-symbols-outlined">payments</span>
+            <span class="fab-label">新增支出</span>
+          </div>
+        </div>
+        <button class="fab-main" id="fabMain" title="快速新增">
+          <span class="material-symbols-outlined">add</span>
+        </button>
+      </div>
+
+      <!-- 右側 tabs -->
+      <div class="tab-group">
+        <button class="tab-btn" data-tab="balance" id="tab-balance">
+          <span class="material-symbols-outlined">account_balance_wallet</span>
+          <span>結餘</span>
+        </button>
+        <button class="tab-btn" data-tab="admin" id="tab-admin" style="display:none">
+          <span class="material-symbols-outlined">settings</span>
+          <span>管理</span>
+        </button>
+      </div>
     </nav>
 
     <!-- ==================== 收入分頁（包住市場收入 + 客戶訂單） ==================== -->
@@ -1140,22 +1156,7 @@
   <!-- Toast 通知 -->
   <div id="toast" class="toast" style="display:none"></div>
 
-  <!-- ==================== 全域懸浮按鈕 (FAB) ==================== -->
-  <div class="fab-container" id="fabContainer" style="display:none">
-    <div class="fab-menu" id="fabMenu">
-      <div class="fab-item item-income" onclick="handleFabAction('income')">
-        <span class="fab-label">新增收入</span>
-        <span class="material-symbols-outlined">add_card</span>
-      </div>
-      <div class="fab-item item-expense" onclick="handleFabAction('expense')">
-        <span class="fab-label">新增支出</span>
-        <span class="material-symbols-outlined">payments</span>
-      </div>
-    </div>
-    <button class="fab-main" id="fabMain" title="快速新增">
-      <span class="material-symbols-outlined">add</span>
-    </button>
-  </div>
+
 
   <script src="app.js"></script>
 </body>
