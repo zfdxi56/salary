@@ -13,20 +13,20 @@ const SPREADSHEET_ID = '1rjVEG9x9ZJ6f3BSuC4CL_wYRATFvbGiZAGkwkzDP168';
 const CLIENT_ID = '647415610600-eio0d6dqpu80j80gki4l9m5qfemmlkab.apps.googleusercontent.com';
 const SCOPES = 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/userinfo.email openid';
 
-// 工作表名稱（全部使用繁體中文）
+// 工作表名稱（對應實際試算表）
 const SHEET = {
   USERS: '使用者',
-  INCOME_CATS: '設定_品種',
-  RETAIL_PRICE: '設定_對外販售等級',
+  INCOME_CATS: '設定_販售市場',      // 品種主/次類別、等級來源
+  RETAIL_PRICE: '設定_販售客戶',     // 對外客戶定價
   EXPENSE_CATS: '設定_支出類別',
   WORKERS: '設定_工人名單',
   UNITS: '設定_單位清單',
-  MARKET_INCOME: '市場收入',
+  MARKET_INCOME: '收入_市場',
   EXPENSE_SALARY: '支出_薪資',
   EXPENSE_COST: '支出_成本',
-  EXPENSE: '支出', // 保留舊名以防萬一
-  CUSTOMERS: '客戶資料',
-  ORDERS: '客戶訂單明細',
+  EXPENSE: '支出',                   // 保留舊名以防萬一
+  CUSTOMERS: '設定_客戶資料',
+  ORDERS: '收入_客戶',
   SETTINGS: '設定',
   RETAIL_ORDERS: '零售訂單'
 };
@@ -160,7 +160,7 @@ function showToast(msg, type = 'success') {
 // --- 動態欄位對齊 (Dynamic Field Mapping) ---
 // 這裡將「試算表欄位名稱(中文)」映射到 JS 準備寫入的屬性鍵值
 const fieldMap = {
-  // 收入/通用
+  // 收入_市場
   '編號': 'id',
   '日期': '日期',
   '客戶類別': '客戶類別',
@@ -175,7 +175,24 @@ const fieldMap = {
   '運費': '運費',
   '付款狀態': '付款狀態',
   '對帳狀態': '對帳狀態',
-  
+
+  // 收入_客戶（客戶訂單）
+  '訂購品項': '訂購品項',
+  '品項類別': '品項類別',
+  '訂單狀態': '狀態',         // 映射到 狀態，方便內部使用
+  '下定日期': '下定日期',
+  '到貨日期': '到貨日期',
+  '訂購等級': '訂購等級',
+  '訂單內容': '訂單內容',
+  '客戶編號': '客戶編號',
+  '寄件人': '寄件人',
+  '寄件人電話': '寄件人電話',
+  '收件人(客戶)': '收件人',
+  '收件人電話': '收件人電話',
+  '收件人地址': '收件人地址',
+  '需備註寄件人': '需備註寄件人',
+  '取貨方式': '取貨方式',
+
   // 支出專用 (含薪資與成本)
   '主類別': '主類別',
   '次類別': '次類別',
@@ -765,7 +782,6 @@ async function fetchHeadersCache() {
       `${SHEET.MARKET_INCOME}!1:1`,
       `${SHEET.EXPENSE_SALARY}!1:1`,
       `${SHEET.EXPENSE_COST}!1:1`,
-      `${SHEET.EXPENSE}!1:1`,
       `${SHEET.CUSTOMERS}!1:1`,
       `${SHEET.ORDERS}!1:1`,
       `${SHEET.USERS}!1:1`
@@ -805,7 +821,7 @@ async function fetchUsers() {
 async function fetchSettings() {
   try {
     const [resInc, resRetail, resExp, resWork, resUnit] = await Promise.all([
-      gapi.client.sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: `${SHEET.INCOME_CATS}!A2:F` }),
+      gapi.client.sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: `${SHEET.INCOME_CATS}!A2:H` }),
       gapi.client.sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: `${SHEET.RETAIL_PRICE}!A2:H` }),
       gapi.client.sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: `${SHEET.EXPENSE_CATS}!A2:E` }),
       gapi.client.sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: `${SHEET.WORKERS}!A2:C` }),
@@ -814,9 +830,9 @@ async function fetchSettings() {
 
     settings = { incomeMainCats: [], retailPrices: [], expenseMainCats: [], workers: [], units: [] };
 
-    // 品種
+    // 品種（設定_販售市場：品種編號[0], 品種主類別[1], 品種次類別[2], 等級[3], 單位[4], 顆數[5], 淨重[6], 備註[7]）
     (resInc.result.values || []).forEach(r => {
-      const main = r[1], sub = r[2] || '', gradeStr = r[4] || '';
+      const main = r[1], sub = r[2] || '', grade = r[3] || '';
       if (!main) return;
       
       let cat = settings.incomeMainCats.find(c => c.名稱 === main);
@@ -826,39 +842,33 @@ async function fetchSettings() {
       }
       if (sub && !cat.次類別.includes(sub)) cat.次類別.push(sub);
       
-      // 解析逗號分隔的等級
-      if (gradeStr) {
-        gradeStr.split(/[,、]/).forEach(g => {
-          const gn = g.trim();
-          if (gn && !cat.等級.includes(gn)) cat.等級.push(gn);
-        });
-      }
+      if (grade && !cat.等級.includes(grade)) cat.等級.push(grade);
     });
 
-    // 對外販售金額
+    // 對外販售金額（設定_販售客戶：品種編號[0], 主類別[1], 次類別[2], 等級[3], 單位[4], 顆數[5], 單價[6], 售價[7]）
     (resRetail.result.values || []).forEach(r => {
       if (r[0]) {
         settings.retailPrices.push({
-          品種主類別: r[0] || '',
-          品種次類別: r[1] || '',
-          等級: r[2] || '',
-          單位: r[3] || '',
-          販售內容: r[4] || '',
-          定價: r[5] || '',
-          售價: r[6] || '',
-          備註: r[7] || ''
+          品種主類別: r[1] || '',
+          品種次類別: r[2] || '',
+          等級: r[3] || '',
+          單位: r[4] || '',
+          顆數: r[5] || '',
+          定價: r[6] || '',
+          售價: r[7] || ''
         });
       }
     });
 
-    // 支出類別
+    // 支出類別（設定_支出類別：編號[0], 主類別[1], 次類別[2], 預設金額[3], 備註(類型標籤)[4]）
     (resExp.result.values || []).forEach(r => {
-      const main = r[0], sub = r[1], rawType = r[2] || 'material', amt = r[3] || '';
+      const main = r[1], sub = r[2], rawType = r[4] || 'material', amt = r[3] || '';
       // 支援中文類型標籤連動
       let type = rawType;
       if (rawType === '勞工') type = 'worker';
       if (rawType === '成本') type = 'material';
       if (rawType === '開銷') type = 'meal';
+      if (!main) return; // 編號列有值但主類別為空則跳過
       
       let cat = settings.expenseMainCats.find(c => c.名稱 === main);
       if (!cat) {
@@ -897,13 +907,12 @@ async function fetchIncome() {
   try {
     const res = await gapi.client.sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
-      range: `${SHEET.MARKET_INCOME}!A2:R`,
+      range: `${SHEET.MARKET_INCOME}!A2:Q`,
     });
     const headers = sheetHeadersCache[SHEET.MARKET_INCOME];
     incomeData = (res.result.values || []).map(r => {
       const obj = mapRowToObject(headers, r);
-      // 特殊處理：解析 JSON 或預設值
-      if (typeof obj.等級資料 === 'string') obj.等級資料 = safeParseJSON(obj.等級資料, []);
+      // 等級資料是純字串（如 '5A'），不做 JSON 解析
       if (!obj.付款狀態) obj.付款狀態 = '未付款';
       if (!obj.對帳狀態) obj.對帳狀態 = '待對帳';
       return obj;
@@ -1723,7 +1732,9 @@ document.getElementById('incomeCopyBtn').onclick = () => openCopyModal('income')
 
 // --- 表格（折疊式卡片版） ---
 function renderIncomeTable() {
-  let data = [...incomeData];
+  const period = filterState.income.period;
+  let data = getFilteredByPeriod(incomeData, '日期', period);
+  
   if (filterState.income.mainCat) data = data.filter(r => r.主類別 === filterState.income.mainCat);
   if (filterState.income.subCat) data = data.filter(r => r.客戶類別 === filterState.income.subCat);
 
@@ -1826,8 +1837,8 @@ function renderIncomeTable() {
         moHeader.onclick = () => moBody.classList.toggle('expanded');
 
         moList.forEach(r => {
-          const gradeArr = Array.isArray(r.等級資料) ? r.等級資料 : [];
-          const gradeText = gradeArr.map(g => `${g.等級} ${g.斤數||''}斤${g.箱數 ? ' ' + g.箱數 + '箱' : ''}`).join(' / ') || '';
+          // 等級資料是純字串（如 '5A'），直接顯示
+          const gradeText = r.等級資料 || '';
           const price = r.總價 ? `$${parseFloat(r.總價).toLocaleString()}` : '待確認';
 
           const payClass = r.付款狀態 === '已付款' ? 'paid' : 'unpaid';
@@ -2838,7 +2849,7 @@ if (expenseCopyBtn) expenseCopyBtn.onclick = () => openCopyModal('expense');
 // --- 表格（折疊式卡片版） ---
 function renderExpenseTable() {
   const isSalaryTab = filterState.expense.type === 'worker';
-  let data = [...expenseData];
+  let data = getFilteredByPeriod(expenseData, '日期', filterState.expense.period);
   
   // 先過濾類型
   data = data.filter(r => {
