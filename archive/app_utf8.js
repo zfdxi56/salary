@@ -1,47 +1,45 @@
+﻿// ============================================================
+console.log('?? Salary App.js Loaded - v' + new Date().getTime());
 // ============================================================
-console.log('🚀 Salary App.js Loaded - v' + new Date().getTime());
-// ============================================================
-// Google Sheets 作為後端，三分頁：收入 / 支出 / 管理
+// Google Sheets 雿敺垢嚗???嚗??/ ?臬 / 蝞∠?
 // ============================================================
 
 // ============================================================
-// 1. 全域設定
+// 1. ?典?閮剖?
 // ============================================================
 const SPREADSHEET_ID = '1rjVEG9x9ZJ6f3BSuC4CL_wYRATFvbGiZAGkwkzDP168';
-
-
 const CLIENT_ID = '647415610600-eio0d6dqpu80j80gki4l9m5qfemmlkab.apps.googleusercontent.com';
 const SCOPES = 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/userinfo.email openid';
 
-// 工作表名稱（全部使用繁體中文）
+// 撌乩?銵典?蝔梧??券雿輻蝜?銝剜?嚗?
 const SHEET = {
-  USERS: '使用者',
-  INCOME_CATS: '設定_品種',
-  RETAIL_PRICE: '設定_對外販售等級',
-  EXPENSE_CATS: '設定_支出類別',
-  WORKERS: '設定_工人名單',
-  UNITS: '設定_單位清單',
-  MARKET_INCOME: '市場收入',
-  EXPENSE_SALARY: '支出_薪資',
-  EXPENSE_COST: '支出_成本',
-  EXPENSE: '支出', // 保留舊名以防萬一
-  CUSTOMERS: '客戶資料',
-  ORDERS: '客戶訂單明細',
-  SETTINGS: '設定',
-  RETAIL_ORDERS: '零售訂單'
+  USERS: '雿輻??,
+  INCOME_CATS: '閮剖?_?車',
+  RETAIL_PRICE: '閮剖?_撠?鞎拙蝑?',
+  EXPENSE_CATS: '閮剖?_?臬憿',
+  WORKERS: '閮剖?_撌乩犖?',
+  UNITS: '閮剖?_?桐?皜',
+  MARKET_INCOME: '撣?嗅',
+  EXPENSE_SALARY: '?臬_?芾?',
+  EXPENSE_COST: '?臬_?',
+  EXPENSE: '?臬', // 靽???隞仿?砌?
+  CUSTOMERS: '摰Ｘ鞈?',
+  ORDERS: '摰Ｘ閮?敦',
+  SETTINGS: '閮剖?',
+  RETAIL_ORDERS: '?嗅閮'
 };
 
 // ============================================================
-// 2. 全域狀態
+// 2. ?典????
 // ============================================================
-// --- 圖表實體與全域狀態 ---
+// --- ?”撖阡??????---
 let _expensePieInstance = null;
 let _incomePieInstance = null; 
 let _balanceChartInstance = null;
 let _loaderCount = 0;
 let _toastTimer = null;
-let currentBalancePeriod = 'all'; // 結餘分頁篩選週期
-let balanceChartInstance = null;  // 結餘分頁圖表實體
+let currentBalancePeriod = 'all'; // 蝯???蝭拚?望?
+let balanceChartInstance = null;  // 蝯????”撖阡?
 
 let gapiInited = false;
 let gisInited = false;
@@ -50,15 +48,15 @@ let tokenClient;
 let currentUser = null;  // { email, role: 'admin'|'user' }
 let isAdmin = false;
 
-let incomeData = [];   // 收入紀錄
-let expenseData = [];  // 支出紀錄
-let usersData = [];    // 使用者清單
-let customersData = []; // 客戶資料
-let ordersData = [];    // 訂單資料
-let sheetHeadersCache = {}; // 快取試算表第一列標題
+let incomeData = [];   // ?嗅蝝??
+let expenseData = [];  // ?臬蝝??
+let usersData = [];    // 雿輻????
+let customersData = []; // 摰Ｘ鞈?
+let ordersData = [];    // 閮鞈?
+let sheetHeadersCache = {}; // 敹怠?閰衣?銵函洵銝??憿?
 
 // ============================================================
-// Google API / GIS 初始化與登入邏輯
+// Google API / GIS ?????餃?摩
 // ============================================================
 
 function gapiLoaded() {
@@ -80,27 +78,22 @@ async function intializeGapiClient() {
 function gisLoaded() {
   tokenClient = google.accounts.oauth2.initTokenClient({
     client_id: CLIENT_ID,
-    scope: SCOPES,
-    callback: '', // 後續動態設定
-  });
-  gisInited = true;
-  maybeEnableAuth();
-}
-
-function maybeEnableAuth() {
-  if (gapiInited && gisInited) {
-    const authBtn = document.getElementById('authBtn');
-    if (authBtn) {
-      authBtn.style.display = 'inline-flex';
-      authBtn.onclick = handleLogin;
-    }
+ 
+// [???餃?摩撌脩宏?歹?蝯曹?雿輻 afterLogin 瘚?]
+???
+  
+  // 瑼Ｘ?臬?箇恣?
+  const userRecord = usersData.find(u => (u.email || '').toLowerCase() === currentUser.email.toLowerCase());
+  isAdmin = userRecord && (userRecord.role === '蝞∠??? || userRecord.role === 'admin');
+  if (isAdmin) {
+    const tabAdmin = document.getElementById('tab-admin');
+    if (tabAdmin) tabAdmin.style.display = 'flex';
+    const badge = document.getElementById('userRoleBadge');
+    if (badge) { badge.textContent = '蝞∠???; badge.style.display = 'inline-block'; }
   }
 }
 
-// [冗餘登入與初始化邏輯已移除，統一使用後方的 afterLogin 與 fetchAllData 流程]
-
-
-// 登出邏輯
+// ?餃?摩
 window.handleLogout = function() {
   const token = gapi.client.getToken();
   if (token !== null) {
@@ -112,26 +105,26 @@ window.handleLogout = function() {
 document.getElementById('logoutBtn').onclick = handleLogout;
 document.getElementById('refreshBtn').onclick = () => location.reload();
 
-// Settings 資料
+// Settings 鞈?
 let settings = {
-  incomeMainCats: [],    // [{ 名稱, 次類別: [], 等級: [] }]
-  retailPrices: [],      // [{ 品種, 次類別, 等級, 單位, 顆數, 售價 }]
-  expenseMainCats: [],   // [{ 名稱, 類型, 次類別: [{名稱, 預設金額}] }]
-  workers: [],           // [{ 姓名, 預設時薪, 預設日薪 }]
-  units: [],             // [名稱]
+  incomeMainCats: [],    // [{ ?迂, 甈⊿??? [], 蝑?: [] }]
+  retailPrices: [],      // [{ ?車, 甈⊿??? 蝑?, ?桐?, 憿, ?桀 }]
+  expenseMainCats: [],   // [{ ?迂, 憿?, 甈⊿??? [{?迂, ?身??}] }]
+  workers: [],           // [{ 憪?, ?身?, ?身?亥 }]
+  units: [],             // [?迂]
 };
 
-// 篩選/排序狀態
+// 蝭拚/?????
 const filterState = {
   income: { mainCat: null, subCat: null, sortOrder: 'desc', period: 'year', isEditMode: false },
   expense: { type: 'worker', mainCat: null, subCat: null, sortOrder: 'desc', period: 'year', isEditMode: false },
   order: { mainCat: null, subCat: null, sortOrder: 'desc', period: 'year', isEditMode: false },
   balance: { period: 'year' },
-  composite: { period: 'year' } // 新增複合卡片的篩選狀態
+  composite: { period: 'year' } // ?啣?銴??∠??祟?貊???
 };
 
-// --- 工具類變數與函式 (先行定義避免 ReferenceError) ---
-function showLoader(msg = '處理中...') {
+// --- 撌亙憿??貉??賢? (??摰儔?踹? ReferenceError) ---
+function showLoader(msg = '??銝?..') {
   _loaderCount++;
   const el = document.getElementById('loaderMsg');
   if (el) el.textContent = msg;
@@ -150,68 +143,68 @@ function showToast(msg, type = 'success') {
   const el = document.getElementById('toast');
   if (!el) return;
   el.textContent = msg;
-  // 依據 type 賦予 class，配合 CSS 變化
+  // 靘? type 鞈虫? class嚗???CSS 霈?
   el.className = `toast ${type === 'error' ? 'toast-error' : 'toast-success'}`;
   el.style.display = 'block';
   clearTimeout(_toastTimer);
   _toastTimer = setTimeout(() => { el.style.display = 'none'; }, 3000);
 }
 
-// --- 動態欄位對齊 (Dynamic Field Mapping) ---
-// 這裡將「試算表欄位名稱(中文)」映射到 JS 準備寫入的屬性鍵值
+// --- ??甈?撠? (Dynamic Field Mapping) ---
+// ?ㄐ撠岫蝞”甈??迂(銝剜?)??撠 JS 皞?撖怠?惇?折??
 const fieldMap = {
-  // 收入/通用
-  '編號': 'id',
-  '日期': '日期',
-  '客戶類別': '客戶類別',
-  '客戶名稱': '客戶名稱',
-  '品種主類別': '主類別',
-  '品種次類別': '次類別',
-  '等級資料': '等級資料',
-  '總重(斤)': '總重',
-  '箱數': '箱數',
-  '總價': '總價',
-  '盤商價': '盤商價',
-  '運費': '運費',
-  '付款狀態': '付款狀態',
-  '對帳狀態': '對帳狀態',
+  // ?嗅/?
+  '蝺刻?': 'id',
+  '?交?': '?交?',
+  '摰Ｘ憿': '摰Ｘ憿',
+  '摰Ｘ?迂': '摰Ｘ?迂',
+  '?車銝駁???: '銝駁???,
+  '?車甈⊿???: '甈⊿???,
+  '蝑?鞈?': '蝑?鞈?',
+  '蝮賡?(??': '蝮賡?',
+  '蝞望': '蝞望',
+  '蝮賢': '蝮賢',
+  '?文???: '?文???,
+  '?祥': '?祥',
+  '隞狡???: '隞狡???,
+  '撠董???: '撠董???,
   
-  // 支出專用 (含薪資與成本)
-  '主類別': '主類別',
-  '次類別': '次類別',
-  '工人姓名': '工人姓名',
-  '計薪方式': '計薪方式',
-  '上午-上班時間': '上午上班',
-  '上午-休息時間': '上午休息',
-  '下午-上班時間': '下午上班',
-  '下午-下班時間': '下午下班',
-  '時數/天數': '時數天數',
-  '時薪/日薪金額': '單價',
-  '含午餐': '含午餐',
-  '數量': '數量',
-  '單位': '單位',
-  '單價': '單價',
-  '總額': '總額',
-  '是否支付': '已支付',
-  '支付日期': '支付日期',
+  // ?臬撠 (?怨鞈??)
+  '銝駁???: '銝駁???,
+  '甈⊿???: '甈⊿???,
+  '撌乩犖憪?': '撌乩犖憪?',
+  '閮?孵?': '閮?孵?',
+  '銝?-銝??': '銝?銝',
+  '銝?-隡??': '銝?隡',
+  '銝?-銝??': '銝?銝',
+  '銝?-銝??': '銝?銝',
+  '?/憭拇': '?憭拇',
+  '?/?亥??': '?桀',
+  '?怠?擗?: '?怠?擗?,
+  '?賊?': '?賊?',
+  '?桐?': '?桐?',
+  '?桀': '?桀',
+  '蝮賡?': '蝮賡?',
+  '?臬?臭?': '撌脫隞?,
+  '?臭??交?': '?臭??交?',
 
-  '附註': '附註',
-  '建立時間': '建立時間',
-  '最後更新': '最後更新',
-  '角色': 'role',
+  '?酉': '?酉',
+  '撱箇???': '撱箇???',
+  '?敺??: '?敺??,
+  '閫': 'role',
   'Email': 'email'
 };
 
 /**
- * 動態對齊函式
- * @param {string} sheetName 目標工作表名稱
- * @param {object} dataObj 準備寫入的資料物件 (Key 為 fieldMap 的 value)
- * @returns {Array} 排序好的資料陣列
+ * ??撠??賢?
+ * @param {string} sheetName ?格?撌乩?銵典?蝔?
+ * @param {object} dataObj 皞?撖怠???隞?(Key ??fieldMap ??value)
+ * @returns {Array} ??憟賜?鞈????
  */
 function syncHeadersAndPrepareData(sheetName, dataObj) {
   const headers = sheetHeadersCache[sheetName];
   if (!headers || headers.length === 0) {
-    console.warn(`找不到 ${sheetName} 的標頭快取，可能發生錯誤。回退為空陣列。`);
+    console.warn(`?曆???${sheetName} ???剖翰???航?潛??航炊????箇征????);
     return [];
   }
   const rowData = [];
@@ -220,84 +213,71 @@ function syncHeadersAndPrepareData(sheetName, dataObj) {
     if (dataKey && dataObj.hasOwnProperty(dataKey)) {
       rowData.push(dataObj[dataKey] !== undefined && dataObj[dataKey] !== null ? dataObj[dataKey] : '');
     } else {
-      rowData.push(''); // 找不到對應的值則填空
+      rowData.push(''); // ?曆??啣????澆?憛怎征
     }
   });
   return rowData;
 }
 
-/**
- * 動態從試算表行資料轉換為物件
- */
-function mapRowToObject(headers, row) {
-  if (!headers || headers.length === 0) return {};
-  const obj = {};
-  headers.forEach((header, index) => {
-    const key = fieldMap[header] || header;
-    obj[key] = row[index] !== undefined ? row[index] : '';
-  });
-  return obj;
-}
-
 // ============================================================
-// 3. 預設資料（若工作表無資料時使用）
+// 3. ?身鞈?嚗撌乩?銵函鞈??蝙?剁?
 // ============================================================
-const DEFAULT_INCOME_CATS = ['甜柿', '水蜜桃', '橘子', '其他'];
+const DEFAULT_INCOME_CATS = ['?', '瘞渲?獢?, '璈?', '?嗡?'];
 
 const DEFAULT_EXPENSE_CATS = [
   {
-    名稱: '工人薪資', 類型: 'worker',
-    次類別: [
-      { 名稱: '除草', 預設金額: '' },
-      { 名稱: '疏果', 預設金額: '' },
-      { 名稱: '套袋', 預設金額: '' },
-      { 名稱: '收果', 預設金額: '' },
-      { 名稱: '剪枝', 預設金額: '' },
-      { 名稱: '斷水', 預設金額: '' },
-      { 名稱: '撿枝', 預設金額: '' },
+    ?迂: '撌乩犖?芾?', 憿?: 'worker',
+    甈⊿??? [
+      { ?迂: '?方?', ?身??: '' },
+      { ?迂: '??', ?身??: '' },
+      { ?迂: '憟?', ?身??: '' },
+      { ?迂: '?嗆?', ?身??: '' },
+      { ?迂: '?芣?', ?身??: '' },
+      { ?迂: '?瑟偌', ?身??: '' },
+      { ?迂: '?踵?', ?身??: '' },
     ]
   },
   {
-    名稱: '肥料', 類型: 'material',
-    次類別: [
-      { 名稱: '骨粉', 預設金額: '' },
-      { 名稱: '海鳥糞', 預設金額: '' },
-      { 名稱: '堆肥', 預設金額: '' },
-      { 名稱: '豆粕', 預設金額: '' },
-      { 名稱: '苦土石灰', 預設金額: '' },
-      { 名稱: '複合肥料', 預設金額: '' },
-      { 名稱: '有機肥料', 預設金額: '' },
-      { 名稱: '尿素', 預設金額: '' },
+    ?迂: '?交?', 憿?: 'material',
+    甈⊿??? [
+      { ?迂: '撉函?', ?身??: '' },
+      { ?迂: '瘚琿野蝟?, ?身??: '' },
+      { ?迂: '?', ?身??: '' },
+      { ?迂: '鞊?', ?身??: '' },
+      { ?迂: '?血??喟', ?身??: '' },
+      { ?迂: '銴??交?', ?身??: '' },
+      { ?迂: '???交?', ?身??: '' },
+      { ?迂: '撠輻?', ?身??: '' },
     ]
   },
   {
-    名稱: '農藥', 類型: 'material',
-    次類別: [
-      { 名稱: '蘇力菌 (B.t.)', 預設金額: '' },
-      { 名稱: '苦楝油', 預設金額: '' },
-      { 名稱: '葵無露', 預設金額: '' },
-      { 名稱: '石灰硫磺合劑', 預設金額: '' },
-      { 名稱: '亞磷酸', 預設金額: '' },
+    ?迂: '颲脰', 憿?: 'material',
+    甈⊿??? [
+      { ?迂: '????(B.t.)', ?身??: '' },
+      { ?迂: '?行?瘝?, ?身??: '' },
+      { ?迂: '?萇??, ?身??: '' },
+      { ?迂: '?喟蝖怎ㄩ??', ?身??: '' },
+      { ?迂: '鈭ㄦ??, ?身??: '' },
     ]
   },
   {
-    名稱: '包裝材料', 類型: 'material',
-    次類別: [
-      { 名稱: '水果紙箱', 預設金額: '' },
-      { 名稱: '泡棉網套', 預設金額: '' },
-      { 名稱: '塑膠內袋', 預設金額: '' },
-      { 名稱: '封箱膠帶', 預設金額: '' },
-      { 名稱: '蔬果標籤貼紙', 預設金額: '' },
+    ?迂: '????', 憿?: 'material',
+    甈⊿??? [
+      { ?迂: '瘞湔?蝝拳', ?身??: '' },
+      { ?迂: '瘜⊥?蝬脣?', ?身??: '' },
+      { ?迂: '憛??扯?', ?身??: '' },
+      { ?迂: '撠拳?葆', ?身??: '' },
+      { ?迂: '?祆?璅惜鞎潛?', ?身??: '' },
     ]
   },
   {
-    名稱: '伙食支出', 類型: 'meal',
-    次類別: [
-      { 名稱: '美華阿姨', 預設金額: '' },
-      { 名稱: '燕子', 預設金額: '' },
-      { 名稱: '溪明', 預設金額: '' },
-      { 名稱: '可', 預設金額: '' },
-      { 名稱: '弟&雪', 預設金額: '' },
+    ?迂: '隡??臬', 憿?: 'meal',
+    甈⊿??? [
+      { ?迂: '蝢?踹夾', ?身??: '' },
+      { ?迂: '??', ?身??: '' },
+      { ?迂: '皞芣?', ?身??: '' },
+      { ?迂: '??, ?身??: '' },
+      { ?迂: '撘???, ?身??: '' },
     ]
   },
 ];
@@ -305,7 +285,7 @@ const DEFAULT_EXPENSE_CATS = [
 const GRADE_OPTIONS = ['2A', '3A', '4A', '5A', '6A', '7A'];
 
 // ============================================================
-// 4. Google API 初始化
+// 4. Google API ????
 // ============================================================
 function gapiLoaded() {
   gapi.load('client', async () => {
@@ -347,11 +327,11 @@ function maybeEnableAuth() {
 }
 
 /**
- * 開發人員捷徑：在本地環境顯示測試按鈕，避免等待 GAPI 載入
+ * ?鈭箏?瑕?嚗?砍?啣?憿舐內皜祈岫??嚗??敺?GAPI 頛
  */
 function initDeveloperShortcuts() {
   if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-    // 確保 auth-card 存在且還沒加過
+    // 蝣箔? auth-card 摮銝?瘝???
     const checkCard = setInterval(() => {
       const card = document.querySelector('.auth-card');
       if (card) {
@@ -371,7 +351,7 @@ function initDeveloperShortcuts() {
           devBtn.style.display = 'inline-flex';
           devBtn.style.alignItems = 'center';
           devBtn.style.gap = '8px';
-          devBtn.innerHTML = '<span class="material-symbols-outlined">science</span> 開發人員測試登入 (Mock)';
+          devBtn.innerHTML = '<span class="material-symbols-outlined">science</span> ?鈭箏皜祈岫?餃 (Mock)';
           devBtn.onclick = handleMockLogin;
           card.appendChild(devBtn);
         }
@@ -382,13 +362,13 @@ function initDeveloperShortcuts() {
 initDeveloperShortcuts();
 
 /**
- * 模擬登入流程，用於測試 UI 與邏輯
+ * 璅⊥?餃瘚?嚗?潭葫閰?UI ??頛?
  */
 async function handleMockLogin() {
-  showLoader('正在進入測試模式...');
-  console.warn('⚠️ 注意：目前處於開發測試模式，資料將不會同步至 Google Sheets');
+  showLoader('甇??脣皜祈岫璅∪?...');
+  console.warn('?? 瘜冽?嚗???潮??潭葫閰行芋撘?鞈?撠???甇亥 Google Sheets');
   
-  // 模擬 GAPI 行為
+  // 璅⊥ GAPI 銵
   if (typeof gapi === 'undefined') window.gapi = { client: {} };
   if (!gapi.client) gapi.client = {};
   
@@ -404,26 +384,26 @@ async function handleMockLogin() {
     };
   }
 
-  // 設定測試身分
+  // 閮剖?皜祈岫頨怠?
   currentUser = { email: 'test@example.com', role: 'admin' };
   isAdmin = true;
   
-  // 初始化畫布數據 (從 DEFAULT 中繼承)
-  settings.incomeMainCats = DEFAULT_INCOME_CATS.map(n => ({ 名稱: n, 次類別: [], 等級: GRADE_OPTIONS }));
+  // ???撣??(敺?DEFAULT 銝剔匱??
+  settings.incomeMainCats = DEFAULT_INCOME_CATS.map(n => ({ ?迂: n, 甈⊿??? [], 蝑?: GRADE_OPTIONS }));
   settings.expenseMainCats = DEFAULT_EXPENSE_CATS.map(c => ({ ...c }));
-  settings.units = ['包', '罐', '箱', '件', '斤', '天', '小時'];
+  settings.units = ['??, '蝵?, '蝞?, '隞?, '??, '憭?, '撠?'];
   settings.workers = [
-    { 姓名: '阿土伯', 預設時薪: '200', 預設日薪: '1600' },
-    { 姓名: '小翠', 預設時薪: '190', 預設日薪: '1500' }
+    { 憪?: '?踹?隡?, ?身?: '200', ?身?亥: '1600' },
+    { 憪?: '撠?', ?身?: '190', ?身?亥: '1500' }
   ];
   customersData = [
-    { 客戶編號: 'C001', 客戶姓名: '林小姐', 電話: '0912-345678', 地址: '台中市...', 客戶來源: '介紹' },
-    { 客戶編號: 'C002', 客戶姓名: '王先生', 電話: '0921-888777', 地址: '台北市...', 客戶來源: 'FB' }
+    { 摰Ｘ蝺刻?: 'C001', 摰Ｘ憪?: '??憪?, ?餉店: '0912-345678', ?啣?: '?唬葉撣?..', 摰Ｘ靘?: '隞晶' },
+    { 摰Ｘ蝺刻?: 'C002', 摰Ｘ憪?: '????, ?餉店: '0921-888777', ?啣?: '?啣?撣?..', 摰Ｘ靘?: 'FB' }
   ];
-  ordersData = []; // 初始設為空，供後續測試新增用
+  ordersData = []; // ??閮剔蝛綽?靘?蝥葫閰行憓
   
-  // 更新 UI
-  document.getElementById('userRoleBadge').textContent = `測試管理員 · Antigravity`;
+  // ?湔 UI
+  document.getElementById('userRoleBadge').textContent = `皜祈岫蝞∠???繚 Antigravity`;
   document.getElementById('userRoleBadge').className = `role-badge admin`;
   document.getElementById('userInfo').style.display = 'flex';
   document.getElementById('logoutBtn').style.display = 'inline-flex';
@@ -438,7 +418,7 @@ async function handleMockLogin() {
   switchTab('revenue');
   try { renderAll(); } catch (e) { console.error('renderAll error:', e); }
   
-  showToast('已進入測試模式 (Mock Mode)', 'success');
+  showToast('撌脤脣皜祈岫璅∪? (Mock Mode)', 'success');
   _loaderCount = 0;
   hideLoader();
 }
@@ -454,54 +434,54 @@ function handleLogin() {
 }
 
 async function afterLogin() {
-  showLoader('登入中...');
+  showLoader('?餃銝?..');
   try {
-    // 取得登入者 email
+    // ???餃??email
     const tokenInfo = gapi.client.getToken();
-    // 透過 tokeninfo endpoint 取得 email
+    // ?? tokeninfo endpoint ?? email
     const res = await fetch(`https://www.googleapis.com/oauth2/v3/tokeninfo?access_token=${tokenInfo.access_token}`);
     const info = await res.json();
     const email = info.email || '';
 
-    // 確保工作表存在（初次使用自動建立）
+    // 蝣箔?撌乩?銵典??剁??活雿輻?芸?撱箇?嚗?
     await ensureSheetsExist();
     await fetchAllData();
 
-    // 確認使用者角色
+    // 蝣箄?雿輻????
     const cleanEmail = email.trim().toLowerCase();
     let userRow = usersData.find(u => u.email === cleanEmail);
     
-    // 如果系統完全沒有使用者，或者是特定條件下的首位登入者
+    // 憒?蝟餌絞摰瘝?雿輻????孵?璇辣銝?擐??餃??
     if (usersData.length === 0 && !userRow) {
-      console.log('系統初始登入：自動將首位使用者設為管理員');
+      console.log('蝟餌絞???餃嚗??擐?雿輻?身?箇恣?');
       await addUserToSheet(email, 'admin');
-      await fetchUsers(); // 重新讀取名單
+      await fetchUsers(); // ?霈????
       userRow = usersData.find(u => u.email === cleanEmail);
     }
 
     if (!userRow) {
-      // 未登記的帳號 → 當一般使用者
+      // ?芰閮?撣唾? ???嗡??砌蝙?刻?
       currentUser = { email, role: 'user' };
     } else {
       currentUser = { email, role: userRow.role };
     }
-    isAdmin = (currentUser.role === 'admin' || currentUser.role === '管理員');
+    isAdmin = (currentUser.role === 'admin' || currentUser.role === '蝞∠???);
 
-    // 更新 header
-    const currentName = userRow?.nickname || (email ? email.split('@')[0] : '訪客');
-    const roleDisplay = isAdmin ? '管理員' : '使用者';
+    // ?湔 header
+    const currentName = userRow?.nickname || (email ? email.split('@')[0] : '閮芸恥');
+    const roleDisplay = isAdmin ? '蝞∠??? : '雿輻??;
     
-    // 將別名整合進身分標籤，並隱藏原本重複的暱稱文字
+    // 撠??脰澈??蝐歹?銝阡???祇?銴??梁迂??
     document.getElementById('userNameDisplay').style.display = 'none'; 
-    document.getElementById('userRoleBadge').textContent = `${roleDisplay} · ${currentName}`;
+    document.getElementById('userRoleBadge').textContent = `${roleDisplay} 繚 ${currentName}`;
     document.getElementById('userRoleBadge').className = `role-badge${isAdmin ? ' admin' : ''}`;
     document.getElementById('userInfo').style.display = 'flex';
     document.getElementById('logoutBtn').style.display = 'inline-flex';
 
     if (email) {
-      showToast(`歡迎回來 ${currentName}！系統識別身份：${roleDisplay}`, 'success');
+      showToast(`甇∟??? ${currentName}嚗頂蝯梯??亥澈隞踝?${roleDisplay}`, 'success');
     } else {
-      showToast(`登入成功，但無法抓取 Email。請確認是否已勾選權限。`, 'warning');
+      showToast(`?餃??嚗??⊥??? Email??蝣箄??臬撌脣?豢??, 'warning');
     }
 
     if (isAdmin) {
@@ -520,13 +500,13 @@ async function afterLogin() {
     renderAll();
   } catch (e) {
     console.error(e);
-    showToast('登入失敗，請重試', 'error');
+    showToast('?餃憭望?嚗??岫', 'error');
   }
   hideLoader();
 }
 
 /**
- * 處理 Token 過期的 UI 提示
+ * ?? Token ????UI ?內
  */
 function showTokenRefreshPrompt() {
   const btn = document.getElementById('tokenRefreshBtn');
@@ -537,19 +517,19 @@ function showTokenRefreshPrompt() {
       btn.style.display = 'none';
     };
   } else {
-    showToast('登入逾時，請重新登入', 'error');
+    showToast('?餃?暹?嚗???餃', 'error');
   }
 }
 
 /**
- * 安全封裝的 Append (捕捉 401 錯誤並靜默重試)
+ * 摰撠???Append (?? 401 ?航炊銝阡?暺?閰?
  */
 async function safeSheetsAppend(requestBody) {
   try {
     return await gapi.client.sheets.spreadsheets.values.append(requestBody);
   } catch (err) {
     if (err.status === 401) {
-      console.warn('Token 逾時，嘗試靜默更新...');
+      console.warn('Token ?暹?嚗?閰阡?暺??..');
       return new Promise((resolve, reject) => {
         tokenClient.callback = async (resp) => {
           if (resp.error) {
@@ -558,7 +538,7 @@ async function safeSheetsAppend(requestBody) {
             return;
           }
           gapi.client.setToken(resp);
-          // 重試
+          // ?岫
           try {
             const retryRes = await gapi.client.sheets.spreadsheets.values.append(requestBody);
             resolve(retryRes);
@@ -574,14 +554,14 @@ async function safeSheetsAppend(requestBody) {
 }
 
 /**
- * 安全封裝的 Update (捕捉 401 錯誤並靜默重試)
+ * 摰撠???Update (?? 401 ?航炊銝阡?暺?閰?
  */
 async function safeSheetsUpdate(requestBody) {
   try {
     return await gapi.client.sheets.spreadsheets.values.update(requestBody);
   } catch (err) {
     if (err.status === 401) {
-      console.warn('Token 逾時，嘗試靜默更新...');
+      console.warn('Token ?暹?嚗?閰阡?暺??..');
       return new Promise((resolve, reject) => {
         tokenClient.callback = async (resp) => {
           if (resp.error) {
@@ -590,7 +570,7 @@ async function safeSheetsUpdate(requestBody) {
             return;
           }
           gapi.client.setToken(resp);
-          // 重試
+          // ?岫
           try {
             const retryRes = await gapi.client.sheets.spreadsheets.values.update(requestBody);
             resolve(retryRes);
@@ -606,7 +586,7 @@ async function safeSheetsUpdate(requestBody) {
 }
 
 /**
- * 將使用者加入試算表
+ * 撠蝙?刻??亥岫蝞”
  */
 async function addUserToSheet(email, role) {
   try {
@@ -619,12 +599,12 @@ async function addUserToSheet(email, role) {
       resource: { values: [row] }
     });
   } catch (e) {
-    console.error('addUserToSheet 失敗:', e);
+    console.error('addUserToSheet 憭望?:', e);
   }
 }
 
 /**
- * 通用的附加資料到工作表
+ * ??????撌乩?銵?
  */
 async function appendToSheet(sheetName, row) {
   await safeSheetsAppend({
@@ -648,13 +628,13 @@ document.getElementById('logoutBtn').onclick = () => {
   document.getElementById('tab-admin').style.display = 'none';
 };
 
-// 重新整理按鈕
+// ??渡???
 document.getElementById('refreshBtn').onclick = () => {
   window.location.reload();
 };
 
 // ============================================================
-// 5. Google Sheets 工作表建立（初次使用）
+// 5. Google Sheets 撌乩?銵典遣蝡??活雿輻嚗?
 // ============================================================
 async function ensureSheetsExist() {
   try {
@@ -670,11 +650,11 @@ async function ensureSheetsExist() {
           }))
         }
       });
-      // 寫入標題列
+      // 撖怠璅???
       await initSheetHeaders();
     }
   } catch (e) {
-    console.error('ensureSheetsExist 失敗:', e);
+    console.error('ensureSheetsExist 憭望?:', e);
   }
 }
 
@@ -682,51 +662,51 @@ async function initSheetHeaders() {
   const ranges = [
     {
       range: `${SHEET.INCOME_CATS}!A1:F1`,
-      values: [['品種名稱', '備用', '品種次類別', '產季', '等級', '備註']]
+      values: [['?車?迂', '?', '?車甈⊿???, '?Ｗ迤', '蝑?', '?酉']]
     },
     {
       range: `${SHEET.RETAIL_PRICE}!A1:G1`,
-      values: [['品種主類別', '品種次類別', '等級', '單位(箱/袋)', '顆數', '收費(已含運)', '備註']]
+      values: [['?車銝駁???, '?車甈⊿???, '蝑?', '?桐?(蝞?鋡?', '憿', '?嗉祥(撌脣??', '?酉']]
     },
     {
       range: `${SHEET.EXPENSE_CATS}!A1:E1`,
-      values: [['主類別', '次類別', '類型', '預設金額', '備註']]
+      values: [['銝駁???, '甈⊿???, '憿?', '?身??', '?酉']]
     },
     {
       range: `${SHEET.WORKERS}!A1:C1`,
-      values: [['姓名', '預設時薪', '預設日薪']]
+      values: [['憪?', '?身?', '?身?亥']]
     },
     {
       range: `${SHEET.UNITS}!A1:A1`,
-      values: [['單位名稱']]
+      values: [['?桐??迂']]
     },
     {
       range: `${SHEET.MARKET_INCOME}!A1:R1`,
-      values: [['編號', '日期', '客戶類別', '客戶名稱', '品種主類別', '品種次類別', '等級資料', '總重(斤)', '箱數', '總價', '盤商價', '運費', '附註', '付款狀態', '對帳狀態', '建立時間', '最後更新', '附註2']]
+      values: [['蝺刻?', '?交?', '摰Ｘ憿', '摰Ｘ?迂', '?車銝駁???, '?車甈⊿???, '蝑?鞈?', '蝮賡?(??', '蝞望', '蝮賢', '?文???, '?祥', '?酉', '隞狡???, '撠董???, '撱箇???', '?敺??, '?酉2']]
     },
     {
       range: `${SHEET.EXPENSE_SALARY}!A1:S1`,
-      values: [['編號', '日期', '主類別', '次類別', '工人姓名', '計薪方式', '上午-上班時間', '上午-休息時間', '下午-上班時間', '下午-下班時間', '時數/天數', '時薪/日薪金額', '含午餐', '總額', '是否支付', '支付日期', '附註', '建立時間', '最後更新']]
+      values: [['蝺刻?', '?交?', '銝駁???, '甈⊿???, '撌乩犖憪?', '閮?孵?', '銝?-銝??', '銝?-隡??', '銝?-銝??', '銝?-銝??', '?/憭拇', '?/?亥??', '?怠?擗?, '蝮賡?', '?臬?臭?', '?臭??交?', '?酉', '撱箇???', '?敺??]]
     },
     {
       range: `${SHEET.EXPENSE_COST}!A1:L1`,
-      values: [['編號', '日期', '主類別', '次類別', '數量', '單價', '總額', '是否支付', '支付日期', '附註', '建立時間', '最後更新']]
+      values: [['蝺刻?', '?交?', '銝駁???, '甈⊿???, '?賊?', '?桀', '蝮賡?', '?臬?臭?', '?臭??交?', '?酉', '撱箇???', '?敺??]]
     },
     {
       range: `${SHEET.EXPENSE}!A1:O1`,
-      values: [['編號', '日期', '主類別', '次類別', '工人姓名', '計薪方式', '數量', '單位', '單價', '總額', '含午餐', '已支付', '附註', '建立時間', '最後更新']]
+      values: [['蝺刻?', '?交?', '銝駁???, '甈⊿???, '撌乩犖憪?', '閮?孵?', '?賊?', '?桐?', '?桀', '蝮賡?', '?怠?擗?, '撌脫隞?, '?酉', '撱箇???', '?敺??]]
     },
     {
       range: `${SHEET.CUSTOMERS}!A1:G1`,
-      values: [['客戶編號', '客戶姓名', '電話', '地址', '客戶來源', '客戶渠道', '介紹人']]
+      values: [['摰Ｘ蝺刻?', '摰Ｘ憪?', '?餉店', '?啣?', '摰Ｘ靘?', '摰Ｘ皜?', '隞晶鈭?]]
     },
     {
       range: `${SHEET.ORDERS}!A1:S1`,
-      values: [['訂購品項', '品項類別', '訂單狀態', '下定日期', '到貨日期', '訂購等級', '訂單內容', '總價', '客戶編號', '寄件人', '寄件人電話', '收件人(客戶)', '收件人電話', '收件人地址', '需備註寄件人', '取貨方式', '付款狀態', '對帳狀態', '附註']]
+      values: [['閮頃??', '??憿', '閮???, '銝??交?', '?啗疏?交?', '閮頃蝑?', '閮?批捆', '蝮賢', '摰Ｘ蝺刻?', '撖辣鈭?, '撖辣鈭粹閰?, '?嗡辣鈭?摰Ｘ)', '?嗡辣鈭粹閰?, '?嗡辣鈭箏?', '??酉撖辣鈭?, '?疏?孵?', '隞狡???, '撠董???, '?酉']]
     },
     {
       range: `${SHEET.USERS}!A1:D1`,
-      values: [['別稱', 'Email', '角色', '更新時間']]
+      values: [['?亦迂', 'Email', '閫', '?湔??']]
     },
   ];
   for (const r of ranges) {
@@ -740,11 +720,11 @@ async function initSheetHeaders() {
 }
 
 // ============================================================
-// 6. 資料讀取
+// 6. 鞈?霈??
 // ============================================================
 async function fetchAllData() {
   try {
-    await fetchHeadersCache(); // 先快取標頭
+    await fetchHeadersCache(); // ?翰????
     await Promise.all([
       fetchUsers(),
       fetchSettings(),
@@ -755,7 +735,7 @@ async function fetchAllData() {
     ]);
   } catch (e) {
     console.error(e);
-    showToast('讀取資料失敗', 'error');
+    showToast('霈???仃??, 'error');
   }
 }
 
@@ -764,11 +744,7 @@ async function fetchHeadersCache() {
     const ranges = [
       `${SHEET.MARKET_INCOME}!1:1`,
       `${SHEET.EXPENSE_SALARY}!1:1`,
-      `${SHEET.EXPENSE_COST}!1:1`,
-      `${SHEET.EXPENSE}!1:1`,
-      `${SHEET.CUSTOMERS}!1:1`,
-      `${SHEET.ORDERS}!1:1`,
-      `${SHEET.USERS}!1:1`
+      `${SHEET.EXPENSE_COST}!1:1`
     ];
     const res = await gapi.client.sheets.spreadsheets.values.batchGet({
       spreadsheetId: SPREADSHEET_ID,
@@ -777,14 +753,14 @@ async function fetchHeadersCache() {
     
     if (res.result.valueRanges) {
       res.result.valueRanges.forEach(vr => {
-        const sheetName = vr.range.split('!')[0].replace(/'/g, '');
+        const sheetName = vr.range.split('!')[0].replace(/'/g, ''); // 蝘駁?航?撘?
         const values = vr.values ? vr.values[0] : [];
         sheetHeadersCache[sheetName] = values;
       });
       console.log('Sheet headers cached:', sheetHeadersCache);
     }
   } catch (e) {
-    console.error('fetchHeadersCache 失敗:', e);
+    console.error('fetchHeadersCache 憭望?:', e);
   }
 }
 
@@ -814,81 +790,81 @@ async function fetchSettings() {
 
     settings = { incomeMainCats: [], retailPrices: [], expenseMainCats: [], workers: [], units: [] };
 
-    // 品種
+    // ?車
     (resInc.result.values || []).forEach(r => {
       const main = r[1], sub = r[2] || '', gradeStr = r[4] || '';
       if (!main) return;
       
-      let cat = settings.incomeMainCats.find(c => c.名稱 === main);
+      let cat = settings.incomeMainCats.find(c => c.?迂 === main);
       if (!cat) {
-        cat = { 名稱: main, 次類別: [], 等級: [] };
+        cat = { ?迂: main, 甈⊿??? [], 蝑?: [] };
         settings.incomeMainCats.push(cat);
       }
-      if (sub && !cat.次類別.includes(sub)) cat.次類別.push(sub);
+      if (sub && !cat.甈⊿???includes(sub)) cat.甈⊿???push(sub);
       
-      // 解析逗號分隔的等級
+      // 閫????????蝝?
       if (gradeStr) {
-        gradeStr.split(/[,、]/).forEach(g => {
+        gradeStr.split(/[,?/).forEach(g => {
           const gn = g.trim();
-          if (gn && !cat.等級.includes(gn)) cat.等級.push(gn);
+          if (gn && !cat.蝑?.includes(gn)) cat.蝑?.push(gn);
         });
       }
     });
 
-    // 對外販售金額
+    // 撠?鞎拙??
     (resRetail.result.values || []).forEach(r => {
       if (r[0]) {
         settings.retailPrices.push({
-          品種主類別: r[0] || '',
-          品種次類別: r[1] || '',
-          等級: r[2] || '',
-          單位: r[3] || '',
-          販售內容: r[4] || '',
-          定價: r[5] || '',
-          售價: r[6] || '',
-          備註: r[7] || ''
+          ?車銝駁??? r[0] || '',
+          ?車甈⊿??? r[1] || '',
+          蝑?: r[2] || '',
+          ?桐?: r[3] || '',
+          鞎拙?批捆: r[4] || '',
+          摰: r[5] || '',
+          ?桀: r[6] || '',
+          ?酉: r[7] || ''
         });
       }
     });
 
-    // 支出類別
+    // ?臬憿
     (resExp.result.values || []).forEach(r => {
       const main = r[0], sub = r[1], rawType = r[2] || 'material', amt = r[3] || '';
-      // 支援中文類型標籤連動
+      // ?舀銝剜?憿?璅惜???
       let type = rawType;
-      if (rawType === '勞工') type = 'worker';
-      if (rawType === '成本') type = 'material';
-      if (rawType === '開銷') type = 'meal';
+      if (rawType === '?極') type = 'worker';
+      if (rawType === '?') type = 'material';
+      if (rawType === '?') type = 'meal';
       
-      let cat = settings.expenseMainCats.find(c => c.名稱 === main);
+      let cat = settings.expenseMainCats.find(c => c.?迂 === main);
       if (!cat) {
-        cat = { 名稱: main, 類型: type, 次類別: [] };
+        cat = { ?迂: main, 憿?: type, 甈⊿??? [] };
         settings.expenseMainCats.push(cat);
       }
-      if (sub) cat.次類別.push({ 名稱: sub, 預設金額: amt });
+      if (sub) cat.甈⊿???push({ ?迂: sub, ?身??: amt });
     });
-    // 工人
+    // 撌乩犖
     (resWork.result.values || []).forEach(r => {
-      if (r[0]) settings.workers.push({ 姓名: r[0], 預設時薪: r[1] || '190', 預設日薪: r[2] || '1500' });
+      if (r[0]) settings.workers.push({ 憪?: r[0], ?身?: r[1] || '190', ?身?亥: r[2] || '1500' });
     });
-    // 單位
+    // ?桐?
     (resUnit.result.values || []).forEach(r => {
       if (r[0]) settings.units.push(r[0]);
     });
 
-    // 預設值備援
-    if (settings.incomeMainCats.length === 0) settings.incomeMainCats = DEFAULT_INCOME_CATS.map(n => ({ 名稱: n, 次類別:[], 等級: GRADE_OPTIONS }));
+    // ?身?澆???
+    if (settings.incomeMainCats.length === 0) settings.incomeMainCats = DEFAULT_INCOME_CATS.map(n => ({ ?迂: n, 甈⊿???[], 蝑?: GRADE_OPTIONS }));
     if (settings.expenseMainCats.length === 0) settings.expenseMainCats = DEFAULT_EXPENSE_CATS.map(c => ({ ...c }));
-    if (settings.units.length === 0) settings.units = ['包', '罐', '箱', '件', '斤', '天', '小時'];
+    if (settings.units.length === 0) settings.units = ['??, '蝵?, '蝞?, '隞?, '??, '憭?, '撠?'];
     
   } catch (e) {
-    console.error('fetchSettings 失敗:', e);
+    console.error('fetchSettings 憭望?:', e);
     settings = {
-      incomeMainCats: DEFAULT_INCOME_CATS.map(n => ({ 名稱: n, 次類別:[], 等級: GRADE_OPTIONS })),
+      incomeMainCats: DEFAULT_INCOME_CATS.map(n => ({ ?迂: n, 甈⊿???[], 蝑?: GRADE_OPTIONS })),
       retailPrices: [],
       expenseMainCats: DEFAULT_EXPENSE_CATS.map(c => ({ ...c })),
       workers: [],
-      units: ['包', '罐', '箱', '件', '斤', '天', '小時'],
+      units: ['??, '蝵?, '蝞?, '隞?, '??, '憭?, '撠?'],
     };
   }
 }
@@ -899,19 +875,27 @@ async function fetchIncome() {
       spreadsheetId: SPREADSHEET_ID,
       range: `${SHEET.MARKET_INCOME}!A2:R`,
     });
-    const headers = sheetHeadersCache[SHEET.MARKET_INCOME];
-    incomeData = (res.result.values || []).map(r => {
-      const obj = mapRowToObject(headers, r);
-      // 特殊處理：解析 JSON 或預設值
-      if (typeof obj.等級資料 === 'string') obj.等級資料 = safeParseJSON(obj.等級資料, []);
-      if (!obj.付款狀態) obj.付款狀態 = '未付款';
-      if (!obj.對帳狀態) obj.對帳狀態 = '待對帳';
-      return obj;
-    });
-  } catch (e) { 
-    console.error('fetchIncome 失敗:', e);
-    incomeData = []; 
-  }
+    incomeData = (res.result.values || []).map(r => ({
+      id: r[0] || '',
+      ?交?: r[1] || '',
+      摰Ｘ憿: r[2] || '',
+      摰Ｘ?迂: r[3] || '',
+      銝駁??? r[4] || '',
+      甈⊿??? r[5] || '',
+      蝑?鞈?: safeParseJSON(r[6], []),
+      蝮賡?: r[7] || '',
+      蝞望: r[8] || '',
+      蝮賢: r[9] || '',
+      ?文??? r[10] || '',
+      ?祥: r[11] || '',
+      ?酉: r[12] || '',
+      隞狡??? r[13] || '?芯?甈?,
+      撠董??? r[14] || '敺?撣?,
+      ?寞蝣箄?: r[14] === 'OK',
+      撱箇???: r[15] || '',
+      ?敺?? r[16] || '',
+    }));
+  } catch (e) { incomeData = []; }
 }
 
 async function fetchExpense() {
@@ -921,27 +905,49 @@ async function fetchExpense() {
       gapi.client.sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: `${SHEET.EXPENSE_COST}!A2:L` }),
     ]);
 
-    const headersSalary = sheetHeadersCache[SHEET.EXPENSE_SALARY];
-    const headersCost = sheetHeadersCache[SHEET.EXPENSE_COST];
+    const salaryItems = (resSalary.result.values || []).map(r => ({
+      id: r[0] || '',
+      ?交?: r[1] || '',
+      銝駁??? r[2] || '',
+      甈⊿??? r[3] || '',
+      撌乩犖憪?: r[4] || '',
+      閮?孵?: r[5] || '',
+      銝?銝: r[6] || '',
+      銝?隡: r[7] || '',
+      銝?銝: r[8] || '',
+      銝?銝: r[9] || '',
+      ?賊?: r[10] || '',
+      ?桀: r[11] || '',
+      ?怠?擗? r[12] === 'TRUE' || r[12] === true,
+      蝮賡?: r[13] || '',
+      撌脫隞? r[14] === 'TRUE' || r[14] === true,
+      ?臭??交?: r[15] || '',
+      ?酉: r[16] || '',
+      撱箇???: r[17] || '',
+      ?敺?? r[18] || '',
+      _sourceSheet: SHEET.EXPENSE_SALARY
+    }));
 
-    const salaryItems = (resSalary.result.values || []).map(r => {
-      const obj = mapRowToObject(headersSalary, r);
-      obj.含午餐 = obj.含午餐 === 'TRUE' || obj.含午餐 === true;
-      obj.已支付 = obj.已支付 === 'TRUE' || obj.已支付 === true;
-      obj._sourceSheet = SHEET.EXPENSE_SALARY;
-      return obj;
-    });
+    const costItems = (resCost.result.values || []).map(r => ({
+      id: r[0] || '',
+      ?交?: r[1] || '',
+      銝駁??? r[2] || '',
+      甈⊿??? r[3] || '',
+      ?賊?: r[4] || '',
+      ?桀: r[5] || '',
+      蝮賡?: r[6] || '',
+      撌脫隞? r[7] === 'TRUE' || r[7] === true,
+      ?臭??交?: r[8] || '',
+      ?酉: r[9] || '',
+      撱箇???: r[10] || '',
+      ?敺?? r[11] || '',
+      _sourceSheet: SHEET.EXPENSE_COST
+    }));
 
-    const costItems = (resCost.result.values || []).map(r => {
-      const obj = mapRowToObject(headersCost, r);
-      obj.已支付 = obj.已支付 === 'TRUE' || obj.已支付 === true;
-      obj._sourceSheet = SHEET.EXPENSE_COST;
-      return obj;
-    });
-
+    // ?蔥鞈?隞亦雁??葡??頛?
     expenseData = [...salaryItems, ...costItems];
   } catch (e) { 
-    console.error('fetchExpense 失敗:', e);
+    console.error('fetchExpense 憭望?:', e);
     expenseData = []; 
   }
 }
@@ -952,12 +958,16 @@ async function fetchCustomers() {
       spreadsheetId: SPREADSHEET_ID,
       range: `${SHEET.CUSTOMERS}!A2:G`,
     });
-    const headers = sheetHeadersCache[SHEET.CUSTOMERS];
-    customersData = (res.result.values || []).map(r => mapRowToObject(headers, r));
-  } catch (e) { 
-    console.error('fetchCustomers 失敗:', e);
-    customersData = []; 
-  }
+    customersData = (res.result.values || []).map(r => ({
+      摰Ｘ蝺刻?: r[0] || '',
+      摰Ｘ憪?: r[1] || '',
+      ?餉店: r[2] || '',
+      ?啣?: r[3] || '',
+      摰Ｘ靘?: r[4] || '',
+      摰Ｘ皜?: r[5] || '',
+      隞晶鈭? r[6] || '',
+    }));
+  } catch (e) { customersData = []; }
 }
 
 async function fetchOrders() {
@@ -966,23 +976,34 @@ async function fetchOrders() {
       spreadsheetId: SPREADSHEET_ID,
       range: `${SHEET.ORDERS}!A2:S`,
     });
-    const headers = sheetHeadersCache[SHEET.ORDERS];
     ordersData = (res.result.values || []).map((r, index) => {
-      const obj = mapRowToObject(headers, r);
-      // 特殊處理
-      if (!obj.id) obj.id = `ORD_${index}_${Date.now()}`;
-      if (!obj.狀態 || obj.狀態 === '不指定' || obj.狀態 === '未填') obj.狀態 = '未指定';
-      if (!obj.付款狀態) obj.付款狀態 = '未付款';
-      if (!obj.對帳狀態) obj.對帳狀態 = '待對帳';
-      // 布林值轉換
-      obj.需備註寄件人 = obj.需備註寄件人 === 'TRUE' || obj.需備註寄件人 === 'Y' || obj.需備註寄件人 === true;
-      return obj;
+      let status = r[2] || '?芣?摰?;
+      if (status === '銝?摰? || status === '?芸‵') status = '?芣?摰?;
+      return {
+        id: `ORD_${index}_${Date.now()}`,
+        閮頃??: r[0] || '',
+        ??憿: r[1] || '',
+        ??? status,
+        銝??交?: r[3] || '',
+        ?啗疏?交?: r[4] || '',
+        閮頃蝑?: r[5] || '',
+        閮?批捆: r[6] || '',
+        蝮賢: r[7] || '',
+        摰Ｘ蝺刻?: r[8] || '',
+        撖辣鈭? r[9] || '',
+        撖辣鈭粹閰? r[10] || '',
+        ?嗡辣鈭? r[11] || '',
+        ?嗡辣鈭粹閰? r[12] || '',
+        ?嗡辣鈭箏?: r[13] || '',
+        ??酉撖辣鈭? r[14] === 'TRUE' || r[14] === 'Y' || r[14] === true,
+        ?疏?孵?: r[15] || '',
+        隞狡??? r[16] || '?芯?甈?,
+        撠董??? r[17] || '敺?撣?,
+        ?酉: r[18] || '',
+      };
     });
     ordersData.forEach((od, i) => od._localIdx = i + 2);
-  } catch (e) { 
-    console.error('fetchOrders 失敗:', e);
-    ordersData = []; 
-  }
+  } catch (e) { ordersData = []; }
 }
 
 function getFilteredByPeriod(data, field, period) {
@@ -1008,11 +1029,11 @@ function safeParseJSON(str, fallback) {
 }
 
 // ============================================================
-// 7. Tab 切換
+// 7. Tab ??
 // ============================================================
 function switchTab(tab) {
   if (tab === 'admin' && !isAdmin) {
-    showToast('權限不足，無法進入管理頁面', 'error');
+    showToast('甈?銝雲嚗瘜脣蝞∠??', 'error');
     return;
   }
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
@@ -1026,7 +1047,7 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
   btn.addEventListener('click', () => switchTab(btn.dataset.tab));
 });
 
-// 子頁 Tab 切換（市場收入 / 客戶訂單）
+// 摮? Tab ??嚗??湔??/ 摰Ｘ閮嚗?
 document.querySelectorAll('.sub-tab-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     const subId = btn.dataset.subtab;
@@ -1039,10 +1060,10 @@ document.querySelectorAll('.sub-tab-btn').forEach(btn => {
 });
 
 // ============================================================
-// 8. 渲染全部
+// 8. 皜脫??券
 // ============================================================
 function renderAll() {
-  renderCompositeIncomeCard(); // 優先渲染複合式卡片
+  renderCompositeIncomeCard(); // ?芸?皜脫?銴?撘??
   
   renderRevenueSummary();
   renderIncomeTable();
@@ -1051,7 +1072,7 @@ function renderAll() {
   renderExpenseChart();
   renderExpenseTable();
   renderExpenseFilterChips();
-  initExpenseSubTabs(); // 初始化支出子頁切換
+  initExpenseSubTabs(); // ????箏?????
 
   renderBalancePage();
   renderOrderFilterChips();
@@ -1062,7 +1083,7 @@ function renderAll() {
 }
 
 // ============================================================
-// 8b. FAB 懸浮按鈕初始化
+// 8b. FAB ?豢筑??????
 // ============================================================
 function initFAB() {
   const fabMain = document.getElementById('fabMain');
@@ -1077,7 +1098,7 @@ function initFAB() {
     const isOpen = fabMenu.classList.contains('open');
     if (isOpen) {
       fabMenu.classList.remove('open');
-      fabMain.classList.remove('open'); // 這是 CSS 用來旋轉 + 號的 class
+      fabMain.classList.remove('open'); // ? CSS ?其??? + ?? class
     } else {
       fabMenu.classList.add('open');
       fabMain.classList.add('open');
@@ -1100,32 +1121,32 @@ function handleFabAction(type) {
 
   if (type === 'income') {
     switchTab('revenue');
-    // 預設開啟市場收入，Modal 內可切換
+    // ?身??撣?嗅嚗odal ?批??
     setTimeout(() => openIncomeModal(), 100);
   } else if (type === 'expense') {
     switchTab('expense');
-    // 根據目前的支出子頁類型開啟對應表單，Modal 內可切換
+    // ?寞??桀???箏????????”?殷?Modal ?批??
     const isCosts = filterState.expense.type === 'material';
     setTimeout(() => openExpenseModal(null, isCosts ? 'material' : 'worker'), 100);
   }
 }
 
 // ============================================================
-// 9. 複合式統計 (重構後核心)
+// 9. 銴?撘絞閮?(??敺敹?
 // ============================================================
 
 function renderCompositeIncomeCard() {
   const period = filterState.composite.period;
   
-  // 1. 計算金額
-  const marketRows = getFilteredByPeriod(incomeData, '日期', period);
-  const orderRows = getFilteredByPeriod(ordersData, '下定日期', period); // 訂單以客源日期為主
+  // 1. 閮???
+  const marketRows = getFilteredByPeriod(incomeData, '?交?', period);
+  const orderRows = getFilteredByPeriod(ordersData, '銝??交?', period); // 閮隞亙恥皞?銝?
 
-  const marketTotal = marketRows.reduce((s, r) => s + (parseFloat(r.總價) || 0), 0);
-  const orderTotal = orderRows.reduce((s, r) => s + (parseFloat(r.總價) || 0), 0);
+  const marketTotal = marketRows.reduce((s, r) => s + (parseFloat(r.蝮賢) || 0), 0);
+  const orderTotal = orderRows.reduce((s, r) => s + (parseFloat(r.蝮賢) || 0), 0);
   const grandTotal = marketTotal + orderTotal;
 
-  // 2. 更新數字與進度條
+  // 2. ?湔?詨??脣漲璇?
   const elTotal = document.getElementById('revenueTotalAmount');
   if (elTotal) elTotal.textContent = `$${grandTotal.toLocaleString()}`;
 
@@ -1143,10 +1164,10 @@ function renderCompositeIncomeCard() {
   if (valMarket) valMarket.textContent = `$${marketTotal.toLocaleString()} (${Math.round(marketPercent)}%)`;
   if (valOrder) valOrder.textContent = `$${orderTotal.toLocaleString()} (${Math.round(orderPercent)}%)`;
 
-  // 3. 渲染左右明細 (按品種分組)
+  // 3. 皜脫?撌血?敦 (??蝔桀?蝯?
   renderCompositeDetails(marketRows, orderRows);
   
-  // 4. 渲染未出貨警告
+  // 4. 皜脫??芸鞎刻郎??
   renderUnshippedAlerts();
 }
 
@@ -1155,22 +1176,22 @@ function renderCompositeDetails(mRows, oRows) {
   const rightEl = document.getElementById('orderSummaryDetails');
   if (!leftEl || !rightEl) return;
 
-  // 分組函式
+  // ???賢?
   const groupByCat = (rows, field) => {
     const map = {};
     rows.forEach(r => {
-      const cat = r[field] || '其他';
-      map[cat] = (map[cat] || 0) + (parseFloat(r.總價) || 0);
+      const cat = r[field] || '?嗡?';
+      map[cat] = (map[cat] || 0) + (parseFloat(r.蝮賢) || 0);
     });
     return map;
   };
 
-  const marketMap = groupByCat(mRows, '主類別');
-  const orderMap = groupByCat(oRows, '訂購品項');
+  const marketMap = groupByCat(mRows, '銝駁???);
+  const orderMap = groupByCat(oRows, '閮頃??');
 
   const buildHtml = (map) => {
     const entries = Object.entries(map).sort((a,b) => b[1] - a[1]);
-    if (entries.length === 0) return '<div class="detail-item"><span class="detail-name">暫無數據</span></div>';
+    if (entries.length === 0) return '<div class="detail-item"><span class="detail-name">?怎?豢?</span></div>';
     return entries.map(([name, val]) => `
       <div class="detail-item">
         <span class="detail-name">${name}</span>
@@ -1187,43 +1208,43 @@ function renderUnshippedAlerts() {
   const container = document.getElementById('unshippedAlertContainer');
   if (!container) return;
 
-  // 篩選未出貨訂單
-  const pendingOrders = ordersData.filter(o => o.狀態 !== '已出貨' && o.狀態 !== '未指定');
+  // 蝭拚?芸鞎刻???
+  const pendingOrders = ordersData.filter(o => o.???!== '撌脣鞎? && o.???!== '?芣?摰?);
   if (pendingOrders.length === 0) {
     container.style.display = 'none';
     return;
   }
 
-  // 按 品項 + 等級 加總
-  const aggregate = {}; // { "甜柿": { "6A": 10, ... } }
+  // ???? + 蝑? ?蜇
+  const aggregate = {}; // { "?": { "6A": 10, ... } }
   pendingOrders.forEach(o => {
-    const item = o.訂購品項 || '其他';
-    const gradeData = safeParseJSON(o.訂購等級, {}); 
-    // 註：有些訂單的訂購等級可能是 JSON 字串，有些可能是直接字串
-    // 根據現有代碼，訂單內容是複雜結構
+    const item = o.閮頃?? || '?嗡?';
+    const gradeData = safeParseJSON(o.閮頃蝑?, {}); 
+    // 閮鳴???閮??鞈潛?蝝?賣 JSON 摮葡嚗?鈭?賣?湔摮葡
+    // ?寞??暹?隞?Ⅳ嚗??桀摰寞銴?蝯?
 
     if (!aggregate[item]) aggregate[item] = {};
     
-    // 解析訂單內的等級與數量
-    // 假設訂單明細格式為：[{grade: "6A", qty: 2}, ...]
-    const details = safeParseJSON(o.訂單內容, []);
+    // 閫??閮?抒?蝑????
+    // ?身閮?敦?澆??綽?[{grade: "6A", qty: 2}, ...]
+    const details = safeParseJSON(o.閮?批捆, []);
     details.forEach(d => {
-      const g = d.grade || '未填';
+      const g = d.grade || '?芸‵';
       const q = parseFloat(d.qty) || 0;
       aggregate[item][g] = (aggregate[item][g] || 0) + q;
     });
   });
 
-  const emojiMap = { '甜柿': '🍅', '橘子': '🍊', '水蜜桃': '🍑' };
+  const emojiMap = { '?': '??', '璈?': '??', '瘞渲?獢?: '??' };
   let htmlArray = [];
 
   for (const [item, grades] of Object.entries(aggregate)) {
-    const emoji = emojiMap[item] || '📦';
+    const emoji = emojiMap[item] || '?';
     const gradeStr = Object.entries(grades)
-      .map(([g, q]) => `${g}-${q}箱`)
-      .join('、');
+      .map(([g, q]) => `${g}-${q}蝞常)
+      .join('??);
     if (gradeStr) {
-      htmlArray.push(`<div class="alert-item">${emoji}(${item}未出貨)：${gradeStr}</div>`);
+      htmlArray.push(`<div class="alert-item">${emoji}(${item}?芸鞎?嚗?{gradeStr}</div>`);
     }
   }
 
@@ -1234,28 +1255,28 @@ function renderUnshippedAlerts() {
 }
 
 // ============================================================
-// 9b. 複合式支出統計
+// 9b. 銴?撘?箇絞閮?
 // ============================================================
 
 function renderCompositeExpenseCard() {
   const period = filterState.expense.period;
-  const data = getFilteredByPeriod(expenseData, '日期', period);
+  const data = getFilteredByPeriod(expenseData, '?交?', period);
 
-  // 1. 計算金額
+  // 1. 閮???
   const salaryRows = data.filter(r => {
-    const cat = settings.expenseMainCats.find(c => c.名稱 === r.主類別);
-    return cat?.類型 === 'worker';
+    const cat = settings.expenseMainCats.find(c => c.?迂 === r.銝駁???;
+    return cat?.憿? === 'worker';
   });
   const costRows = data.filter(r => {
-    const cat = settings.expenseMainCats.find(c => c.名稱 === r.主類別);
-    return cat?.類型 !== 'worker';
+    const cat = settings.expenseMainCats.find(c => c.?迂 === r.銝駁???;
+    return cat?.憿? !== 'worker';
   });
 
   const salaryTotal = salaryRows.reduce((s, r) => s + calcExpenseTotal(r), 0);
   const costTotal = costRows.reduce((s, r) => s + calcExpenseTotal(r), 0);
   const grandTotal = salaryTotal + costTotal;
 
-  // 2. 更新數字與進度條
+  // 2. ?湔?詨??脣漲璇?
   const elTotal = document.getElementById('expenseTotalAmount');
   if (elTotal) elTotal.textContent = `$${grandTotal.toLocaleString()}`;
 
@@ -1273,7 +1294,7 @@ function renderCompositeExpenseCard() {
   if (valSalary) valSalary.textContent = `$${salaryTotal.toLocaleString()} (${Math.round(salaryPercent)}%)`;
   if (valCost) valCost.textContent = `$${costTotal.toLocaleString()} (${Math.round(costPercent)}%)`;
 
-  // 3. 渲染明細
+  // 3. 皜脫??敦
   renderExpenseSummaryDetails(salaryRows, costRows);
 }
 
@@ -1285,7 +1306,7 @@ function renderExpenseSummaryDetails(sRows, cRows) {
   const groupByCat = (rows) => {
     const map = {};
     rows.forEach(r => {
-      const cat = r.主類別 || '其他';
+      const cat = r.銝駁???|| '?嗡?';
       map[cat] = (map[cat] || 0) + calcExpenseTotal(r);
     });
     return map;
@@ -1296,7 +1317,7 @@ function renderExpenseSummaryDetails(sRows, cRows) {
 
   const buildHtml = (map) => {
     const entries = Object.entries(map).sort((a,b) => b[1] - a[1]);
-    if (entries.length === 0) return '<div class="detail-item"><span class="detail-name">暫無數據</span></div>';
+    if (entries.length === 0) return '<div class="detail-item"><span class="detail-name">?怎?豢?</span></div>';
     return entries.map(([name, val]) => `
       <div class="detail-item">
         <span class="detail-name">${name}</span>
@@ -1319,7 +1340,7 @@ function initExpenseSubTabs() {
     filterState.expense.mainCat = null;
     filterState.expense.subCat = null;
     
-    // UI 切換
+    // UI ??
     document.getElementById('subpage-salary').style.display = type === 'salary' ? 'block' : 'none';
     document.getElementById('subpage-costs').style.display = type === 'costs' ? 'block' : 'none';
     
@@ -1335,7 +1356,7 @@ function initExpenseSubTabs() {
 }
 
 // ============================================================
-// 10. 快捷功能工具
+// 10. 敹急?撌亙
 // ============================================================
 
 function setFormDateToday(id) {
@@ -1346,130 +1367,130 @@ function setFormDateToday(id) {
     const m = String(now.getMonth() + 1).padStart(2, '0');
     const d = String(now.getDate()).padStart(2, '0');
     el.value = `${y}-${m}-${d}`;
-    // 如果有連動邏輯（如訂單自動過濾），可觸發 change 事件
+    // 憒?????摩嚗?閮?芸??蕪嚗??航孛??change 鈭辣
     el.dispatchEvent(new Event('change'));
   }
 }
 
-/** 複製紀錄主進入點 */
+/** 銴ˊ蝝?蜓?脣暺?*/
 function duplicateRecord(type, data) {
   if (type === 'income') {
-    openIncomeForm(null); // 以「新增」模式回填
+    openIncomeForm(null); // 隞乓憓芋撘?憛?
     setTimeout(() => {
-      // 根據 data 回填
+      // ?寞? data ?‵
       if (document.getElementById('incomeMainCat')) {
-        document.getElementById('incomeMainCat').value = data.主類別 || '';
+        document.getElementById('incomeMainCat').value = data.銝駁???|| '';
         document.getElementById('incomeMainCat').dispatchEvent(new Event('change'));
       }
       setTimeout(() => {
-         if (document.getElementById('incomeSubCat')) document.getElementById('incomeSubCat').value = data.次類別 || '';
-         if (document.getElementById('incomeCustomerName')) document.getElementById('incomeCustomerName').value = data.客戶名稱 || '';
-         if (document.getElementById('incomeNotes')) document.getElementById('incomeNotes').value = data.附註 || '';
-         if (document.getElementById('incomeTotalPrice')) document.getElementById('incomeTotalPrice').value = data.總價 || '';
+         if (document.getElementById('incomeSubCat')) document.getElementById('incomeSubCat').value = data.甈⊿???|| '';
+         if (document.getElementById('incomeCustomerName')) document.getElementById('incomeCustomerName').value = data.摰Ｘ?迂 || '';
+         if (document.getElementById('incomeNotes')) document.getElementById('incomeNotes').value = data.?酉 || '';
+         if (document.getElementById('incomeTotalPrice')) document.getElementById('incomeTotalPrice').value = data.蝮賢 || '';
          
-         // 等級回填 (複雜結構)
-         if (Array.isArray(data.等級資料) && data.等級資料.length > 0) {
+         // 蝑??‵ (銴?蝯?)
+         if (Array.isArray(data.蝑?鞈?) && data.蝑?鞈?.length > 0) {
            const container = document.getElementById('gradeRowsContainer');
            container.innerHTML = '';
-           data.等級資料.forEach(g => {
-             addGradeRow(g.等級, g.斤數, g.箱數);
+           data.蝑?鞈?.forEach(g => {
+             addGradeRow(g.蝑?, g.?斗, g.蝞望);
            });
          }
-         showToast('已複製規格與內容，請檢查後儲存', 'success');
+         showToast('撌脰?鋆質??潸??批捆嚗?瑼Ｘ敺摮?, 'success');
       }, 50);
     }, 100);
   } else if (type === 'order') {
     openOrderForm(null);
     setTimeout(() => {
       if (document.getElementById('orderMainCat')) {
-        document.getElementById('orderMainCat').value = data.訂購品項 || '';
+        document.getElementById('orderMainCat').value = data.閮頃?? || '';
         document.getElementById('orderMainCat').dispatchEvent(new Event('change'));
       }
       setTimeout(() => {
-        if (document.getElementById('orderSubCat')) document.getElementById('orderSubCat').value = data.品項類別 || '';
-        if (document.getElementById('orderDeliveryType')) document.getElementById('orderDeliveryType').value = data.取貨方式 || '';
-        if (document.getElementById('orderTotalPrice')) document.getElementById('orderTotalPrice').value = data.總價 || '';
-        if (document.getElementById('orderStatus')) document.getElementById('orderStatus').value = data.狀態 || '未指定';
-        // 客戶資訊
-        if (document.getElementById('orderSenderName')) document.getElementById('orderSenderName').value = data.寄件人 || '';
-        if (document.getElementById('orderSenderPhone')) document.getElementById('orderSenderPhone').value = data.寄件人電話 || '';
-        if (document.getElementById('orderReceiverName')) document.getElementById('orderReceiverName').value = data.收件人 || '';
-        if (document.getElementById('orderReceiverPhone')) document.getElementById('orderReceiverPhone').value = data.收件人電話 || '';
-        if (document.getElementById('orderReceiverAddress')) document.getElementById('orderReceiverAddress').value = data.收件人地址 || '';
+        if (document.getElementById('orderSubCat')) document.getElementById('orderSubCat').value = data.??憿 || '';
+        if (document.getElementById('orderDeliveryType')) document.getElementById('orderDeliveryType').value = data.?疏?孵? || '';
+        if (document.getElementById('orderTotalPrice')) document.getElementById('orderTotalPrice').value = data.蝮賢 || '';
+        if (document.getElementById('orderStatus')) document.getElementById('orderStatus').value = data.???|| '?芣?摰?;
+        // 摰Ｘ鞈?
+        if (document.getElementById('orderSenderName')) document.getElementById('orderSenderName').value = data.撖辣鈭?|| '';
+        if (document.getElementById('orderSenderPhone')) document.getElementById('orderSenderPhone').value = data.撖辣鈭粹閰?|| '';
+        if (document.getElementById('orderReceiverName')) document.getElementById('orderReceiverName').value = data.?嗡辣鈭?|| '';
+        if (document.getElementById('orderReceiverPhone')) document.getElementById('orderReceiverPhone').value = data.?嗡辣鈭粹閰?|| '';
+        if (document.getElementById('orderReceiverAddress')) document.getElementById('orderReceiverAddress').value = data.?嗡辣鈭箏? || '';
         
-        // 等級容器
-        const details = safeParseJSON(data.訂單內容, []);
+        // 蝑?摰孵
+        const details = safeParseJSON(data.閮?批捆, []);
         const container = document.getElementById('orderGradeContainer');
         if (container && details.length > 0) {
-          // 訂單表單的等級渲染通常是根據 MainCat 的 change 自動生成的，這裡需要精確控制
-          // ... 略過較複雜的 DOM 操作，提示用戶檢查
+          // 閮銵典??蝝葡?虜?舀??MainCat ??change ?芸??????ㄐ?閬移蝣箸??
+          // ... ?仿?頛??? DOM ??嚗?蝷箇?嗆炎??
         }
-        showToast('訂單複製成功', 'success');
+        showToast('閮銴ˊ??', 'success');
       }, 50);
     }, 100);
   } else if (type === 'expense') {
     openExpenseModal(null);
     setTimeout(() => {
       if (document.getElementById('expenseMainCat')) {
-        document.getElementById('expenseMainCat').value = data.主類別 || '';
+        document.getElementById('expenseMainCat').value = data.銝駁???|| '';
         document.getElementById('expenseMainCat').dispatchEvent(new Event('change'));
       }
       setTimeout(() => {
-        if (document.getElementById('expenseSubCat')) document.getElementById('expenseSubCat').value = data.次類別 || '';
-        if (document.getElementById('expenseQty')) document.getElementById('expenseQty').value = data.數量 || '';
-        if (document.getElementById('expenseUnitPrice')) document.getElementById('expenseUnitPrice').value = data.單價 || '';
-        if (document.getElementById('expenseTotalPrice')) document.getElementById('expenseTotalPrice').value = data.總額 || '';
-        if (document.getElementById('expenseUnit')) document.getElementById('expenseUnit').value = data.單位 || '';
-        if (document.getElementById('expenseNotes')) document.getElementById('expenseNotes').value = data.附註 || '';
-        showToast('支出複製成功', 'success');
+        if (document.getElementById('expenseSubCat')) document.getElementById('expenseSubCat').value = data.甈⊿???|| '';
+        if (document.getElementById('expenseQty')) document.getElementById('expenseQty').value = data.?賊? || '';
+        if (document.getElementById('expenseUnitPrice')) document.getElementById('expenseUnitPrice').value = data.?桀 || '';
+        if (document.getElementById('expenseTotalPrice')) document.getElementById('expenseTotalPrice').value = data.蝮賡? || '';
+        if (document.getElementById('expenseUnit')) document.getElementById('expenseUnit').value = data.?桐? || '';
+        if (document.getElementById('expenseNotes')) document.getElementById('expenseNotes').value = data.?酉 || '';
+        showToast('?臬銴ˊ??', 'success');
       }, 50);
     }, 100);
   }
 }
 
 // ============================================================
-// 10. 快捷功能工具
+// 10. 敹急?撌亙
 // ============================================================
 
-// 收入總覽卡片（市場+訂單合計，依今年）
+// ?嗅蝮質汗?∠?嚗???閮??嚗?隞僑嚗?
 function renderRevenueSummary() {
-  // 修正由複合卡片處理，此處僅更新舊有的標籤文字(如有)
+  // 靽格迤?梯??????甇方???啗???璅惜??(憒?)
 }
 
 // ============================================================
-// 12. 收入分頁
+// 12. ?嗅??
 // ============================================================
 
-/* Helper: 取得類別圖示 */
+/* Helper: ??憿?內 */
 function getCategoryIcon(name) {
   const icons = {
-    '甜柿': 'nutrition',
-    '水蜜桃': 'sound_detection_dog_barking', // 用桃子類比的圖示或通用的
-    '橘子': 'lens_blur',
-    '工人薪資': 'engineering',
-    '勞工': 'engineering',
-    '肥料': 'eco',
-    '成本': 'inventory_2',
-    '農藥': 'pest_control',
-    '包裝材料': 'package_2',
-    '開銷': 'receipt_long',
-    '菜錢': 'local_grocery_store',
-    '什支備註': 'more_horiz',
-    '其他': 'more_horiz'
+    '?': 'nutrition',
+    '瘞渲?獢?: 'sound_detection_dog_barking', // ?冽?摮?瘥??內???
+    '璈?': 'lens_blur',
+    '撌乩犖?芾?': 'engineering',
+    '?極': 'engineering',
+    '?交?': 'eco',
+    '?': 'inventory_2',
+    '颲脰': 'pest_control',
+    '????': 'package_2',
+    '?': 'receipt_long',
+    '?': 'local_grocery_store',
+    '隞?臬?閮?: 'more_horiz',
+    '?嗡?': 'more_horiz'
   };
-  // 模糊匹配圖示
+  // 璅∠??寥??內
   const match = Object.keys(icons).find(k => name.includes(k));
   return icons[match] || 'nest_multi_room';
 }
 
-/* Helper: 取得語意化類別顏色 */
+/* Helper: ??隤????仿???*/
 const CAT_COLORS = {
-  '甜柿':   { color: '#f97316', bg: '#fff7ed', border: '#fed7aa' },
-  '水蜜桃': { color: '#ec4899', bg: '#fdf2f8', border: '#fbcfe8' },
-  '橘子':   { color: '#84cc16', bg: '#f7fee7', border: '#d9f99d' },
-  '固定成本': { color: '#3b82f6', bg: '#eff6ff', border: '#bfdbfe' },
-  '變動成本': { color: '#8b5cf6', bg: '#f3f0ff', border: '#ddd6fe' },
-  '工人薪資': { color: '#8b5cf6', bg: '#f3f0ff', border: '#ddd6fe' }
+  '?':   { color: '#f97316', bg: '#fff7ed', border: '#fed7aa' },
+  '瘞渲?獢?: { color: '#ec4899', bg: '#fdf2f8', border: '#fbcfe8' },
+  '璈?':   { color: '#84cc16', bg: '#f7fee7', border: '#d9f99d' },
+  '?箏??': { color: '#3b82f6', bg: '#eff6ff', border: '#bfdbfe' },
+  '霈??': { color: '#8b5cf6', bg: '#f3f0ff', border: '#ddd6fe' },
+  '撌乩犖?芾?': { color: '#8b5cf6', bg: '#f3f0ff', border: '#ddd6fe' }
 };
 const CAT_FALLBACK_PALETTE = ['#22c55e','#3b82f6','#a855f7','#f97316','#eab308','#ef4444','#06b6d4','#64748b'];
 
@@ -1479,18 +1500,18 @@ function getCategoryColor(name, fallbackIndex = 0) {
   return { color: c, bg: '#f8fafc', border: '#e2e8f0' };
 }
 
-/** 建立「左滑」顯示編輯/刪除按鈕的邏輯 (適用於手機/觸控) */
+/** 撱箇??椰皛＊蝷箇楊頛??芷????頛?(?拍?潭?璈?閫豢) */
 function setupSwipeLogic(itemEl, editCb, delCb) {
   let startX = 0;
   let currentX = 0;
   let isSwiping = false;
   const content = itemEl.querySelector('.record-item-content');
-  const actionWidth = 210; // 三個按鈕
+  const actionWidth = 210; // 銝???
 
   itemEl.addEventListener('touchstart', (e) => {
     startX = e.touches[0].clientX;
     isSwiping = true;
-    content.style.transition = 'none'; // 拖曳時不延遲
+    content.style.transition = 'none'; // ???撱園
   }, { passive: true });
 
   itemEl.addEventListener('touchmove', (e) => {
@@ -1498,9 +1519,9 @@ function setupSwipeLogic(itemEl, editCb, delCb) {
     currentX = e.touches[0].clientX;
     const diff = currentX - startX;
     
-    // 只允許向左滑 (負值)
+    // ?芸?閮勗?撌行? (鞎?
     if (diff < 0) {
-      const move = Math.max(diff, -actionWidth - 40); // 稍微多一點彈性
+      const move = Math.max(diff, -actionWidth - 40); // 蝔凝憭?暺???
       content.style.transform = `translateX(${move}px)`;
     } else {
       content.style.transform = `translateX(0px)`;
@@ -1509,7 +1530,7 @@ function setupSwipeLogic(itemEl, editCb, delCb) {
 
   itemEl.addEventListener('touchend', (e) => {
     isSwiping = false;
-    content.style.transition = ''; // 恢復動畫
+    content.style.transition = ''; // ?Ｗ儔?
     const finalDiff = currentX - startX;
 
     if (finalDiff < -actionWidth / 2) {
@@ -1521,19 +1542,19 @@ function setupSwipeLogic(itemEl, editCb, delCb) {
     }
   });
 
-  // 對於非觸控裝置 (滑鼠)，可以點擊「...」或保持隱藏按鈕。
-  // 這裡我們在 itemEl 內部加入隱藏的按鈕
+  // 撠?孛?扯?蝵?(皛?)嚗隞仿???..??靽??梯?????
+  // ?ㄐ? itemEl ?折??梯?????
   const actionsWrap = document.createElement('div');
   actionsWrap.className = 'record-item-actions-swipe';
   actionsWrap.innerHTML = `
-    <button class="swipe-btn copy"><span class="material-symbols-outlined">content_copy</span>複製</button>
-    <button class="swipe-btn edit"><span class="material-symbols-outlined">edit</span>編輯</button>
-    <button class="swipe-btn del"><span class="material-symbols-outlined">delete</span>刪除</button>
+    <button class="swipe-btn copy"><span class="material-symbols-outlined">content_copy</span>銴ˊ</button>
+    <button class="swipe-btn edit"><span class="material-symbols-outlined">edit</span>蝺刻摩</button>
+    <button class="swipe-btn del"><span class="material-symbols-outlined">delete</span>?芷</button>
   `;
   actionsWrap.querySelector('.copy').onclick = (e) => { 
     e.stopPropagation(); 
-    // 我們需要知道 type，這裡可以從 itemEl 的屬性或回呼函數獲取
-    // 為了通用性，讓 itemEl 攜帶或是傳入更多參數
+    // ??閬??type嚗ㄐ?臭誑敺?itemEl ?惇?扳???賣?脣?
+    // ?箔???改?霈?itemEl ?葆??喳?游??
     const type = itemEl.dataset.type;
     const dataId = itemEl.dataset.id;
     if (type && dataId) {
@@ -1548,7 +1569,7 @@ function setupSwipeLogic(itemEl, editCb, delCb) {
   
   itemEl.appendChild(actionsWrap);
 
-  // 點擊 content 時若已展開則關閉
+  // 暺? content ?撌脣?????
   content.addEventListener('click', (e) => {
     if (itemEl.classList.contains('swiped')) {
       e.stopPropagation();
@@ -1565,36 +1586,36 @@ let _orderPieInstance = null;
 
 function renderIncomeChart() {
   const period = filterState.income.period;
-  const data = getFilteredByPeriod(incomeData, '日期', period);
+  const data = getFilteredByPeriod(incomeData, '?交?', period);
 
   const catMap = {};
   settings.incomeMainCats.forEach((c, i) => {
-    const clr = getCategoryColor(c.名稱, i);
-    catMap[c.名稱] = { total: 0, count: 0, pending: 0, unpaidAmount: 0, ...clr };
+    const clr = getCategoryColor(c.?迂, i);
+    catMap[c.?迂] = { total: 0, count: 0, pending: 0, unpaidAmount: 0, ...clr };
   });
 
   let grandTotal = 0;
   data.forEach(r => {
-    const key = r.主類別;
+    const key = r.銝駁???
     if (!catMap[key]) {
       const clr = getCategoryColor(key, Object.keys(catMap).length);
       catMap[key] = { total: 0, count: 0, pending: 0, unpaidAmount: 0, ...clr };
     }
-    const price = parseFloat(r.總價) || 0;
+    const price = parseFloat(r.蝮賢) || 0;
     catMap[key].total += price;
     catMap[key].count++;
     grandTotal += price;
-    if (r.付款狀態 !== '已付款') {
+    if (r.隞狡???!== '撌脖?甈?) {
       catMap[key].pending++;
       catMap[key].unpaidAmount += price;
     }
   });
 
-  document.getElementById('incomeTotalSummary').textContent = `總計：$${grandTotal.toLocaleString()}`;
+  document.getElementById('incomeTotalSummary').textContent = `蝮質?嚗?${grandTotal.toLocaleString()}`;
 
   const entries = Object.entries(catMap).filter(([, v]) => v.count > 0);
 
-  // 圓餅圖
+  // ????
   const ctx = document.getElementById('incomePieChart');
   if (ctx) {
     if (_incomePieInstance) _incomePieInstance.destroy();
@@ -1613,13 +1634,13 @@ function renderIncomeChart() {
     }
   }
 
-  // 右側方格
+  // ?喳?寞
   const area = document.getElementById('incomeChartArea');
   if (!area) return;
   area.innerHTML = '';
 
   if (entries.length === 0) {
-    area.innerHTML = '<p style="color:var(--text-xs);font-size:0.82rem;padding:0.5rem 0">該時段尚無紀錄</p>';
+    area.innerHTML = '<p style="color:var(--text-xs);font-size:0.82rem;padding:0.5rem 0">閰脫?畾萄??∠???/p>';
     return;
   }
 
@@ -1630,7 +1651,7 @@ function renderIncomeChart() {
     d.style.cursor = 'pointer';
     d.innerHTML = `
       <span class="pie-legend-dot" style="background:${color}"></span>
-      <span class="pie-legend-name">${name}<span style="color:var(--text-muted);font-size:0.7rem;margin-left:4px">${v.count}筆${v.pending>0?`·⚠️${v.pending}未收`:''}</span></span>
+      <span class="pie-legend-name">${name}<span style="color:var(--text-muted);font-size:0.7rem;margin-left:4px">${v.count}蝑?{v.pending>0?`繚??${v.pending}?芣`:''}</span></span>
       <span class="pie-legend-val">$${v.total.toLocaleString()}</span>`;
     d.onclick = () => {
       filterState.income.mainCat = filterState.income.mainCat === name ? null : name;
@@ -1642,7 +1663,7 @@ function renderIncomeChart() {
   });
 }
 
-// 期間切換按鈕 — 收入
+// ?????? ???嗅
 document.querySelector('#incomeChartCard')?.addEventListener('click', e => {
   const btn = e.target.closest('.period-btn');
   if (!btn) return;
@@ -1653,7 +1674,7 @@ document.querySelector('#incomeChartCard')?.addEventListener('click', e => {
 });
 
 
-// --- 篩選 chips ---
+// --- 蝭拚 chips ---
 function renderIncomeFilterChips() {
   const mainContainer = document.getElementById('incomeMainCatChips');
   const subContainer = document.getElementById('incomeSubCatChips');
@@ -1662,7 +1683,7 @@ function renderIncomeFilterChips() {
   mainContainer.innerHTML = '';
   subContainer.innerHTML = '';
 
-  const mainCats = settings.incomeMainCats.map(c => c.名稱).filter(n => incomeData.some(r => r.主類別 === n));
+  const mainCats = settings.incomeMainCats.map(c => c.?迂).filter(n => incomeData.some(r => r.銝駁???=== n));
   if (!filterState.income.mainCat && mainCats.length > 0) {
     filterState.income.mainCat = mainCats[0];
   }
@@ -1682,8 +1703,8 @@ function renderIncomeFilterChips() {
   });
 
   if (filterState.income.mainCat) {
-    const cat = settings.incomeMainCats.find(c => c.名稱 === filterState.income.mainCat);
-    const subs = (cat && cat.次類別) ? cat.次類別.filter(Boolean) : [];
+    const cat = settings.incomeMainCats.find(c => c.?迂 === filterState.income.mainCat);
+    const subs = (cat && cat.甈⊿??? ? cat.甈⊿???filter(Boolean) : [];
     if (subs.length > 0) {
       subContainer.style.display = 'flex';
       subs.forEach(sub => {
@@ -1715,20 +1736,20 @@ document.getElementById('incomeClearFilter').onclick = () => {
 
 document.getElementById('incomeSortBtn').onclick = function() {
   filterState.income.sortOrder = filterState.income.sortOrder === 'desc' ? 'asc' : 'desc';
-  this.title = filterState.income.sortOrder === 'desc' ? '日期新→舊' : '日期舊→新';
+  this.title = filterState.income.sortOrder === 'desc' ? '?交??售??? : '?交?????;
   renderIncomeTable();
 };
 
 document.getElementById('incomeCopyBtn').onclick = () => openCopyModal('income');
 
-// --- 表格（折疊式卡片版） ---
+// --- 銵冽嚗????∠??? ---
 function renderIncomeTable() {
   let data = [...incomeData];
-  if (filterState.income.mainCat) data = data.filter(r => r.主類別 === filterState.income.mainCat);
-  if (filterState.income.subCat) data = data.filter(r => r.客戶類別 === filterState.income.subCat);
+  if (filterState.income.mainCat) data = data.filter(r => r.銝駁???=== filterState.income.mainCat);
+  if (filterState.income.subCat) data = data.filter(r => r.摰Ｘ憿 === filterState.income.subCat);
 
   data.sort((a, b) => {
-    const diff = new Date(a.日期) - new Date(b.日期);
+    const diff = new Date(a.?交?) - new Date(b.?交?);
     return filterState.income.sortOrder === 'desc' ? -diff : diff;
   });
 
@@ -1747,17 +1768,17 @@ function renderIncomeTable() {
 
   const mainCatSet = filterState.income.mainCat
     ? [filterState.income.mainCat]
-    : [...new Set(settings.incomeMainCats.map(c => c.名稱))].filter(n => data.some(r => r.主類別 === n));
+    : [...new Set(settings.incomeMainCats.map(c => c.?迂))].filter(n => data.some(r => r.銝駁???=== n));
 
   mainCatSet.forEach((catName, ci) => {
-    const catData = data.filter(r => r.主類別 === catName);
+    const catData = data.filter(r => r.銝駁???=== catName);
     if (catData.length === 0) return;
 
-    const catTotal = catData.reduce((s, r) => s + (parseFloat(r.總價) || 0), 0);
+    const catTotal = catData.reduce((s, r) => s + (parseFloat(r.蝮賢) || 0), 0);
     const clr = getCategoryColor(catName, ci);
     const color = clr.color;
 
-    // 主類別區塊
+    // 銝駁??亙?憛?
     const section = document.createElement('div');
     section.className = 'record-section';
     section.style.backgroundColor = clr.bg;
@@ -1768,7 +1789,7 @@ function renderIncomeTable() {
       <div class="record-section-left">
         <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${color};margin-right:2px"></span>
         ${catName}
-        <span class="record-section-count">${catData.length}筆</span>
+        <span class="record-section-count">${catData.length}蝑?/span>
       </div>
       <div class="record-section-right">
         <span class="record-section-total">$${catTotal.toLocaleString()}</span>
@@ -1784,11 +1805,11 @@ function renderIncomeTable() {
       arrow.classList.toggle('expanded', isExp);
     };
 
-    // 依年-月-日期分組
+    // 靘僑-???交???
     const yearMap = {};
     catData.forEach(r => {
-      const yr = r.日期 ? r.日期.substring(0, 4) : '未知';
-      const mo = r.日期 ? r.日期.substring(0, 7) : '未知';
+      const yr = r.?交? ? r.?交?.substring(0, 4) : '?芰';
+      const mo = r.?交? ? r.?交?.substring(0, 7) : '?芰';
       if (!yearMap[yr]) yearMap[yr] = {};
       if (!yearMap[yr][mo]) yearMap[yr][mo] = [];
       yearMap[yr][mo].push(r);
@@ -1800,8 +1821,8 @@ function renderIncomeTable() {
 
       const yrHeader = document.createElement('div');
       yrHeader.className = 'record-year-header';
-      const yrTotal = Object.values(yearMap[yr]).flat().reduce((s, r) => s + (parseFloat(r.總價) || 0), 0);
-      yrHeader.innerHTML = `<span>📅 ${yr} 年</span><span style="font-weight:600;color:var(--green-dark)">$${yrTotal.toLocaleString()}</span>`;
+      const yrTotal = Object.values(yearMap[yr]).flat().reduce((s, r) => s + (parseFloat(r.蝮賢) || 0), 0);
+      yrHeader.innerHTML = `<span>?? ${yr} 撟?/span><span style="font-weight:600;color:var(--green-dark)">$${yrTotal.toLocaleString()}</span>`;
 
       const yrBody = document.createElement('div');
       yrBody.className = 'record-year-body expanded';
@@ -1817,8 +1838,8 @@ function renderIncomeTable() {
 
         const moHeader = document.createElement('div');
         moHeader.className = 'record-month-header';
-        const moTotal = moList.reduce((s, r) => s + (parseFloat(r.總價) || 0), 0);
-        moHeader.innerHTML = `<span>${mo.substring(5, 7)} 月 <span class="record-section-count">${moList.length}筆</span></span><span>$${moTotal.toLocaleString()}</span>`;
+        const moTotal = moList.reduce((s, r) => s + (parseFloat(r.蝮賢) || 0), 0);
+        moHeader.innerHTML = `<span>${mo.substring(5, 7)} ??<span class="record-section-count">${moList.length}蝑?/span></span><span>$${moTotal.toLocaleString()}</span>`;
 
         const moBody = document.createElement('div');
         moBody.className = 'record-month-body expanded';
@@ -1826,34 +1847,34 @@ function renderIncomeTable() {
         moHeader.onclick = () => moBody.classList.toggle('expanded');
 
         moList.forEach(r => {
-          const gradeArr = Array.isArray(r.等級資料) ? r.等級資料 : [];
-          const gradeText = gradeArr.map(g => `${g.等級} ${g.斤數||''}斤${g.箱數 ? ' ' + g.箱數 + '箱' : ''}`).join(' / ') || '';
-          const price = r.總價 ? `$${parseFloat(r.總價).toLocaleString()}` : '待確認';
+          const gradeArr = Array.isArray(r.蝑?鞈?) ? r.蝑?鞈? : [];
+          const gradeText = gradeArr.map(g => `${g.蝑?} ${g.?斗||''}??{g.蝞望 ? ' ' + g.蝞望 + '蝞? : ''}`).join(' / ') || '';
+          const price = r.蝮賢 ? `$${parseFloat(r.蝮賢).toLocaleString()}` : '敺Ⅱ隤?;
 
-          const payClass = r.付款狀態 === '已付款' ? 'paid' : 'unpaid';
-          const reconClass = r.對帳狀態 === 'OK' ? 'ok-recon' : 'pending-recon';
+          const payClass = r.隞狡???=== '撌脖?甈? ? 'paid' : 'unpaid';
+          const reconClass = r.撠董???=== 'OK' ? 'ok-recon' : 'pending-recon';
 
           const item = document.createElement('div');
           item.className = 'record-item';
           item.dataset.type = 'income';
           item.dataset.id = r.id;
-          const priceVal = parseFloat(r.總價) || 0;
+          const priceVal = parseFloat(r.蝮賢) || 0;
           const amtClass = getAmountClass(priceVal);
 
           item.innerHTML = `
             <div class="record-item-content">
-              <div class="record-item-date">${r.日期 ? r.日期.substring(5) : '-'}</div>
+              <div class="record-item-date">${r.?交? ? r.?交?.substring(5) : '-'}</div>
               <div class="record-item-main">
-                <div class="record-item-name">${r.客戶名稱 || r.客戶類別 || catName}${r.附註 ? ` · ${r.附註}` : ''}</div>
-                <div class="record-item-sub">${gradeText ? `等級：${gradeText}` : ''}${r.總重 ? ` | ${r.總重}斤` : ''}${r.箱數 ? `/${r.箱數}箱` : ''}</div>
+                <div class="record-item-name">${r.摰Ｘ?迂 || r.摰Ｘ憿 || catName}${r.?酉 ? ` 繚 ${r.?酉}` : ''}</div>
+                <div class="record-item-sub">${gradeText ? `蝑?嚗?{gradeText}` : ''}${r.蝮賡? ? ` | ${r.蝮賡?}?亡 : ''}${r.蝞望 ? `/${r.蝞望}蝞常 : ''}</div>
                 <div style="display:flex;gap:4px;margin-top:4px;flex-wrap:wrap">
-                  <button class="btn-quick-toggle ${payClass}" onclick="toggleIncomePayment('${r.id}')">${r.付款狀態 === '已付款' ? '✓ 已付款' : '⚠ 未付款'}</button>
-                  <button class="btn-quick-toggle ${reconClass}" onclick="toggleIncomeRecon('${r.id}')">${r.對帳狀態 === 'OK' ? '✓ OK' : '待對帳'}</button>
+                  <button class="btn-quick-toggle ${payClass}" onclick="toggleIncomePayment('${r.id}')">${r.隞狡???=== '撌脖?甈? ? '??撌脖?甈? : '???芯?甈?}</button>
+                  <button class="btn-quick-toggle ${reconClass}" onclick="toggleIncomeRecon('${r.id}')">${r.撠董???=== 'OK' ? '??OK' : '敺?撣?}</button>
                 </div>
               </div>
               <div class="record-item-right">
                 <span class="record-item-amount ${amtClass}">${price}</span>
-                ${r.盤商價 ? `<small style="color:var(--text-muted);font-size:0.68rem">盤 $${parseFloat(r.盤商價).toLocaleString()}</small>` : ''}
+                ${r.?文???? `<small style="color:var(--text-muted);font-size:0.68rem">??$${parseFloat(r.?文???.toLocaleString()}</small>` : ''}
               </div>
             </div>`;
           
@@ -1877,14 +1898,14 @@ function renderIncomeTable() {
   });
 }
 
-// 收入付款狀態一鍵切換
+// ?嗅隞狡????萄???
 window.toggleIncomePayment = async (id) => {
   const r = incomeData.find(x => x.id === id);
   if (!r) return;
-  const newStatus = r.付款狀態 === '已付款' ? '未付款' : '已付款';
+  const newStatus = r.隞狡???=== '撌脖?甈? ? '?芯?甈? : '撌脖?甈?;
   const idx = incomeData.findIndex(x => x.id === id);
   const rowNum = idx + 2;
-  showLoader('更新中...');
+  showLoader('?湔銝?..');
   try {
     await gapi.client.sheets.spreadsheets.values.update({
       spreadsheetId: SPREADSHEET_ID,
@@ -1892,21 +1913,21 @@ window.toggleIncomePayment = async (id) => {
       valueInputOption: 'USER_ENTERED',
       resource: { values: [[newStatus]] }
     });
-    r.付款狀態 = newStatus;
+    r.隞狡???= newStatus;
     renderIncomeTable();
-    showToast(newStatus === '已付款' ? '✓ 已標記已付款' : '標記為未付款');
-  } catch (e) { showToast('更新失敗：' + e.message, 'error'); }
+    showToast(newStatus === '撌脖?甈? ? '??撌脫?閮歇隞狡' : '璅??箸隞狡');
+  } catch (e) { showToast('?湔憭望?嚗? + e.message, 'error'); }
   hideLoader();
 };
 
-// 收入對帳狀態一鍵切換
+// ?嗅撠董????萄???
 window.toggleIncomeRecon = async (id) => {
   const r = incomeData.find(x => x.id === id);
   if (!r) return;
-  const newStatus = r.對帳狀態 === 'OK' ? '待對帳' : 'OK';
+  const newStatus = r.撠董???=== 'OK' ? '敺?撣? : 'OK';
   const idx = incomeData.findIndex(x => x.id === id);
   const rowNum = idx + 2;
-  showLoader('更新中...');
+  showLoader('?湔銝?..');
   try {
     await gapi.client.sheets.spreadsheets.values.update({
       spreadsheetId: SPREADSHEET_ID,
@@ -1914,37 +1935,37 @@ window.toggleIncomeRecon = async (id) => {
       valueInputOption: 'USER_ENTERED',
       resource: { values: [[newStatus]] }
     });
-    r.對帳狀態 = newStatus;
+    r.撠董???= newStatus;
     renderIncomeTable();
-    showToast('對帳狀態已更新');
-  } catch (e) { showToast('更新失敗：' + e.message, 'error'); }
+    showToast('撠董??歇?湔');
+  } catch (e) { showToast('?湔憭望?嚗? + e.message, 'error'); }
   hideLoader();
 };
 
 
 function renderOrderChart() {
   const period = filterState.order.period;
-  const data = getFilteredByPeriod(ordersData, '下定日期', period);
+  const data = getFilteredByPeriod(ordersData, '銝??交?', period);
 
   const catMap = {};
   data.forEach((r, ri) => {
-    const key = r.訂購品項;
+    const key = r.閮頃??;
     if (!catMap[key]) {
       const clr = getCategoryColor(key, Object.keys(catMap).length);
       catMap[key] = { total: 0, count: 0, pending: 0, unpaidAmount: 0, ...clr };
     }
-    const price = parseFloat(r.總價) || 0;
+    const price = parseFloat(r.蝮賢) || 0;
     catMap[key].total += price;
     catMap[key].count++;
-    if (r.付款狀態 !== '已付款') { catMap[key].pending++; catMap[key].unpaidAmount += price; }
+    if (r.隞狡???!== '撌脖?甈?) { catMap[key].pending++; catMap[key].unpaidAmount += price; }
   });
 
-  let grandTotal = data.reduce((acc, r) => acc + (parseFloat(r.總價) || 0), 0);
-  document.getElementById('orderTotalSummary').textContent = `總計：$${grandTotal.toLocaleString()}`;
+  let grandTotal = data.reduce((acc, r) => acc + (parseFloat(r.蝮賢) || 0), 0);
+  document.getElementById('orderTotalSummary').textContent = `蝮質?嚗?${grandTotal.toLocaleString()}`;
 
   const entries = Object.entries(catMap).filter(([, v]) => v.count > 0);
 
-  // 圓餅圖
+  // ????
   const ctx = document.getElementById('orderPieChart');
   if (ctx) {
     if (_orderPieInstance) _orderPieInstance.destroy();
@@ -1962,40 +1983,40 @@ function renderOrderChart() {
     }
   }
 
-  // 右側圖例
+  // ?喳??
   const area = document.getElementById('orderChartArea');
   if (!area) return;
   area.innerHTML = '';
-  if (entries.length === 0) { area.innerHTML = '<p style="color:var(--text-xs);font-size:0.82rem;padding:0.5rem 0">該時段尚無訂單</p>'; return; }
+  if (entries.length === 0) { area.innerHTML = '<p style="color:var(--text-xs);font-size:0.82rem;padding:0.5rem 0">閰脫?畾萄??∟???/p>'; return; }
   entries.sort((a, b) => b[1].total - a[1].total).forEach(([name, v]) => {
     const d = document.createElement('div');
     d.className = 'pie-legend-item';
     d.style.cursor = 'pointer';
     d.innerHTML = `
       <span class="pie-legend-dot" style="background:${v.color}"></span>
-      <span class="pie-legend-name">${name}<span style="color:var(--text-muted);font-size:0.7rem;margin-left:4px">${v.count}筆${v.pending>0?`·⚠${v.pending}未付`:''}</span></span>
+      <span class="pie-legend-name">${name}<span style="color:var(--text-muted);font-size:0.7rem;margin-left:4px">${v.count}蝑?{v.pending>0?`繚??{v.pending}?芯?`:''}</span></span>
       <span class="pie-legend-val" style="color:${v.color}">$${v.total.toLocaleString()}</span>`;
     area.appendChild(d);
   });
 
-  // 未出貨等級/數量摘要
-  const unshipped = ordersData.filter(r => r.狀態 !== '已出貨');
+  // ?芸鞎函?蝝??賊???
+  const unshipped = ordersData.filter(r => r.???!== '撌脣鞎?);
   const unshippedSummary = document.getElementById('orderUnshippedSummary');
   if (unshippedSummary && unshipped.length > 0) {
     const gradeCount = {};
     unshipped.forEach(r => {
-      const content = r.訂單內容 || '';
-      const matches = content.matchAll(/([2-7]A)[：:]?\s*(\d+)/g);
+      const content = r.閮?批捆 || '';
+      const matches = content.matchAll(/([2-7]A)[嚗?]?\s*(\d+)/g);
       for (const m of matches) {
         if (!gradeCount[m[1]]) gradeCount[m[1]] = 0;
         gradeCount[m[1]] += parseInt(m[2]);
       }
     });
     const gradeHtml = Object.entries(gradeCount).sort((a,b)=>a[0].localeCompare(b[0]))
-      .map(([g, qty]) => `<span class="order-unshipped-item"><strong>${g}</strong>：${qty}</span>`).join('');
+      .map(([g, qty]) => `<span class="order-unshipped-item"><strong>${g}</strong>嚗?{qty}</span>`).join('');
     unshippedSummary.innerHTML = `
-      <div class="order-unshipped-title">⚠️ 未出貨 ${unshipped.length} 筆（依等級）</div>
-      <div class="order-unshipped-grid">${gradeHtml || '（無等級資料）'}</div>`;
+      <div class="order-unshipped-title">?? ?芸鞎?${unshipped.length} 蝑?靘?蝝?</div>
+      <div class="order-unshipped-grid">${gradeHtml || '嚗蝑?鞈?嚗?}</div>`;
     unshippedSummary.style.display = '';
   } else if (unshippedSummary) { unshippedSummary.style.display = 'none'; }
 }
@@ -2007,11 +2028,11 @@ function renderOrderFilterChips() {
   mainContainer.innerHTML = '';
   subContainer.innerHTML = '';
 
-  // 從過濾過期間的資料中取得主類別
-  const periodData = getFilteredByPeriod(ordersData, '下定日期', filterState.order.period);
-  const allMain = [...new Set(periodData.map(r => (r.訂購品項 || '').trim()).filter(Boolean))];
+  // 敺?瞈暸??????葉??銝駁???
+  const periodData = getFilteredByPeriod(ordersData, '銝??交?', filterState.order.period);
+  const allMain = [...new Set(periodData.map(r => (r.閮頃?? || '').trim()).filter(Boolean))];
 
-  // 核心邏輯：若主類別為空且有資料，預設選第一個
+  // ?詨??摩嚗銝駁??亦蝛箔??????身?貊洵銝??
   if (!filterState.order.mainCat && allMain.length > 0) {
     filterState.order.mainCat = allMain[0];
   }
@@ -2030,10 +2051,10 @@ function renderOrderFilterChips() {
     mainContainer.appendChild(btn);
   });
 
-  // 2. 次類別
+  // 2. 甈⊿???
   if (filterState.order.mainCat) {
-    const relOrders = periodData.filter(r => (r.訂購品項 || '').trim() === filterState.order.mainCat);
-    const allSubs = [...new Set(relOrders.map(r => (r.品項類別 || '').trim()).filter(Boolean))];
+    const relOrders = periodData.filter(r => (r.閮頃?? || '').trim() === filterState.order.mainCat);
+    const allSubs = [...new Set(relOrders.map(r => (r.??憿 || '').trim()).filter(Boolean))];
     allSubs.forEach(sub => {
       const btn = document.createElement('button');
       const isActive = filterState.order.subCat === sub;
@@ -2066,10 +2087,10 @@ document.querySelector('#orderChartCard')?.addEventListener('click', e => {
 });
 
 function renderOrderTable() {
-  let data = getFilteredByPeriod(ordersData, '下定日期', filterState.order.period);
+  let data = getFilteredByPeriod(ordersData, '銝??交?', filterState.order.period);
   
-  if (filterState.order.mainCat) data = data.filter(r => (r.訂購品項 || '').trim() === filterState.order.mainCat);
-  if (filterState.order.subCat) data = data.filter(r => (r.品項類別 || '').trim() === filterState.order.subCat);
+  if (filterState.order.mainCat) data = data.filter(r => (r.閮頃?? || '').trim() === filterState.order.mainCat);
+  if (filterState.order.subCat) data = data.filter(r => (r.??憿 || '').trim() === filterState.order.subCat);
 
   const container = document.getElementById('orderRecordContainer');
   const empty = document.getElementById('orderEmpty');
@@ -2084,17 +2105,17 @@ function renderOrderTable() {
   }
   empty.style.display = 'none';
 
-  // 依主類別（訂購品項）分區塊
-  // 合併「設定中有的」與「實際資料有的」主類別，確保不遺漏
+  // 靘蜓憿嚗?鞈澆?????憛?
+  // ?蔥?身摰葉?????祕?????蜓憿嚗Ⅱ靽??箸?
   const allPossibleCats = [...new Set([
-    ...settings.incomeMainCats.map(c => c.名稱),
-    ...data.map(r => r.訂購品項)
-  ])].filter(n => data.some(r => r.訂購品項 === n));
+    ...settings.incomeMainCats.map(c => c.?迂),
+    ...data.map(r => r.閮頃??)
+  ])].filter(n => data.some(r => r.閮頃?? === n));
 
   const mainCatSet = filterState.order.mainCat ? [filterState.order.mainCat] : allPossibleCats;
 
   mainCatSet.forEach((catName, ci) => {
-    const catData = data.filter(r => r.訂購品項 === catName);
+    const catData = data.filter(r => r.閮頃?? === catName);
     if (catData.length === 0) return;
     
     const clr = getCategoryColor(catName, ci);
@@ -2104,14 +2125,14 @@ function renderOrderTable() {
     section.className = 'record-section';
     section.style.backgroundColor = clr.bg;
 
-    const catTotal = catData.reduce((s, r) => s + (parseFloat(r.總價) || 0), 0);
+    const catTotal = catData.reduce((s, r) => s + (parseFloat(r.蝮賢) || 0), 0);
     const header = document.createElement('div');
     header.className = 'record-section-header';
     header.innerHTML = `
       <div class="record-section-left">
         <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${color};margin-right:2px"></span>
         ${catName}
-        <span class="record-section-count">${catData.length}筆</span>
+        <span class="record-section-count">${catData.length}蝑?/span>
       </div>
       <div class="record-section-right">
         <span class="record-section-total expense">$${catTotal.toLocaleString()}</span>
@@ -2127,19 +2148,19 @@ function renderOrderTable() {
       arrow.classList.toggle('expanded', isExp);
     };
 
-    // 分「已出貨」和「未出貨」
-    const shipped = catData.filter(r => r.狀態 === '已出貨');
-    const unshipped = catData.filter(r => r.狀態 !== '已出貨');
+    // ?歇?箄疏????箄疏??
+    const shipped = catData.filter(r => r.???=== '撌脣鞎?);
+    const unshipped = catData.filter(r => r.???!== '撌脣鞎?);
 
-    // --- 未出貨子區塊（預設展開）---
+    // --- ?芸鞎典??憛??身撅?嚗?--
     if (unshipped.length > 0) {
-      const unshipSection = buildOrderSubSection('未出貨', unshipped, true, false, color);
+      const unshipSection = buildOrderSubSection('?芸鞎?, unshipped, true, false, color);
       body.appendChild(unshipSection);
     }
 
-    // --- 已出貨子區塊（預設折疊）---
+    // --- 撌脣鞎典??憛??身??嚗?--
     if (shipped.length > 0) {
-      const shipSection = buildOrderSubSection('已出貨', shipped, false, true, '#94a3b8');
+      const shipSection = buildOrderSubSection('撌脣鞎?, shipped, false, true, '#94a3b8');
       body.appendChild(shipSection);
     }
 
@@ -2153,13 +2174,13 @@ function buildOrderSubSection(label, records, defaultExpanded, isShipped, color)
   const wrap = document.createElement('div');
   wrap.className = 'record-subsection';
 
-  const total = records.reduce((s, r) => s + (parseFloat(r.總價) || 0), 0);
+  const total = records.reduce((s, r) => s + (parseFloat(r.蝮賢) || 0), 0);
   const h = document.createElement('div');
   h.className = 'record-subsection-header';
   h.innerHTML = `
     <span style="color:${isShipped?'var(--text-muted)':'var(--orange)'}">
-      ${isShipped ? '📦 已出貨' : '⏳ 未出貨'}
-      <span class="record-section-count">${records.length}筆</span>
+      ${isShipped ? '? 撌脣鞎? : '???芸鞎?}
+      <span class="record-section-count">${records.length}蝑?/span>
     </span>
     <span style="font-weight:600">$${total.toLocaleString()}</span>`;
 
@@ -2169,12 +2190,12 @@ function buildOrderSubSection(label, records, defaultExpanded, isShipped, color)
   h.onclick = () => b.classList.toggle('expanded');
 
   if (isShipped) {
-    // 已出貨：依年-月-日期，預設折疊
+    // 撌脣鞎剁?靘僑-???交?嚗?閮剜???
     const yearMap = {};
     records.forEach(r => {
-      const dateKey = r.到貨日期 || r.下定日期 || '';
-      const yr = dateKey.substring(0,4) || '未知';
-      const mo = dateKey.substring(0,7) || '未知';
+      const dateKey = r.?啗疏?交? || r.銝??交? || '';
+      const yr = dateKey.substring(0,4) || '?芰';
+      const mo = dateKey.substring(0,7) || '?芰';
       if (!yearMap[yr]) yearMap[yr] = {};
       if (!yearMap[yr][mo]) yearMap[yr][mo] = [];
       yearMap[yr][mo].push(r);
@@ -2183,20 +2204,20 @@ function buildOrderSubSection(label, records, defaultExpanded, isShipped, color)
       const yrDiv = document.createElement('div');
       const yrH = document.createElement('div');
       yrH.className = 'record-year-header';
-      const yrTotal = Object.values(yearMap[yr]).flat().reduce((s,r) => s+(parseFloat(r.總價)||0), 0);
-      yrH.innerHTML = `<span>📅 ${yr} 年</span><span>$${yrTotal.toLocaleString()}</span>`;
+      const yrTotal = Object.values(yearMap[yr]).flat().reduce((s,r) => s+(parseFloat(r.蝮賢)||0), 0);
+      yrH.innerHTML = `<span>?? ${yr} 撟?/span><span>$${yrTotal.toLocaleString()}</span>`;
       const yrB = document.createElement('div');
-      yrB.className = 'record-year-body'; // 預設折疊
+      yrB.className = 'record-year-body'; // ?身??
       yrH.onclick = () => yrB.classList.toggle('expanded');
       Object.keys(yearMap[yr]).sort((a,b) => b.localeCompare(a)).forEach(mo => {
         const moList = yearMap[yr][mo];
         const moDiv = document.createElement('div');
         const moH = document.createElement('div');
         moH.className = 'record-month-header';
-        const moTotal = moList.reduce((s,r) => s+(parseFloat(r.總價)||0),0);
-        moH.innerHTML = `<span>${mo.substring(5,7)} 月 <span class="record-section-count">${moList.length}筆</span></span><span>$${moTotal.toLocaleString()}</span>`;
+        const moTotal = moList.reduce((s,r) => s+(parseFloat(r.蝮賢)||0),0);
+        moH.innerHTML = `<span>${mo.substring(5,7)} ??<span class="record-section-count">${moList.length}蝑?/span></span><span>$${moTotal.toLocaleString()}</span>`;
         const moB = document.createElement('div');
-        moB.className = 'record-month-body'; // 預設折疊
+        moB.className = 'record-month-body'; // ?身??
         moH.onclick = () => moB.classList.toggle('expanded');
         moList.forEach(r => moB.appendChild(buildOrderItem(r)));
         moDiv.appendChild(moH);
@@ -2208,29 +2229,29 @@ function buildOrderSubSection(label, records, defaultExpanded, isShipped, color)
       b.appendChild(yrDiv);
     });
   } else {
-    // 未出貨：先分「未指定」/「預定出貨」，再依年月
-    const unspecified = records.filter(r => r.狀態 === '未指定');
-    const scheduled = records.filter(r => r.狀態 === '預定出貨' || r.狀態 === '已指定');
+    // ?芸鞎剁??????????摰鞎具???撟湔?
+    const unspecified = records.filter(r => r.???=== '?芣?摰?);
+    const scheduled = records.filter(r => r.???=== '???箄疏' || r.???=== '撌脫?摰?);
 
     if (unspecified.length > 0) {
       const uH = document.createElement('div');
       uH.className = 'record-year-header';
-      uH.innerHTML = `<span style="color:var(--text-muted)">📋 未指定出貨日期</span><span class="record-section-count">${unspecified.length}筆</span>`;
+      uH.innerHTML = `<span style="color:var(--text-muted)">?? ?芣?摰鞎冽??/span><span class="record-section-count">${unspecified.length}蝑?/span>`;
       const uB = document.createElement('div');
       uB.className = 'record-year-body expanded';
       uH.onclick = () => uB.classList.toggle('expanded');
-      unspecified.sort((a,b) => new Date(b.下定日期||0) - new Date(a.下定日期||0)).forEach(r => uB.appendChild(buildOrderItem(r)));
+      unspecified.sort((a,b) => new Date(b.銝??交?||0) - new Date(a.銝??交?||0)).forEach(r => uB.appendChild(buildOrderItem(r)));
       b.appendChild(uH);
       b.appendChild(uB);
     }
     if (scheduled.length > 0) {
       const sH = document.createElement('div');
       sH.className = 'record-year-header';
-      sH.innerHTML = `<span style="color:var(--blue)">📅 預定出貨</span><span class="record-section-count">${scheduled.length}筆</span>`;
+      sH.innerHTML = `<span style="color:var(--blue)">?? ???箄疏</span><span class="record-section-count">${scheduled.length}蝑?/span>`;
       const sB = document.createElement('div');
       sB.className = 'record-year-body expanded';
       sH.onclick = () => sB.classList.toggle('expanded');
-      scheduled.sort((a,b) => new Date(a.到貨日期||a.下定日期||0) - new Date(b.到貨日期||b.下定日期||0)).forEach(r => sB.appendChild(buildOrderItem(r)));
+      scheduled.sort((a,b) => new Date(a.?啗疏?交?||a.銝??交?||0) - new Date(b.?啗疏?交?||b.銝??交?||0)).forEach(r => sB.appendChild(buildOrderItem(r)));
       b.appendChild(sH);
       b.appendChild(sB);
     }
@@ -2242,43 +2263,43 @@ function buildOrderSubSection(label, records, defaultExpanded, isShipped, color)
 }
 
 function buildOrderItem(r) {
-  const payClass = r.付款狀態 === '已付款' ? 'paid' : 'unpaid';
-  const reconClass = r.對帳狀態 === 'OK' ? 'ok-recon' : 'pending-recon';
-  const isShipped = r.狀態 === '已出貨';
+  const payClass = r.隞狡???=== '撌脖?甈? ? 'paid' : 'unpaid';
+  const reconClass = r.撠董???=== 'OK' ? 'ok-recon' : 'pending-recon';
+  const isShipped = r.???=== '撌脣鞎?;
 
-  // 格式化日期顯示：若有到貨日期則顯示「到 MM-DD」，否則顯示「訂 MM-DD」
+  // ?澆???＊蝷綽??交??啗疏?交??＊蝷箝 MM-DD???血?憿舐內?? MM-DD??
   const formatDate = (dateStr, prefix) => {
     if (!dateStr) return '';
     const clean = dateStr.trim();
     if (clean.length > 5) return `${prefix} ${clean.substring(5)}`;
     return `${prefix} ${clean}`;
   };
-  const dateDisplay = r.狀態 === '未指定' 
-    ? formatDate(r.下定日期, '訂') 
-    : (r.到貨日期 ? formatDate(r.到貨日期, '到') : formatDate(r.下定日期, '訂'));
+  const dateDisplay = r.???=== '?芣?摰? 
+    ? formatDate(r.銝??交?, '閮?) 
+    : (r.?啗疏?交? ? formatDate(r.?啗疏?交?, '??) : formatDate(r.銝??交?, '閮?));
 
-  // 訂單狀態切換
+  // 閮?????
   const statusToggle = !isShipped
-    ? `<button class="btn-quick-toggle" style="background:#eff6ff;color:#1d4ed8;border-color:#bfdbfe" onclick="cycleOrderStatus('${r.id}')">${r.狀態}</button>`
-    : `<span class="status-badge paid" style="font-size:0.68rem">已出貨</span>`;
+    ? `<button class="btn-quick-toggle" style="background:#eff6ff;color:#1d4ed8;border-color:#bfdbfe" onclick="cycleOrderStatus('${r.id}')">${r.??</button>`
+    : `<span class="status-badge paid" style="font-size:0.68rem">撌脣鞎?/span>`;
 
   const item = document.createElement('div');
   item.className = 'record-item';
   item.dataset.type = 'order';
   item.dataset.id = r.id;
-  const priceVal = parseFloat(r.總價 || 0);
+  const priceVal = parseFloat(r.蝮賢 || 0);
   const amtClass = getAmountClass(priceVal);
 
   item.innerHTML = `
     <div class="record-item-content">
       <div class="record-item-date">${dateDisplay}</div>
       <div class="record-item-main">
-        <div class="record-item-name">${r.寄件人 || '未知客戶'}${r.品項類別 ? ` · ${r.品項類別}` : ''}</div>
-        <div class="record-item-sub">${r.訂購等級 || ''}${r.訂單內容 ? ` | ${r.訂單內容}` : ''}${r.取貨方式 ? ` | ${r.取貨方式}` : ''}</div>
+        <div class="record-item-name">${r.撖辣鈭?|| '?芰摰Ｘ'}${r.??憿 ? ` 繚 ${r.??憿}` : ''}</div>
+        <div class="record-item-sub">${r.閮頃蝑? || ''}${r.閮?批捆 ? ` | ${r.閮?批捆}` : ''}${r.?疏?孵? ? ` | ${r.?疏?孵?}` : ''}</div>
         <div style="display:flex;gap:4px;margin-top:4px;flex-wrap:wrap">
           ${statusToggle}
-          <button class="btn-quick-toggle ${payClass}" onclick="toggleOrderPayment('${r.id}')">${r.付款狀態 === '已付款' ? '✓ 已付款' : '⚠ 未付款'}</button>
-          <button class="btn-quick-toggle ${reconClass}" onclick="toggleOrderRecon('${r.id}')">${r.對帳狀態 === 'OK' ? '✓ OK' : '待對帳'}</button>
+          <button class="btn-quick-toggle ${payClass}" onclick="toggleOrderPayment('${r.id}')">${r.隞狡???=== '撌脖?甈? ? '??撌脖?甈? : '???芯?甈?}</button>
+          <button class="btn-quick-toggle ${reconClass}" onclick="toggleOrderRecon('${r.id}')">${r.撠董???=== 'OK' ? '??OK' : '敺?撣?}</button>
         </div>
       </div>
       <div class="record-item-right">
@@ -2293,8 +2314,8 @@ function buildOrderItem(r) {
 window.cycleOrderStatus = async (id) => {
   const r = ordersData.find(o => o.id === id);
   if (!r) return;
-  const cycle = ['未指定', '預定出貨', '已指定', '已出貨'];
-  const idx = cycle.indexOf(r.狀態);
+  const cycle = ['?芣?摰?, '???箄疏', '撌脫?摰?, '撌脣鞎?];
+  const idx = cycle.indexOf(r.???;
   const newStatus = cycle[(idx + 1) % cycle.length];
   await updateOrderStatus(id, newStatus);
 };
@@ -2302,37 +2323,37 @@ window.cycleOrderStatus = async (id) => {
 window.toggleOrderPayment = async (id) => {
   const r = ordersData.find(x => x.id === id);
   if (!r) return;
-  const newStatus = r.付款狀態 === '已付款' ? '未付款' : '已付款';
+  const newStatus = r.隞狡???=== '撌脖?甈? ? '?芯?甈? : '撌脖?甈?;
   const rowNum = r._localIdx;
-  showLoader('更新中...');
+  showLoader('?湔銝?..');
   try {
     await gapi.client.sheets.spreadsheets.values.update({
       spreadsheetId: SPREADSHEET_ID, range: `${SHEET.ORDERS}!Q${rowNum}`,
       valueInputOption: 'USER_ENTERED', resource: { values: [[newStatus]] }
     });
-    r.付款狀態 = newStatus;
+    r.隞狡???= newStatus;
     renderOrderTable();
-    showToast(newStatus === '已付款' ? '✓ 已付款' : '⚠ 未付款');
-  } catch (e) { showToast('更新失敗：' + e.message, 'error'); }
+    showToast(newStatus === '撌脖?甈? ? '??撌脖?甈? : '???芯?甈?);
+  } catch (e) { showToast('?湔憭望?嚗? + e.message, 'error'); }
   hideLoader();
 };
 
 window.toggleOrderRecon = async (id) => {
   const r = ordersData.find(x => x.id === id);
   if (!r) return;
-  if (r.付款狀態 !== '已付款') { showToast('請先確認付款狀態', 'warning'); return; }
-  const newStatus = r.對帳狀態 === 'OK' ? '待對帳' : 'OK';
+  if (r.隞狡???!== '撌脖?甈?) { showToast('隢?蝣箄?隞狡???, 'warning'); return; }
+  const newStatus = r.撠董???=== 'OK' ? '敺?撣? : 'OK';
   const rowNum = r._localIdx;
-  showLoader('更新中...');
+  showLoader('?湔銝?..');
   try {
     await gapi.client.sheets.spreadsheets.values.update({
       spreadsheetId: SPREADSHEET_ID, range: `${SHEET.ORDERS}!R${rowNum}`,
       valueInputOption: 'USER_ENTERED', resource: { values: [[newStatus]] }
     });
-    r.對帳狀態 = newStatus;
+    r.撠董???= newStatus;
     renderOrderTable();
-    showToast('對帳狀態已更新');
-  } catch (e) { showToast('更新失敗：' + e.message, 'error'); }
+    showToast('撠董??歇?湔');
+  } catch (e) { showToast('?湔憭望?嚗? + e.message, 'error'); }
   hideLoader();
 };
 
@@ -2345,7 +2366,7 @@ window.toggleTableGroup = function(groupId) {
 async function updateOrderStatus(orderId, newStatus) {
   const idx = ordersData.findIndex(o => o.id === orderId);
   if (idx === -1) return;
-  ordersData[idx].狀態 = newStatus;
+  ordersData[idx].???= newStatus;
   renderOrderTable();
   const rowNum = ordersData[idx]._localIdx;
   try {
@@ -2355,9 +2376,9 @@ async function updateOrderStatus(orderId, newStatus) {
       valueInputOption: 'USER_ENTERED',
       resource: { values: [[newStatus]] }
     });
-    showToast('訂單狀態更新成功', 'success');
+    showToast('閮???唳???, 'success');
   } catch (e) {
-    showToast('更新訂單狀態失敗', 'error');
+    showToast('?湔閮??仃??, 'error');
   }
 }
 
@@ -2373,7 +2394,7 @@ function setupEditModeToggle() {
     const container = document.getElementById(cfg.containerId);
     if (!btn || !container) return;
 
-    // 初始化狀態
+    // ??????
     if (cfg.state.isEditMode) {
       container.classList.add('edit-mode-active');
       btn.classList.add('active');
@@ -2384,16 +2405,16 @@ function setupEditModeToggle() {
       const isActive = cfg.state.isEditMode;
       container.classList.toggle('edit-mode-active', isActive);
       btn.classList.toggle('active', isActive);
-      showToast(isActive ? '管理模式：已開啟' : '管理模式：已關閉');
+      showToast(isActive ? '蝞∠?璅∪?嚗歇??' : '蝞∠?璅∪?嚗歇??');
     };
   });
 }
 
 // ============================================================
-// 10. 收入表單 Modal
+// 10. ?嗅銵典 Modal
 // ============================================================
 // ============================================================
-// 11. 收入表單 Modal
+// 11. ?嗅銵典 Modal
 // ============================================================
 
 function openIncomeModal(record = null) {
@@ -2403,12 +2424,12 @@ function openIncomeModal(record = null) {
 
   const isEdit = !!record;
   const titleEl = document.getElementById('incomeModalTitle');
-  if (titleEl) titleEl.textContent = isEdit ? '編輯市場收入' : '市場收入';
+  if (titleEl) titleEl.textContent = isEdit ? '蝺刻摩撣?嗅' : '撣?嗅';
   
   const modal = document.getElementById('incomeModal');
   if (modal) modal.style.display = 'flex';
   
-  // 重置切換器
+  // ?蔭????
   const toggle = document.querySelector('input[name="incomeTypeToggle"][value="income"]');
   if (toggle) toggle.checked = true;
 
@@ -2416,65 +2437,65 @@ function openIncomeModal(record = null) {
   if (idEl) idEl.value = isEdit ? record.id : '';
   
   const dateEl = document.getElementById('incomeDate');
-  if (dateEl) dateEl.value = isEdit ? record.日期 : today();
+  if (dateEl) dateEl.value = isEdit ? record.?交? : today();
   
   const noteEl = document.getElementById('incomeNotes');
-  if (noteEl) noteEl.value = isEdit ? record.附註 : '';
+  if (noteEl) noteEl.value = isEdit ? record.?酉 : '';
   
   const priceEl = document.getElementById('incomeTotalPrice');
-  if (priceEl) priceEl.value = isEdit ? record.總價 : '';
+  if (priceEl) priceEl.value = isEdit ? record.蝮賢 : '';
   
   const dealerEl = document.getElementById('incomeDealerPrice');
-  if (dealerEl) dealerEl.value = isEdit ? record.盤商價 : '';
+  if (dealerEl) dealerEl.value = isEdit ? record.?文???: '';
   
   const shipEl = document.getElementById('incomeShippingFee');
-  if (shipEl) shipEl.value = isEdit ? record.運費 : '';
+  if (shipEl) shipEl.value = isEdit ? record.?祥 : '';
 
-  // 新欄位回填 (依據 HTML 實況決定是否存取)
+  // ?唳?雿?憛?(靘? HTML 撖行?瘙箏??臬摮?)
   const custTypeEl = document.getElementById('incomeCustomerType');
-  if (custTypeEl) custTypeEl.value = isEdit ? (record.客戶類別 || '一般') : '一般';
+  if (custTypeEl) custTypeEl.value = isEdit ? (record.摰Ｘ憿 || '銝??) : '銝??;
   
   const custNameEl = document.getElementById('incomeCustomerName');
-  if (custNameEl) custNameEl.value = isEdit ? (record.客戶名稱 || '') : '';
+  if (custNameEl) custNameEl.value = isEdit ? (record.摰Ｘ?迂 || '') : '';
   
   const payStatusEl = document.getElementById('incomePaymentStatus');
-  if (payStatusEl) payStatusEl.value = isEdit ? (record.付款狀態 || '未付款') : '未付款';
+  if (payStatusEl) payStatusEl.value = isEdit ? (record.隞狡???|| '?芯?甈?) : '?芯?甈?;
   
   const reconStatusEl = document.getElementById('incomeReconStatus');
-  if (reconStatusEl) reconStatusEl.value = isEdit ? (record.對帳狀態 || '待對帳') : '待對帳';
+  if (reconStatusEl) reconStatusEl.value = isEdit ? (record.撠董???|| '敺?撣?) : '敺?撣?;
 
-  // 填充主類別
+  // 憛怠?銝駁???
   const sel = document.getElementById('incomeMainCat');
   if (sel) {
-    sel.innerHTML = settings.incomeMainCats.map(c => `<option value="${c.名稱}">${c.名稱}</option>`).join('');
-    sel.value = isEdit ? record.主類別 : (settings.incomeMainCats[0]?.名稱 || '');
+    sel.innerHTML = settings.incomeMainCats.map(c => `<option value="${c.?迂}">${c.?迂}</option>`).join('');
+    sel.value = isEdit ? record.銝駁???: (settings.incomeMainCats[0]?.?迂 || '');
     onIncomeMainCatChange();
   }
 
   const otherNoteEl = document.getElementById('incomeOtherNote');
   if (otherNoteEl && isEdit) {
-    otherNoteEl.value = record.次類別 || record.其他備註 || '';
+    otherNoteEl.value = record.甈⊿???|| record.?嗡??酉 || '';
   }
 
-  // 填充等級列
+  // 憛怠?蝑???
   const container = document.getElementById('gradeRowsContainer');
   if (container) {
     container.innerHTML = '';
     let grades = [];
-    if (isEdit && Array.isArray(record.等級資料) && record.等級資料.length > 0) {
-      grades = record.等級資料;
+    if (isEdit && Array.isArray(record.蝑?鞈?) && record.蝑?鞈?.length > 0) {
+      grades = record.蝑?鞈?;
     } else {
       const mainCat = sel.value || '';
-      if (mainCat.includes('水蜜桃')) {
+      if (mainCat.includes('瘞渲?獢?)) {
         grades = [
-          { 等級: '2A', 斤數: '', 箱數: '' },
-          { 等級: '3A', 斤數: '', 箱數: '' },
-          { 等級: '4A', 斤數: '', 箱數: '' },
-          { 等級: '5A', 斤數: '', 箱數: '' },
-          { 等級: '6A', 斤數: '', 箱數: '' }
+          { 蝑?: '2A', ?斗: '', 蝞望: '' },
+          { 蝑?: '3A', ?斗: '', 蝞望: '' },
+          { 蝑?: '4A', ?斗: '', 蝞望: '' },
+          { 蝑?: '5A', ?斗: '', 蝞望: '' },
+          { 蝑?: '6A', ?斗: '', 蝞望: '' }
         ];
       } else {
-        grades = [{ 等級: '3A', 斤數: '', 箱數: '' }];
+        grades = [{ 蝑?: '3A', ?斗: '', 蝞望: '' }];
       }
     }
     grades.forEach(g => addGradeRow(g));
@@ -2489,7 +2510,7 @@ function openIncomeEdit(id) {
 }
 window.openIncomeEdit = openIncomeEdit;
 
-// 打開填入價格的 modal（快捷編輯）
+// ??憛怠?寞??modal嚗翰?瑞楊頛荔?
 window.openFillPriceModal = function(id) {
   const r = incomeData.find(x => x.id === id);
   if (r) openIncomeModal(r);
@@ -2511,7 +2532,7 @@ function closeIncomeModal() {
 document.getElementById('incomeMainCat').addEventListener('change', onIncomeMainCatChange);
 function onIncomeMainCatChange() {
   const val = document.getElementById('incomeMainCat').value;
-  const isOther = val === '其他';
+  const isOther = val === '?嗡?';
   const isAddNew = val === 'ADD_NEW';
   let w1 = document.getElementById('incomeOtherNoteWrap'); if(w1) w1.style.display = isOther ? 'flex' : 'none';
   let w2 = document.getElementById('incomeCustomCatWrap'); if(w2) w2.style.display = isAddNew ? 'flex' : 'none';
@@ -2525,11 +2546,11 @@ function addGradeRow(data = null) {
   row.className = 'grade-row';
   row.innerHTML = `
     <select class="grade-sel">
-      ${GRADE_OPTIONS.map(g => `<option value="${g}" ${data?.等級 === g ? 'selected' : ''}>${g}</option>`).join('')}
+      ${GRADE_OPTIONS.map(g => `<option value="${g}" ${data?.蝑? === g ? 'selected' : ''}>${g}</option>`).join('')}
     </select>
-    <input type="number" class="grade-jin" placeholder="斤數" min="0" step="0.1" value="${data?.斤數 || ''}">
-    <input type="number" class="grade-box" placeholder="箱數" min="0" step="1" value="${data?.箱數 || ''}">
-    <button type="button" class="btn-icon-sm" onclick="this.parentElement.remove()" title="移除">
+    <input type="number" class="grade-jin" placeholder="?斗" min="0" step="0.1" value="${data?.?斗 || ''}">
+    <input type="number" class="grade-box" placeholder="蝞望" min="0" step="1" value="${data?.蝞望 || ''}">
+    <button type="button" class="btn-icon-sm" onclick="this.parentElement.remove()" title="蝘駁">
       <span class="material-symbols-outlined">close</span>
     </button>`;
   container.appendChild(row);
@@ -2542,7 +2563,7 @@ document.getElementById('incomeForm').onsubmit = async (e) => {
   
   const totalPrice = document.getElementById('incomeTotalPrice').value;
   if (totalPrice && parseFloat(totalPrice) < 0) {
-    showToast('金額不可小於 0', 'error');
+    showToast('??銝撠 0', 'error');
     return;
   }
 
@@ -2551,7 +2572,7 @@ document.getElementById('incomeForm').onsubmit = async (e) => {
   const id = document.getElementById('incomeRecordId').value;
   const isEdit = !!id;
 
-  // 收集等級資料
+  // ?園?蝑?鞈?
   const gradeRows = document.querySelectorAll('#gradeRowsContainer .grade-row');
   const gradeData = [];
   let totalWeight = 0;
@@ -2561,7 +2582,7 @@ document.getElementById('incomeForm').onsubmit = async (e) => {
     const jin = parseFloat(row.querySelector('.grade-jin').value) || 0;
     const box = parseInt(row.querySelector('.grade-box').value) || 0;
     if (jin > 0 || box > 0) {
-      gradeData.push({ 等級: grade, 斤數: jin, 箱數: box });
+      gradeData.push({ 蝑?: grade, ?斗: jin, 蝞望: box });
       totalWeight += jin;
       totalBoxes += box;
     }
@@ -2572,7 +2593,7 @@ document.getElementById('incomeForm').onsubmit = async (e) => {
   if (mainCat === 'ADD_NEW') {
     mainCat = document.getElementById('incomeCustomCat').value.trim();
     if (!mainCat) { 
-      showToast('請輸入新品種名稱', 'error'); 
+      showToast('隢撓?交?車?迂', 'error'); 
       btns.forEach(b => b.disabled = false);
       return; 
     }
@@ -2581,30 +2602,30 @@ document.getElementById('incomeForm').onsubmit = async (e) => {
 
   const dataObj = {
     id: id || generateId(),
-    日期: document.getElementById('incomeDate').value,
-    客戶類別: document.getElementById('incomeCustomerType') ? document.getElementById('incomeCustomerType').value : '一般',
-    客戶名稱: document.getElementById('incomeCustomerName') ? document.getElementById('incomeCustomerName').value : '',
-    主類別: mainCat,
-    次類別: mainCat === '其他' ? document.getElementById('incomeOtherNote').value : (document.getElementById('incomeOtherNote').value || ''),
-    等級資料: JSON.stringify(gradeData),
-    總重: totalWeight || '',
-    箱數: totalBoxes || '',
-    總價: totalPrice,
-    盤商價: document.getElementById('incomeDealerPrice').value,
-    運費: document.getElementById('incomeShippingFee').value,
-    附註: document.getElementById('incomeNotes').value,
-    付款狀態: document.getElementById('incomePaymentStatus') ? document.getElementById('incomePaymentStatus').value : '未付款',
-    對帳狀態: document.getElementById('incomeReconStatus') ? document.getElementById('incomeReconStatus').value : '待對帳',
-    建立時間: isEdit ? (incomeData.find(r => r.id === id)?.建立時間 || now()) : now(),
-    最後更新: now()
+    ?交?: document.getElementById('incomeDate').value,
+    摰Ｘ憿: document.getElementById('incomeCustomerType') ? document.getElementById('incomeCustomerType').value : '銝??,
+    摰Ｘ?迂: document.getElementById('incomeCustomerName') ? document.getElementById('incomeCustomerName').value : '',
+    銝駁??? mainCat,
+    甈⊿??? mainCat === '?嗡?' ? document.getElementById('incomeOtherNote').value : (document.getElementById('incomeOtherNote').value || ''),
+    蝑?鞈?: JSON.stringify(gradeData),
+    蝮賡?: totalWeight || '',
+    蝞望: totalBoxes || '',
+    蝮賢: totalPrice,
+    ?文??? document.getElementById('incomeDealerPrice').value,
+    ?祥: document.getElementById('incomeShippingFee').value,
+    ?酉: document.getElementById('incomeNotes').value,
+    隞狡??? document.getElementById('incomePaymentStatus') ? document.getElementById('incomePaymentStatus').value : '?芯?甈?,
+    撠董??? document.getElementById('incomeReconStatus') ? document.getElementById('incomeReconStatus').value : '敺?撣?,
+    撱箇???: isEdit ? (incomeData.find(r => r.id === id)?.撱箇??? || now()) : now(),
+    ?敺?? now()
   };
 
   const rowData = syncHeadersAndPrepareData(SHEET.MARKET_INCOME, dataObj);
 
-  showLoader(isEdit ? '更新中...' : '儲存中...');
+  showLoader(isEdit ? '?湔銝?..' : '?脣?銝?..');
   try {
     if (isNewCat) {
-      await appendToSheet(SHEET.SETTINGS, ['收入主類別', mainCat, '', '', '']);
+      await appendToSheet(SHEET.SETTINGS, ['?嗅銝駁???, mainCat, '', '', '']);
       await fetchSettings();
     }
     if (isEdit) {
@@ -2627,7 +2648,7 @@ document.getElementById('incomeForm').onsubmit = async (e) => {
     renderIncomeChart();
     renderIncomeTable();
     
-    showToast(isEdit ? '✓ 更新成功' : '✓ 收入已記錄');
+    showToast(isEdit ? '???湔??' : '???嗅撌脰???);
     
     if (submitType === 'addNext') {
       const currentDate = document.getElementById('incomeDate').value;
@@ -2636,11 +2657,11 @@ document.getElementById('incomeForm').onsubmit = async (e) => {
       document.getElementById('incomeRecordId').value = '';
       document.getElementById('incomeDate').value = currentDate;
       document.getElementById('incomeMainCat').value = currentMainCat;
-      // 重置次類別與客戶
+      // ?蔭甈⊿??亥?摰Ｘ
       const subCatWrap = document.getElementById('incomeSubCatWrap');
       if (subCatWrap) subCatWrap.style.display = 'none';
       document.getElementById('gradeRowsContainer').innerHTML = '';
-      // 觸發 mainCat change 以重新填充等級列
+      // 閫貊 mainCat change 隞仿??啣‵??蝝?
       document.getElementById('incomeMainCat').dispatchEvent(new Event('change'));
       document.getElementById('incomeTotalPrice').focus();
     } else {
@@ -2648,7 +2669,7 @@ document.getElementById('incomeForm').onsubmit = async (e) => {
     }
   } catch (err) {
     console.error(err);
-    showToast('儲存失敗：' + err.message, 'error');
+    showToast('?脣?憭望?嚗? + err.message, 'error');
   } finally {
     btns.forEach(b => b.disabled = false);
     hideLoader();
@@ -2656,18 +2677,18 @@ document.getElementById('incomeForm').onsubmit = async (e) => {
 };
 
 // ============================================================
-// 11. 支出分頁
+// 11. ?臬??
 // ============================================================
 
-// --- 圖表 ---
-// _expensePieInstance 已在頂層定義
+// --- ?” ---
+// _expensePieInstance 撌脣?惜摰儔
 
 function renderExpenseChart() {
   renderCompositeExpenseCard();
 }
 
 
-// 期間切換 — 支出
+// ???? ???臬
 document.querySelector('#expenseChartCard')?.addEventListener('click', e => {
   const btn = e.target.closest('.period-btn');
   if (!btn) return;
@@ -2678,56 +2699,56 @@ document.querySelector('#expenseChartCard')?.addEventListener('click', e => {
 });
 
 function calcExpenseTotal(r) {
-  let total = (parseFloat(r.數量) || 0) * (parseFloat(r.單價) || 0);
-  if (r.含午餐) total += 100;
-  if (r.總額 && parseFloat(r.總額)) return parseFloat(r.總額);
+  let total = (parseFloat(r.?賊?) || 0) * (parseFloat(r.?桀) || 0);
+  if (r.?怠?擗? total += 100;
+  if (r.蝮賡? && parseFloat(r.蝮賡?)) return parseFloat(r.蝮賡?);
   return total;
 }
 
-// 工人明細面板
+// 撌乩犖?敦?Ｘ
 window.showWorkerDetail = function(name) {
   const panel = document.getElementById('workerDetailPanel');
-  document.getElementById('workerDetailName').textContent = `🧑‍🌾 ${name} 的薪資明細`;
+  document.getElementById('workerDetailName').textContent = `?????${name} ?鞈?蝝躬;
   panel.style.display = 'block';
 
-  const records = expenseData.filter(r => r.工人姓名 === name);
+  const records = expenseData.filter(r => r.撌乩犖憪? === name);
   const content = document.getElementById('workerDetailContent');
 
   if (records.length === 0) {
-    content.innerHTML = '<p style="padding:1rem;color:var(--text-muted)">暫無紀錄</p>';
+    content.innerHTML = '<p style="padding:1rem;color:var(--text-muted)">?怎蝝??/p>';
     return;
   }
 
-  const sorted = [...records].sort((a, b) => new Date(b.日期) - new Date(a.日期));
+  const sorted = [...records].sort((a, b) => new Date(b.?交?) - new Date(a.?交?));
   let html = `<div class="table-wrap" style="margin:0;border:none;border-radius:0;box-shadow:none">
     <table class="records-table">
-      <thead><tr><th>日期</th><th>工作項目</th><th>計薪</th><th>金額</th><th>午餐</th><th>已付</th></tr></thead>
+      <thead><tr><th>?交?</th><th>撌乩??</th><th>閮</th><th>??</th><th>??</th><th>撌脖?</th></tr></thead>
       <tbody>`;
   sorted.forEach(r => {
     const amt = calcExpenseTotal(r);
-    const wageInfo = r.計薪方式 === 'hourly'
-      ? `${r.數量}h × $${r.單價}`
-      : `${r.數量}天 × $${r.單價}`;
+    const wageInfo = r.閮?孵? === 'hourly'
+      ? `${r.?賊?}h ? $${r.?桀}`
+      : `${r.?賊?}憭?? $${r.?桀}`;
     html += `<tr>
-      <td>${r.日期}</td>
-      <td>${r.次類別 || '-'}</td>
+      <td>${r.?交?}</td>
+      <td>${r.甈⊿???|| '-'}</td>
       <td style="font-size:0.75rem;color:var(--text-muted)">${wageInfo}</td>
       <td class="td-amount expense">$${amt.toLocaleString()}</td>
-      <td>${r.含午餐 ? '✓' : ''}</td>
+      <td>${r.?怠?擗?? '?? : ''}</td>
       <td>
-        <button class="btn-toggle-paid" onclick="togglePaid('${r.id}')" title="${r.已支付 ? '點選標記未付' : '點選標記已付'}">
-          <span class="status-badge ${r.已支付 ? 'paid' : 'unpaid'}">${r.已支付 ? '✓ 已付' : '未付'}</span>
+        <button class="btn-toggle-paid" onclick="togglePaid('${r.id}')" title="${r.撌脫隞?? '暺璅??芯?' : '暺璅?撌脖?'}">
+          <span class="status-badge ${r.撌脫隞?? 'paid' : 'unpaid'}">${r.撌脫隞?? '??撌脖?' : '?芯?'}</span>
         </button>
       </td>
     </tr>`;
   });
   html += '</tbody></table></div>';
 
-  const totalPaid = sorted.filter(r => r.已支付).reduce((s, r) => s + calcExpenseTotal(r), 0);
-  const totalUnpaid = sorted.filter(r => !r.已支付).reduce((s, r) => s + calcExpenseTotal(r), 0);
+  const totalPaid = sorted.filter(r => r.撌脫隞?.reduce((s, r) => s + calcExpenseTotal(r), 0);
+  const totalUnpaid = sorted.filter(r => !r.撌脫隞?.reduce((s, r) => s + calcExpenseTotal(r), 0);
   html += `<div style="padding:0.75rem 1rem;font-size:0.85rem;display:flex;gap:1rem;background:#f8fafc;border-top:1px solid var(--border)">
-    <span>已付：<strong style="color:var(--green-dark)">$${totalPaid.toLocaleString()}</strong></span>
-    <span>未付：<strong style="color:var(--yellow)">$${totalUnpaid.toLocaleString()}</strong></span>
+    <span>撌脖?嚗?strong style="color:var(--green-dark)">$${totalPaid.toLocaleString()}</strong></span>
+    <span>?芯?嚗?strong style="color:var(--yellow)">$${totalUnpaid.toLocaleString()}</strong></span>
   </div>`;
 
   content.innerHTML = html;
@@ -2737,14 +2758,14 @@ document.getElementById('closeWorkerDetail').onclick = () => {
   document.getElementById('workerDetailPanel').style.display = 'none';
 };
 
-// 切換已付狀態
+// ??撌脖????
 window.togglePaid = async function(id) {
   const r = expenseData.find(x => x.id === id);
   if (!r) return;
-  const newVal = !r.已支付;
+  const newVal = !r.撌脫隞?
   const targetSheet = r._sourceSheet || SHEET.EXPENSE;
   
-  // 找出行號
+  // ?曉銵?
   const res = await gapi.client.sheets.spreadsheets.values.get({
     spreadsheetId: SPREADSHEET_ID,
     range: `${targetSheet}!A:A`
@@ -2753,15 +2774,15 @@ window.togglePaid = async function(id) {
   const rowIdx = ids.indexOf(id) + 1;
 
   if (rowIdx <= 0) {
-    showToast('找不到紀錄，無法更新狀態', 'error');
+    showToast('?曆??啁????⊥??湔???, 'error');
     return;
   }
 
-  // 取得對應工作表的欄位索引 (已支付欄位)
+  // ??撠?撌乩?銵函?甈?蝝Ｗ? (撌脫隞?雿?
   let col = '';
   if (targetSheet === SHEET.EXPENSE_SALARY) col = 'O'; // 15th col
   else if (targetSheet === SHEET.EXPENSE_COST) col = 'H'; // 8th col
-  else col = 'K'; // 舊版
+  else col = 'K'; // ??
 
   try {
     await gapi.client.sheets.spreadsheets.values.update({
@@ -2770,18 +2791,18 @@ window.togglePaid = async function(id) {
       valueInputOption: 'USER_ENTERED',
       resource: { values: [[newVal ? 'TRUE' : 'FALSE']] }
     });
-    r.已支付 = newVal;
+    r.撌脫隞?= newVal;
     renderExpenseChart();
     renderExpenseTable();
-    // 重新渲染工人明細
-    if (r.工人姓名) showWorkerDetail(r.工人姓名);
-    showToast(newVal ? '✓ 已標記為已支付' : '已標記為未支付');
+    // ?皜脫?撌乩犖?敦
+    if (r.撌乩犖憪?) showWorkerDetail(r.撌乩犖憪?);
+    showToast(newVal ? '??撌脫?閮撌脫隞? : '撌脫?閮?芣隞?);
   } catch (e) {
-    showToast('更新失敗', 'error');
+    showToast('?湔憭望?', 'error');
   }
 };
 
-// --- 篩選 chips ---
+// --- 蝭拚 chips ---
 function renderExpenseFilterChips() {
   const isSalaryTab = filterState.expense.type === 'worker';
   const container = document.getElementById(isSalaryTab ? 'salaryMainCatChips' : 'costMainCatChips');
@@ -2789,17 +2810,17 @@ function renderExpenseFilterChips() {
   container.innerHTML = '';
 
   const relMainCats = settings.expenseMainCats.filter(c => {
-    if (isSalaryTab) return c.類型 === 'worker';
-    return c.類型 !== 'worker';
+    if (isSalaryTab) return c.憿? === 'worker';
+    return c.憿? !== 'worker';
   });
 
   relMainCats.forEach(cat => {
     const btn = document.createElement('button');
-    const isActive = filterState.expense.mainCat === cat.名稱;
+    const isActive = filterState.expense.mainCat === cat.?迂;
     btn.className = `filter-chip${isActive ? ' active' : ''}`;
-    btn.textContent = cat.名稱;
+    btn.textContent = cat.?迂;
     btn.onclick = () => {
-      filterState.expense.mainCat = filterState.expense.mainCat === cat.名稱 ? null : cat.名稱;
+      filterState.expense.mainCat = filterState.expense.mainCat === cat.?迂 ? null : cat.?迂;
       filterState.expense.subCat = null;
       renderExpenseFilterChips();
       renderExpenseTable();
@@ -2835,29 +2856,29 @@ document.getElementById('costSortBtn').onclick = function() {
 const expenseCopyBtn = document.getElementById('expenseCopyBtn');
 if (expenseCopyBtn) expenseCopyBtn.onclick = () => openCopyModal('expense');
 
-// --- 表格（折疊式卡片版） ---
+// --- 銵冽嚗????∠??? ---
 function renderExpenseTable() {
   const isSalaryTab = filterState.expense.type === 'worker';
   let data = [...expenseData];
   
-  // 先過濾類型
+  // ??瞈暸???
   data = data.filter(r => {
-    const cat = settings.expenseMainCats.find(c => c.名稱 === r.主類別);
+    const cat = settings.expenseMainCats.find(c => c.?迂 === r.銝駁???;
     if (!cat) return false;
-    if (isSalaryTab) return cat.類型 === 'worker';
-    return cat.類型 !== 'worker';
+    if (isSalaryTab) return cat.憿? === 'worker';
+    return cat.憿? !== 'worker';
   });
 
-  // 再過濾主類別與次類別
-  if (filterState.expense.mainCat) data = data.filter(r => r.主類別 === filterState.expense.mainCat);
+  // ??瞈曆蜓憿?活憿
+  if (filterState.expense.mainCat) data = data.filter(r => r.銝駁???=== filterState.expense.mainCat);
   if (filterState.expense.subCat) {
     data = data.filter(r => {
-      const subs = (r.次類別 || '').split(',').map(s => s.trim());
+      const subs = (r.甈⊿???|| '').split(',').map(s => s.trim());
       return subs.includes(filterState.expense.subCat);
     });
   }
   data.sort((a, b) => {
-    const diff = new Date(a.日期) - new Date(b.日期);
+    const diff = new Date(a.?交?) - new Date(b.?交?);
     return filterState.expense.sortOrder === 'desc' ? -diff : diff;
   });
 
@@ -2874,18 +2895,18 @@ function renderExpenseTable() {
   }
   empty.style.display = 'none';
 
-  // 依主類別分區塊
+  // 靘蜓憿??憛?
   const relMainCats = settings.expenseMainCats.filter(c => {
-    if (isSalaryTab) return c.類型 === 'worker';
-    return c.類型 !== 'worker';
+    if (isSalaryTab) return c.憿? === 'worker';
+    return c.憿? !== 'worker';
   });
 
   const mainCatSet = filterState.expense.mainCat
     ? [filterState.expense.mainCat]
-    : relMainCats.map(c => c.名稱).filter(n => data.some(r => r.主類別 === n));
+    : relMainCats.map(c => c.?迂).filter(n => data.some(r => r.銝駁???=== n));
 
   mainCatSet.forEach((catName, ci) => {
-    const catData = data.filter(r => r.主類別 === catName);
+    const catData = data.filter(r => r.銝駁???=== catName);
     if (catData.length === 0) return;
     
     const clr = getCategoryColor(catName, ci);
@@ -2902,7 +2923,7 @@ function renderExpenseTable() {
       <div class="record-section-left">
         <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${color};margin-right:2px"></span>
         ${catName}
-        <span class="record-section-count">${catData.length}筆</span>
+        <span class="record-section-count">${catData.length}蝑?/span>
       </div>
       <div class="record-section-right">
         <span class="record-section-total expense">$${catTotal.toLocaleString()}</span>
@@ -2918,11 +2939,11 @@ function renderExpenseTable() {
       arrow.classList.toggle('expanded', isExp);
     };
 
-    // 依年-月分組
+    // 靘僑-??蝯?
     const yearMap = {};
     catData.forEach(r => {
-      const yr = r.日期 ? r.日期.substring(0, 4) : '未知';
-      const mo = r.日期 ? r.日期.substring(0, 7) : '未知';
+      const yr = r.?交? ? r.?交?.substring(0, 4) : '?芰';
+      const mo = r.?交? ? r.?交?.substring(0, 7) : '?芰';
       if (!yearMap[yr]) yearMap[yr] = {};
       if (!yearMap[yr][mo]) yearMap[yr][mo] = [];
       yearMap[yr][mo].push(r);
@@ -2932,7 +2953,7 @@ function renderExpenseTable() {
       const yrH = document.createElement('div');
       yrH.className = 'record-year-header';
       const yrTotal = Object.values(yearMap[yr]).flat().reduce((s, r) => s + calcExpenseTotal(r), 0);
-      yrH.innerHTML = `<span>📅 ${yr} 年</span><span style="font-weight:600;color:${color}">$${yrTotal.toLocaleString()}</span>`;
+      yrH.innerHTML = `<span>?? ${yr} 撟?/span><span style="font-weight:600;color:${color}">$${yrTotal.toLocaleString()}</span>`;
       const yrB = document.createElement('div');
       yrB.className = 'record-year-body expanded';
       yrH.onclick = () => yrB.classList.toggle('expanded');
@@ -2942,14 +2963,14 @@ function renderExpenseTable() {
         const moH = document.createElement('div');
         moH.className = 'record-month-header';
         const moTotal = moList.reduce((s, r) => s + calcExpenseTotal(r), 0);
-        moH.innerHTML = `<span>${mo.substring(5, 7)} 月 <span class="record-section-count">${moList.length}筆</span></span><span>$${moTotal.toLocaleString()}</span>`;
+        moH.innerHTML = `<span>${mo.substring(5, 7)} ??<span class="record-section-count">${moList.length}蝑?/span></span><span>$${moTotal.toLocaleString()}</span>`;
         const moB = document.createElement('div');
         moB.className = 'record-month-body expanded';
         moH.onclick = () => moB.classList.toggle('expanded');
 
         moList.forEach(r => {
           const total = calcExpenseTotal(r);
-          const payClass = r.已支付 ? 'paid' : 'unpaid';
+          const payClass = r.撌脫隞?? 'paid' : 'unpaid';
 
           const item = document.createElement('div');
           item.className = 'record-item';
@@ -2957,12 +2978,12 @@ function renderExpenseTable() {
           item.dataset.id = r.id;
           item.innerHTML = `
             <div class="record-item-content">
-              <div class="record-item-date">${r.日期 ? r.日期.substring(5) : '-'}</div>
+              <div class="record-item-date">${r.?交? ? r.?交?.substring(5) : '-'}</div>
               <div class="record-item-main">
-                <div class="record-item-name">${r.次類別 || catName}${r.工人姓名 ? ` · ${r.工人姓名}` : ''}</div>
-                <div class="record-item-sub">${r.數量 ? r.數量 + (r.單位 || '') : ''}${r.單價 ? ` × $${parseFloat(r.單價).toLocaleString()}` : ''}${r.附註 ? ` | ${r.附註}` : ''}</div>
+                <div class="record-item-name">${r.甈⊿???|| catName}${r.撌乩犖憪? ? ` 繚 ${r.撌乩犖憪?}` : ''}</div>
+                <div class="record-item-sub">${r.?賊? ? r.?賊? + (r.?桐? || '') : ''}${r.?桀 ? ` ? $${parseFloat(r.?桀).toLocaleString()}` : ''}${r.?酉 ? ` | ${r.?酉}` : ''}</div>
                 <div style="margin-top:4px">
-                  <button class="btn-quick-toggle ${payClass}" onclick="togglePaid('${r.id}')">${r.已支付 ? '✓ 已支付' : '⚠ 未支付'}</button>
+                  <button class="btn-quick-toggle ${payClass}" onclick="togglePaid('${r.id}')">${r.撌脫隞?? '??撌脫隞? : '???芣隞?}</button>
                 </div>
               </div>
               <div class="record-item-right">
@@ -2992,55 +3013,55 @@ function renderExpenseTable() {
 
 
 // ============================================================
-// 12. 支出表單 Modal
+// 12. ?臬銵典 Modal
 // ============================================================
 // ============================================================
-// 12. 支出表單 Modal
+// 12. ?臬銵典 Modal
 // ============================================================
 function openExpenseModal(record = null, defaultType = null) {
   document.getElementById('fabContainer') ? (document.getElementById('fabContainer').style.display = 'none') : null;
   const fabWrap = document.getElementById('fabContainer');
   if (fabWrap) fabWrap.style.display = 'none';
   const isEdit = !!record;
-  document.getElementById('expenseModalTitle').textContent = isEdit ? '編輯支出紀錄' : '支出紀錄';
+  document.getElementById('expenseModalTitle').textContent = isEdit ? '蝺刻摩?臬蝝?? : '?臬蝝??;
   document.getElementById('expenseRecordId').value = isEdit ? record.id : '';
   
-  // 同步切換器狀態
+  // ?郊???函???
   const typeVal = defaultType === 'material' ? 'cost' : 'salary';
   const toggle = document.querySelector(`input[name="expenseTypeToggle"][value="${typeVal}"]`);
   if (toggle) toggle.checked = true;
-  document.getElementById('expenseDate').value = isEdit ? record.日期 : today();
-  document.getElementById('expenseNotes').value = isEdit ? record.附註 : '';
-  document.getElementById('expenseIsPaid').checked = isEdit ? record.已支付 : false;
-  document.getElementById('includeLunch').checked = isEdit ? record.含午餐 : false;
-  document.getElementById('expenseUnit').value = isEdit ? (record.單位 || '') : '';
+  document.getElementById('expenseDate').value = isEdit ? record.?交? : today();
+  document.getElementById('expenseNotes').value = isEdit ? record.?酉 : '';
+  document.getElementById('expenseIsPaid').checked = isEdit ? record.撌脫隞?: false;
+  document.getElementById('includeLunch').checked = isEdit ? record.?怠?擗?: false;
+  document.getElementById('expenseUnit').value = isEdit ? (record.?桐? || '') : '';
   
-  // 新欄位：時間 (預設 7:00-12:00, 13:00-16:00)
-  document.getElementById('salaryMorningStart').value = isEdit ? (record.上午上班 || '') : '07:00';
-  document.getElementById('salaryMorningEnd').value = isEdit ? (record.上午休息 || '') : '12:00';
-  document.getElementById('salaryAfternoonStart').value = isEdit ? (record.下午上班 || '') : '13:00';
-  document.getElementById('salaryAfternoonEnd').value = isEdit ? (record.下午下班 || '') : '16:00';
+  // ?唳?雿??? (?身 7:00-12:00, 13:00-16:00)
+  document.getElementById('salaryMorningStart').value = isEdit ? (record.銝?銝 || '') : '07:00';
+  document.getElementById('salaryMorningEnd').value = isEdit ? (record.銝?隡 || '') : '12:00';
+  document.getElementById('salaryAfternoonStart').value = isEdit ? (record.銝?銝 || '') : '13:00';
+  document.getElementById('salaryAfternoonEnd').value = isEdit ? (record.銝?銝 || '') : '16:00';
   
-  // 新欄位：支付日期
+  // ?唳?雿??臭??交?
   const paidDateEl = document.getElementById('expensePaidDate');
-  if (paidDateEl) paidDateEl.value = isEdit ? (record.支付日期 || '') : '';
+  if (paidDateEl) paidDateEl.value = isEdit ? (record.?臭??交? || '') : '';
   
-  // 更新單位下拉選單
+  // ?湔?桐?銝??詨
   const unitList = document.getElementById('unitOptions');
   if (unitList) {
     unitList.innerHTML = settings.units.map(u => `<option value="${u}">`).join('');
   }
 
-  // 主類別選單
+  // 銝駁??仿??
   const mainSel = document.getElementById('expenseMainCat');
   const availableCats = settings.expenseMainCats.filter(c => {
-    if (defaultType === 'worker' || record?.計薪方式) return c.類型 === 'worker';
-    if (defaultType === 'material') return c.類型 !== 'worker';
+    if (defaultType === 'worker' || record?.閮?孵?) return c.憿? === 'worker';
+    if (defaultType === 'material') return c.憿? !== 'worker';
     return true;
   });
   
-  mainSel.innerHTML = availableCats.map(c => `<option value="${c.名稱}">${c.名稱}</option>`).join('');
-  mainSel.value = isEdit ? record.主類別 : availableCats[0]?.名稱;
+  mainSel.innerHTML = availableCats.map(c => `<option value="${c.?迂}">${c.?迂}</option>`).join('');
+  mainSel.value = isEdit ? record.銝駁???: availableCats[0]?.?迂;
 
   onExpenseMainCatChange(record);
 
@@ -3068,7 +3089,7 @@ function closeExpenseModal() {
 
 document.getElementById('expenseMainCat').addEventListener('change', () => onExpenseMainCatChange());
 
-// 動態計算總額
+// ??閮?蝮賡?
 ['expenseQty', 'expenseUnitPrice', 'expenseTotalPrice'].forEach(id => {
   document.getElementById(id)?.addEventListener('input', (e) => updateExpenseTotal(e.target.id));
 });
@@ -3086,7 +3107,7 @@ function updateExpenseTotal(sourceId) {
       unitPriceInput.value = Math.round((total - lunch) / qty);
     }
   } else {
-    // 預設由數量/單價算總額
+    // ?身?望???桀蝞蜇憿?
     const unitPrice = parseFloat(unitPriceInput.value) || 0;
     const total = Math.round(qty * unitPrice + lunch);
     totalPriceInput.value = total;
@@ -3095,90 +3116,90 @@ function updateExpenseTotal(sourceId) {
 
 function onExpenseMainCatChange(editRecord = null) {
   const mainVal = document.getElementById('expenseMainCat').value;
-  const cat = settings.expenseMainCats.find(c => c.名稱 === mainVal);
-  const catType = cat?.類型 || 'material';
+  const cat = settings.expenseMainCats.find(c => c.?迂 === mainVal);
+  const catType = cat?.憿? || 'material';
   const isWorker = catType === 'worker';
 
-  // 顯示/隱藏工人專用欄位
+  // 憿舐內/?梯?撌乩犖撠甈?
   document.getElementById('workerNameWrap').style.display = isWorker ? 'flex' : 'none';
   document.getElementById('wageTypeWrap').style.display = isWorker ? 'block' : 'none';
   document.getElementById('workerSubCatWrap').style.display = isWorker ? 'block' : 'none';
   document.getElementById('generalSubCatWrap').style.display = isWorker ? 'none' : 'flex';
   document.getElementById('lunchAllowanceWrap').style.display = isWorker ? 'flex' : 'none';
   document.getElementById('expenseUnitWrap').style.display = isWorker ? 'none' : 'flex';
-  document.getElementById('salaryTimeFields').style.display = isWorker ? 'block' : 'none'; // 顯示時間欄位
-  document.getElementById('expensePaidDateWrap').style.display = 'flex'; // 支付日期一直顯示
-  document.getElementById('expenseBulkInputWrap').style.display = 'none'; // 切換類別時先隱藏批次輸入
+  document.getElementById('salaryTimeFields').style.display = isWorker ? 'block' : 'none'; // 憿舐內??甈?
+  document.getElementById('expensePaidDateWrap').style.display = 'flex'; // ?臭??交?銝?湧＊蝷?
+  document.getElementById('expenseBulkInputWrap').style.display = 'none'; // ??憿???梯??寞活頛詨
   document.getElementById('quantityPriceRow').style.display = 'grid';
   document.getElementById('priceDetailRow').style.display = 'grid';
 
   if (isWorker) {
-    // 工人下拉
+    // 撌乩犖銝?
     const wSel = document.getElementById('expenseWorker');
-    wSel.innerHTML = '<option value="">-- 請選擇 --</option>' +
-                     '<option value="ADD_NEW">+ 新增工人...</option>' +
-                     settings.workers.map(w => `<option value="${w.姓名}">${w.姓名}</option>`).join('');
-    wSel.value = editRecord ? editRecord.工人姓名 : '';
+    wSel.innerHTML = '<option value="">-- 隢??--</option>' +
+                     '<option value="ADD_NEW">+ ?啣?撌乩犖...</option>' +
+                     settings.workers.map(w => `<option value="${w.憪?}">${w.憪?}</option>`).join('');
+    wSel.value = editRecord ? editRecord.撌乩犖憪? : '';
     onExpenseWorkerChange();
 
-    // 計薪方式
-    const wageType = editRecord?.計薪方式 || 'hourly';
+    // 閮?孵?
+    const wageType = editRecord?.閮?孵? || 'hourly';
     document.querySelector(`input[name="wageType"][value="${wageType}"]`).checked = true;
 
-    // 標籤、預設值
-    document.getElementById('expenseQtyLabel').textContent = wageType === 'hourly' ? '時數 *' : '天數 *';
-    document.getElementById('expenseUnitLabel').textContent = wageType === 'hourly' ? '時薪 *' : '日薪 *';
+    // 璅惜??閮剖?
+    document.getElementById('expenseQtyLabel').textContent = wageType === 'hourly' ? '? *' : '憭拇 *';
+    document.getElementById('expenseUnitLabel').textContent = wageType === 'hourly' ? '? *' : '?亥 *';
 
     if (editRecord) {
-      document.getElementById('expenseQty').value = editRecord.數量;
-      document.getElementById('expenseUnitPrice').value = editRecord.單價;
+      document.getElementById('expenseQty').value = editRecord.?賊?;
+      document.getElementById('expenseUnitPrice').value = editRecord.?桀;
     } else {
-      // 預設帶入
+      // ?身撣嗅
       const defaultWorker = settings.workers[0];
       if (wageType === 'hourly') {
         document.getElementById('expenseQty').value = '8';
-        document.getElementById('expenseUnitPrice').value = defaultWorker?.預設時薪 || '190';
+        document.getElementById('expenseUnitPrice').value = defaultWorker?.?身? || '190';
       } else {
         document.getElementById('expenseQty').value = '1';
-        document.getElementById('expenseUnitPrice').value = defaultWorker?.預設日薪 || '1500';
+        document.getElementById('expenseUnitPrice').value = defaultWorker?.?身?亥 || '1500';
       }
     }
 
-    // 工作項目 chips
+    // 撌乩?? chips
     const chipsContainer = document.getElementById('workerSubCatChips');
     chipsContainer.innerHTML = '';
-    const selectedSubs = editRecord ? (editRecord.次類別 || '').split(',').map(s => s.trim()) : [];
-    (cat?.次類別 || []).forEach(sub => {
+    const selectedSubs = editRecord ? (editRecord.甈⊿???|| '').split(',').map(s => s.trim()) : [];
+    (cat?.甈⊿???|| []).forEach(sub => {
       const chip = document.createElement('button');
       chip.type = 'button';
-      chip.className = `chip${selectedSubs.includes(sub.名稱) ? ' active' : ''}`;
-      chip.textContent = sub.名稱;
+      chip.className = `chip${selectedSubs.includes(sub.?迂) ? ' active' : ''}`;
+      chip.textContent = sub.?迂;
       chip.onclick = () => chip.classList.toggle('active');
       chipsContainer.appendChild(chip);
     });
   } else {
-    // 一般類別：次類別下拉
+    // 銝?祇??伐?甈⊿??乩???
     const subSel = document.getElementById('expenseSubCat');
-    subSel.innerHTML = '<option value="">-- 請選擇（可選）--</option>' +
-      '<option value="ADD_NEW">+ 新增此類別項目...</option>' +
-      '<option value="ADD_NEW_BULK">+ 手動批次輸入多項...</option>' +
-      (cat?.次類別 || []).map(s => `<option value="${s.名稱}" ${editRecord?.次類別 === s.名稱 ? 'selected' : ''}>${s.名稱}${s.預設金額 ? ` - $${s.預設金額}` : ''}</option>`).join('');
+    subSel.innerHTML = '<option value="">-- 隢???舫嚗?-</option>' +
+      '<option value="ADD_NEW">+ ?啣?甇日??仿???..</option>' +
+      '<option value="ADD_NEW_BULK">+ ???寞活頛詨憭?...</option>' +
+      (cat?.甈⊿???|| []).map(s => `<option value="${s.?迂}" ${editRecord?.甈⊿???=== s.?迂 ? 'selected' : ''}>${s.?迂}${s.?身?? ? ` - $${s.?身??}` : ''}</option>`).join('');
 
-    // 標籤
-    document.getElementById('expenseQtyLabel').textContent = '數量 *';
-    document.getElementById('expenseUnitLabel').textContent = '單價 *';
+    // 璅惜
+    document.getElementById('expenseQtyLabel').textContent = '?賊? *';
+    document.getElementById('expenseUnitLabel').textContent = '?桀 *';
 
     if (editRecord) {
-      document.getElementById('expenseQty').value = editRecord.數量;
-      document.getElementById('expenseUnitPrice').value = editRecord.單價;
+      document.getElementById('expenseQty').value = editRecord.?賊?;
+      document.getElementById('expenseUnitPrice').value = editRecord.?桀;
     } else {
-      // 帶入預設金額
+      // 撣嗅?身??
       document.getElementById('expenseQty').value = '1';
       document.getElementById('expenseUnitPrice').value = '';
       subSel.addEventListener('change', () => {
-        const selected = cat?.次類別.find(s => s.名稱 === subSel.value);
-        if (selected?.預設金額) {
-          document.getElementById('expenseUnitPrice').value = selected.預設金額;
+        const selected = cat?.甈⊿???find(s => s.?迂 === subSel.value);
+        if (selected?.?身??) {
+          document.getElementById('expenseUnitPrice').value = selected.?身??;
           updateExpenseTotal();
         }
       }, { once: true });
@@ -3204,7 +3225,7 @@ function onExpenseSubCatChange() {
   document.getElementById('expenseBulkInputWrap').style.display = isBulk ? 'block' : 'none';
   document.getElementById('expenseCustomSubCatWrap').style.display = isNew ? 'flex' : 'none';
   
-  // 批次輸入時隱藏數量/單價列，單筆新增時則保留
+  // ?寞活頛詨?????桀???桃??啣???靽?
   const hideDetails = isBulk;
   document.getElementById('quantityPriceRow').style.display = hideDetails ? 'none' : 'grid';
   document.getElementById('priceDetailRow').style.display = hideDetails ? 'none' : 'grid';
@@ -3220,42 +3241,42 @@ function onExpenseSubCatChange() {
   }
 }
 
-// 計薪方式切換
+// 閮?孵???
 document.querySelectorAll('input[name="wageType"]').forEach(radio => {
   radio.addEventListener('change', () => {
     const mainVal = document.getElementById('expenseMainCat').value;
-    const cat = settings.expenseMainCats.find(c => c.名稱 === mainVal);
+    const cat = settings.expenseMainCats.find(c => c.?迂 === mainVal);
     const wageType = document.querySelector('input[name="wageType"]:checked').value;
-    document.getElementById('expenseQtyLabel').textContent = wageType === 'hourly' ? '時數 *' : '天數 *';
-    document.getElementById('expenseUnitLabel').textContent = wageType === 'hourly' ? '時薪 *' : '日薪 *';
+    document.getElementById('expenseQtyLabel').textContent = wageType === 'hourly' ? '? *' : '憭拇 *';
+    document.getElementById('expenseUnitLabel').textContent = wageType === 'hourly' ? '? *' : '?亥 *';
 
-    // 工人預設值
+    // 撌乩犖?身??
     const workerSel = document.getElementById('expenseWorker');
     const workerName = workerSel.value;
-    const worker = settings.workers.find(w => w.姓名 === workerName);
+    const worker = settings.workers.find(w => w.憪? === workerName);
 
     if (wageType === 'hourly') {
       document.getElementById('expenseQty').value = '8';
-      document.getElementById('expenseUnitPrice').value = worker?.預設時薪 || '200';
+      document.getElementById('expenseUnitPrice').value = worker?.?身? || '200';
     } else {
       document.getElementById('expenseQty').value = '1';
-      document.getElementById('expenseUnitPrice').value = worker?.預設日薪 || '1500';
+      document.getElementById('expenseUnitPrice').value = worker?.?身?亥 || '1500';
     }
     updateExpenseTotal();
   });
 });
 
-// 工人選擇時更新預設薪資
+// 撌乩犖?豢???圈?閮剛鞈?
 document.getElementById('expenseWorker').addEventListener('change', () => {
   const workerName = document.getElementById('expenseWorker').value;
   if (workerName === 'ADD_NEW') return;
-  const worker = settings.workers.find(w => w.姓名 === workerName);
+  const worker = settings.workers.find(w => w.憪? === workerName);
   if (!worker) return;
   const wageType = document.querySelector('input[name="wageType"]:checked').value;
   if (wageType === 'hourly') {
-    document.getElementById('expenseUnitPrice').value = worker.預設時薪 || '200';
+    document.getElementById('expenseUnitPrice').value = worker.?身? || '200';
   } else {
-    document.getElementById('expenseUnitPrice').value = worker.預設日薪 || '1500';
+    document.getElementById('expenseUnitPrice').value = worker.?身?亥 || '1500';
   }
   updateExpenseTotal();
 });
@@ -3267,7 +3288,7 @@ document.getElementById('expenseForm').onsubmit = async (e) => {
 
   const qty = document.getElementById('expenseQty').value;
   if (qty && parseFloat(qty) <= 0) {
-    showToast('數量必須大於 0', 'error');
+    showToast('?賊?敹?憭扳 0', 'error');
     return;
   }
 
@@ -3277,8 +3298,8 @@ document.getElementById('expenseForm').onsubmit = async (e) => {
   const date = document.getElementById('expenseDate').value;
   const isEdit = !!id;
   const mainVal = document.getElementById('expenseMainCat').value;
-  const cat = settings.expenseMainCats.find(c => c.名稱 === mainVal);
-  const isWorker = cat?.類型 === 'worker';
+  const cat = settings.expenseMainCats.find(c => c.?迂 === mainVal);
+  const isWorker = cat?.憿? === 'worker';
   const subCatVal = document.getElementById('expenseSubCat').value;
   const isBulk = !isWorker && subCatVal === 'ADD_NEW_BULK';
 
@@ -3288,22 +3309,22 @@ document.getElementById('expenseForm').onsubmit = async (e) => {
     const bulkText = document.getElementById('expenseBulkInput').value;
     recordsToSave = parseBulkInput(bulkText).map(item => ({
       ...item,
-      日期: date,
-      主類別: mainVal,
-      計薪方式: '',
-      含午餐: false,
-      已支付: document.getElementById('expenseIsPaid').checked,
-      支付日期: document.getElementById('expensePaidDate').value,
-      附註: document.getElementById('expenseNotes').value,
+      ?交?: date,
+      銝駁??? mainVal,
+      閮?孵?: '',
+      ?怠?擗? false,
+      撌脫隞? document.getElementById('expenseIsPaid').checked,
+      ?臭??交?: document.getElementById('expensePaidDate').value,
+      ?酉: document.getElementById('expenseNotes').value,
       _sourceSheet: SHEET.EXPENSE_COST
     }));
     if (recordsToSave.length === 0) {
-      showToast('請輸入有效的批次內容', 'error');
+      showToast('隢撓?交????寞活?批捆', 'error');
       btns.forEach(b => b.disabled = false);
       return;
     }
   } else {
-    // 單筆模式
+    // ?桃?璅∪?
     let subCat = '';
     let workerName = '';
     let isNewWorker = false;
@@ -3317,7 +3338,7 @@ document.getElementById('expenseForm').onsubmit = async (e) => {
       if (workerName === 'ADD_NEW') {
         workerName = document.getElementById('expenseCustomWorker').value.trim();
         if (!workerName) { 
-          showToast('請輸入姓名', 'error'); 
+          showToast('隢撓?亙???, 'error'); 
           btns.forEach(b => b.disabled = false);
           return; 
         }
@@ -3328,7 +3349,7 @@ document.getElementById('expenseForm').onsubmit = async (e) => {
       if (subCat === 'ADD_NEW') {
         subCat = document.getElementById('expenseCustomSubCat').value.trim();
         if (!subCat) { 
-          showToast('請輸入次類別項目名稱', 'error'); 
+          showToast('隢撓?交活憿??迂', 'error'); 
           btns.forEach(b => b.disabled = false);
           return; 
         }
@@ -3346,25 +3367,25 @@ document.getElementById('expenseForm').onsubmit = async (e) => {
 
     recordsToSave.push({
       id: id || generateId(),
-      日期: date,
-      主類別: mainVal,
-      次類別: subCat,
-      工人姓名: workerName,
-      計薪方式: wageType,
-      數量: qty,
-      單位: unit,
-      單價: unitPrice,
-      總額: total,
-      含午餐: lunch ? 'TRUE' : 'FALSE',
-      已支付: document.getElementById('expenseIsPaid').checked ? 'TRUE' : 'FALSE',
-      支付日期: document.getElementById('expensePaidDate').value,
-      附註: document.getElementById('expenseNotes').value,
-      上午上班: document.getElementById('salaryMorningStart').value,
-      上午休息: document.getElementById('salaryMorningEnd').value,
-      下午上班: document.getElementById('salaryAfternoonStart').value,
-      下午下班: document.getElementById('salaryAfternoonEnd').value,
-      建立時間: isEdit ? (expenseData.find(x => x.id === id)?.建立時間 || now()) : now(),
-      最後更新: now(),
+      ?交?: date,
+      銝駁??? mainVal,
+      甈⊿??? subCat,
+      撌乩犖憪?: workerName,
+      閮?孵?: wageType,
+      ?賊?: qty,
+      ?桐?: unit,
+      ?桀: unitPrice,
+      蝮賡?: total,
+      ?怠?擗? lunch ? 'TRUE' : 'FALSE',
+      撌脫隞? document.getElementById('expenseIsPaid').checked ? 'TRUE' : 'FALSE',
+      ?臭??交?: document.getElementById('expensePaidDate').value,
+      ?酉: document.getElementById('expenseNotes').value,
+      銝?銝: document.getElementById('salaryMorningStart').value,
+      銝?隡: document.getElementById('salaryMorningEnd').value,
+      銝?銝: document.getElementById('salaryAfternoonStart').value,
+      銝?銝: document.getElementById('salaryAfternoonEnd').value,
+      撱箇???: isEdit ? (expenseData.find(x => x.id === id)?.撱箇??? || now()) : now(),
+      ?敺?? now(),
       isNewWorker,
       isNewSubCat,
       isNewUnit,
@@ -3372,24 +3393,24 @@ document.getElementById('expenseForm').onsubmit = async (e) => {
     });
   }
 
-  showLoader(isEdit ? '更新中...' : '儲存中...');
+  showLoader(isEdit ? '?湔銝?..' : '?脣?銝?..');
   try {
     for (const r of recordsToSave) {
-      // 處理新項目 (Settings)
+      // ???圈???(Settings)
       if (r.isNewWorker) {
-        await appendToSheet(SHEET.WORKERS, [r.工人姓名, '190', '1500']);
+        await appendToSheet(SHEET.WORKERS, [r.撌乩犖憪?, '190', '1500']);
       }
       if (r.isNewSubCat) {
-        await appendToSheet(SHEET.EXPENSE_CATS, [r.主類別, r.次類別, 'material', '']);
+        await appendToSheet(SHEET.EXPENSE_CATS, [r.銝駁??? r.甈⊿??? 'material', '']);
       }
       if (r.isNewUnit) {
-        await appendToSheet(SHEET.UNITS, [r.單位]);
+        await appendToSheet(SHEET.UNITS, [r.?桐?]);
       }
-      // 如果有新增 Settings 則重新讀取
+      // 憒??憓?Settings ???啗???
       if (r.isNewWorker || r.isNewSubCat || r.isNewUnit) await fetchSettings();
 
       let targetSheet = r._sourceSheet;
-      // 使用動態欄位對齊來產生陣列
+      // 雿輻??甈?撠?靘???
       let rowData = syncHeadersAndPrepareData(targetSheet, r);
 
       if (isEdit) {
@@ -3398,7 +3419,7 @@ document.getElementById('expenseForm').onsubmit = async (e) => {
           range: `${targetSheet}!A:A`
         });
         const ids = (res.result.values || []).map(row => row[0]);
-        const rowIdx = ids.indexOf(id) + 1; // sheets 是 1-based
+        const rowIdx = ids.indexOf(id) + 1; // sheets ??1-based
         
         if (rowIdx > 0) {
           await safeSheetsUpdate({
@@ -3408,7 +3429,7 @@ document.getElementById('expenseForm').onsubmit = async (e) => {
             resource: { values: [rowData] }
           });
         } else {
-          showToast('找不到原始紀錄，可能已搬移', 'warning');
+          showToast('?曆??啣?憪????航撌脫蝘?, 'warning');
         }
       } else {
         await safeSheetsAppend({
@@ -3424,7 +3445,7 @@ document.getElementById('expenseForm').onsubmit = async (e) => {
     renderExpenseChart();
     renderExpenseTable();
     
-    showToast(isEdit ? '✓ 更新成功' : `✓ 已記錄 ${recordsToSave.length} 筆項目`);
+    showToast(isEdit ? '???湔??' : `??撌脰???${recordsToSave.length} 蝑??害);
     
     if (submitType === 'addNext') {
       const currentDate = document.getElementById('expenseDate').value;
@@ -3433,14 +3454,14 @@ document.getElementById('expenseForm').onsubmit = async (e) => {
       document.getElementById('expenseRecordId').value = '';
       document.getElementById('expenseDate').value = currentDate;
       document.getElementById('expenseMainCat').value = currentMainCat;
-      // 重置所有條件顯示欄位
+      // ?蔭???隞園＊蝷箸?雿?
       ['workerNameWrap','expenseCustomWorkerWrap','wageTypeWrap','workerSubCatWrap',
        'generalSubCatWrap','expenseCustomSubCatWrap','expenseBulkInputWrap',
        'salaryTimeFields','expensePaidDateWrap','lunchAllowanceWrap'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.style.display = 'none';
       });
-      // 觸發 change 重建 UI
+      // 閫貊 change ?遣 UI
       document.getElementById('expenseMainCat').dispatchEvent(new Event('change'));
       setTimeout(() => {
         const workerSel = document.getElementById('expenseWorker');
@@ -3455,7 +3476,7 @@ document.getElementById('expenseForm').onsubmit = async (e) => {
     }
   } catch (err) {
     console.error(err);
-    showToast('儲存失敗：系統發生錯誤，請重試', 'error');
+    showToast('?脣?憭望?嚗頂蝯梁?隤歹?隢?閰?, 'error');
   } finally {
     btns.forEach(b => b.disabled = false);
     hideLoader();
@@ -3463,19 +3484,19 @@ document.getElementById('expenseForm').onsubmit = async (e) => {
 };
 
 /**
- * 解析批次輸入
- * 格式：項目 數量 單位 $單價 / =總額
+ * 閫???寞活頛詨
+ * ?澆?嚗????賊? ?桐? $?桀 / =蝮賡?
  */
 function parseBulkInput(text) {
   if (!text) return [];
-  // 先依「、」或換行分割
-  const lines = text.split(/[、\n]/).map(l => l.trim()).filter(l => l);
+  // ???????
+  const lines = text.split(/[?n]/).map(l => l.trim()).filter(l => l);
   const result = [];
   
   lines.forEach(line => {
-    // 格式 1：項目 數量 單位 $單價   → 以單價計算總額
-    // 格式 2：項目 數量 單位 =總額   → 以總額反推單價
-    // 格式 3：項目 數量 單位 數字    → 預設視為單價
+    // ?澆? 1嚗????賊? ?桐? $?桀   ??隞亙?寡?蝞蜇憿?
+    // ?澆? 2嚗????賊? ?桐? =蝮賡?   ??隞亦蜇憿??典??
+    // ?澆? 3嚗????賊? ?桐? ?詨?    ???身閬?桀
     const match = line.match(/^(.+?)\s+([\d.]+)\s*(\S+)\s+[$=]?\s*([\d.]+)$/);
     if (!match) return;
 
@@ -3499,26 +3520,26 @@ function parseBulkInput(text) {
     
     result.push({
       id: generateId(),
-      次類別: name,
-      工人姓名: '',
-      數量: qty,
-      單位: unit,
-      單價: unitPrice,
-      總額: total,
+      甈⊿??? name,
+      撌乩犖憪?: '',
+      ?賊?: qty,
+      ?桐?: unit,
+      ?桀: unitPrice,
+      蝮賡?: total,
     });
   });
   return result;
 }
 
 // ============================================================
-// 13. 刪除確認
+// 13. ?芷蝣箄?
 // ============================================================
 let _pendingDelete = null;
 
 window.confirmDelete = function(type, id) {
   _pendingDelete = { type, id };
   document.getElementById('confirmMsg').textContent =
-    type === 'income' ? '確定要刪除這筆收入紀錄嗎？' : '確定要刪除這筆支出紀錄嗎？';
+    type === 'income' ? '蝣箏?閬?日??嗅蝝??嚗? : '蝣箏?閬?日??臬蝝??嚗?;
   document.getElementById('confirmModal').style.display = 'flex';
 };
 
@@ -3548,7 +3569,7 @@ async function deleteRecord(type, id) {
     dataArr = expenseData;
   }
 
-  // 找出行號
+  // ?曉銵?
   const res = await gapi.client.sheets.spreadsheets.values.get({
     spreadsheetId: SPREADSHEET_ID,
     range: `${targetSheet}!A:A`
@@ -3557,15 +3578,15 @@ async function deleteRecord(type, id) {
   const rowIdx = ids.indexOf(id) + 1;
 
   if (rowIdx <= 0) {
-    showToast('找不到紀錄，無法刪除', 'error');
+    showToast('?曆??啁????⊥??芷', 'error');
     return;
   }
 
-  showLoader('刪除中...');
+  showLoader('?芷銝?..');
   try {
     const ss = await gapi.client.sheets.spreadsheets.get({ spreadsheetId: SPREADSHEET_ID });
     const sheet = ss.result.sheets.find(s => s.properties.title === targetSheet);
-    if (!sheet) throw new Error('找不到工作表');
+    if (!sheet) throw new Error('?曆??啣極雿”');
     await gapi.client.sheets.spreadsheets.batchUpdate({
       spreadsheetId: SPREADSHEET_ID,
       resource: {
@@ -3590,18 +3611,18 @@ async function deleteRecord(type, id) {
       renderExpenseChart();
       renderExpenseTable();
     }
-    showToast('✓ 刪除成功');
+    showToast('???芷??');
   } catch (err) {
-    showToast('刪除失敗：' + err.message, 'error');
+    showToast('?芷憭望?嚗? + err.message, 'error');
   }
   hideLoader();
 }
 
 // ============================================================
-// 12. 訂單表單 Modal & 邏輯
+// 12. 閮銵典 Modal & ?摩
 // ============================================================
 // ============================================================
-// 13. 訂單分頁邏輯與表單
+// 13. 閮???摩?”??
 // ============================================================
 
 function openOrderModal(recordId = null) {
@@ -3609,28 +3630,28 @@ function openOrderModal(recordId = null) {
   if (fabWrap) fabWrap.style.display = 'none';
   document.getElementById('orderForm').reset();
   document.getElementById('orderRecordId').value = recordId || '';
-  document.getElementById('orderModalTitle').textContent = recordId ? '編輯客戶訂單' : '客戶訂單';
+  document.getElementById('orderModalTitle').textContent = recordId ? '蝺刻摩摰Ｘ閮' : '摰Ｘ閮';
   document.getElementById('orderModal').style.display = 'flex';
 
-  // 同步切換器狀態
+  // ?郊???函???
   const toggle = document.querySelector('input[name="orderTypeToggle"][value="order"]');
   if (toggle) toggle.checked = true;
   
-  // 填充下拉
+  // 憛怠?銝?
   const catSel = document.getElementById('orderMainCat');
-  catSel.innerHTML = '<option value="">--請選擇--</option>';
-  [...new Set(settings.retailPrices.map(r => r.品種主類別))].filter(Boolean).forEach(c => {
+  catSel.innerHTML = '<option value="">--隢??-</option>';
+  [...new Set(settings.retailPrices.map(r => r.?車銝駁???)].filter(Boolean).forEach(c => {
     const opt = document.createElement('option');
     opt.value = c; opt.textContent = c;
     catSel.appendChild(opt);
   });
   
-  // 填充客源 datalist
+  // 憛怠?摰Ｘ? datalist
   const cDataList = document.getElementById('customerList');
   if (cDataList) {
     cDataList.innerHTML = '';
-    // 客戶可以藉由寄件人匹配
-    let uniqueSenders = [...new Set(customersData.map(c => c.客戶姓名 || c.寄件人))].filter(Boolean);
+    // 摰Ｘ?臭誑?撖辣鈭箏??
+    let uniqueSenders = [...new Set(customersData.map(c => c.摰Ｘ憪? || c.撖辣鈭?)].filter(Boolean);
     uniqueSenders.forEach(s => {
       const opt = document.createElement('option');
       opt.value = s;
@@ -3641,35 +3662,35 @@ function openOrderModal(recordId = null) {
   if (recordId) {
     const r = ordersData.find(x => x.id === recordId);
     if(r) {
-      document.getElementById('orderDate').value = r.下定日期;
-      document.getElementById('orderArrivalDate').value = r.到貨日期;
-      document.getElementById('orderMainCat').value = r.訂購品項;
+      document.getElementById('orderDate').value = r.銝??交?;
+      document.getElementById('orderArrivalDate').value = r.?啗疏?交?;
+      document.getElementById('orderMainCat').value = r.閮頃??;
       triggerOrderMainCatChange();
-      document.getElementById('orderSubCat').value = r.品項類別;
+      document.getElementById('orderSubCat').value = r.??憿;
       triggerOrderGradeChange(); 
-      document.getElementById('orderGrade').value = r.訂購等級;
-      const q = r.訂單內容.match(/\d+/);
+      document.getElementById('orderGrade').value = r.閮頃蝑?;
+      const q = r.閮?批捆.match(/\d+/);
       if(q) document.getElementById('orderQuantity').value = q[0];
-      const u = r.訂單內容.replace(/[0-9]/g, '');
+      const u = r.閮?批捆.replace(/[0-9]/g, '');
       if(u) document.getElementById('orderUnit').value = u;
 
-      document.getElementById('orderSenderName').value = r.寄件人;
-      document.getElementById('orderSenderPhone').value = r.寄件人電話;
-      document.getElementById('orderReceiverName').value = r.收件人;
-      document.getElementById('orderReceiverPhone').value = r.收件人電話;
-      document.getElementById('orderReceiverAddress').value = r.收件人地址;
-      document.getElementById('orderNeedSenderRemark').checked = r.需備註寄件人;
-      document.getElementById('orderDeliveryType').value = r.取貨方式;
-      if (document.getElementById('orderStatus')) document.getElementById('orderStatus').value = r.狀態;
-      document.getElementById('orderTotalPrice').value = r.總價;
-      if (document.getElementById('orderPaymentStatus')) document.getElementById('orderPaymentStatus').value = r.付款狀態 || '未付款';
-      if (document.getElementById('orderReconStatus')) document.getElementById('orderReconStatus').value = r.對帳狀態 || '待對帳';
+      document.getElementById('orderSenderName').value = r.撖辣鈭?
+      document.getElementById('orderSenderPhone').value = r.撖辣鈭粹閰?
+      document.getElementById('orderReceiverName').value = r.?嗡辣鈭?
+      document.getElementById('orderReceiverPhone').value = r.?嗡辣鈭粹閰?
+      document.getElementById('orderReceiverAddress').value = r.?嗡辣鈭箏?;
+      document.getElementById('orderNeedSenderRemark').checked = r.??酉撖辣鈭?
+      document.getElementById('orderDeliveryType').value = r.?疏?孵?;
+      if (document.getElementById('orderStatus')) document.getElementById('orderStatus').value = r.???
+      document.getElementById('orderTotalPrice').value = r.蝮賢;
+      if (document.getElementById('orderPaymentStatus')) document.getElementById('orderPaymentStatus').value = r.隞狡???|| '?芯?甈?;
+      if (document.getElementById('orderReconStatus')) document.getElementById('orderReconStatus').value = r.撠董???|| '敺?撣?;
     }
   } else {
     document.getElementById('orderDate').value = today();
-    if (document.getElementById('orderStatus')) document.getElementById('orderStatus').value = '未指定';
-    if (document.getElementById('orderPaymentStatus')) document.getElementById('orderPaymentStatus').value = '未付款';
-    if (document.getElementById('orderReconStatus')) document.getElementById('orderReconStatus').value = '待對帳';
+    if (document.getElementById('orderStatus')) document.getElementById('orderStatus').value = '?芣?摰?;
+    if (document.getElementById('orderPaymentStatus')) document.getElementById('orderPaymentStatus').value = '?芯?甈?;
+    if (document.getElementById('orderReconStatus')) document.getElementById('orderReconStatus').value = '敺?撣?;
   }
   
   document.getElementById('orderModal').style.display = 'flex';
@@ -3687,8 +3708,8 @@ document.getElementById('orderSubCat').addEventListener('change', triggerOrderGr
 function triggerOrderMainCatChange() {
   const main = document.getElementById('orderMainCat').value;
   const subSel = document.getElementById('orderSubCat');
-  subSel.innerHTML = '<option value="">--請選擇--</option>';
-  const subs = [...new Set(settings.retailPrices.filter(r => r.品種主類別 === main).map(r => r.品種次類別))].filter(Boolean);
+  subSel.innerHTML = '<option value="">--隢??-</option>';
+  const subs = [...new Set(settings.retailPrices.filter(r => r.?車銝駁???=== main).map(r => r.?車甈⊿???)].filter(Boolean);
   subs.forEach(s => {
     const opt = document.createElement('option');
     opt.value = s; opt.textContent = s;
@@ -3701,18 +3722,18 @@ function triggerOrderGradeChange() {
   const main = document.getElementById('orderMainCat').value;
   const sub = document.getElementById('orderSubCat').value;
   const gradeSel = document.getElementById('orderGrade');
-  gradeSel.innerHTML = '<option value="">--無等級--</option>';
+  gradeSel.innerHTML = '<option value="">--?∠?蝝?-</option>';
   
-  const options = settings.retailPrices.filter(r => r.品種主類別 === main && (sub === '' || r.品種次類別 === sub));
-  const grades = [...new Set(options.map(r => r.等級))].filter(Boolean);
+  const options = settings.retailPrices.filter(r => r.?車銝駁???=== main && (sub === '' || r.?車甈⊿???=== sub));
+  const grades = [...new Set(options.map(r => r.蝑?))].filter(Boolean);
   grades.forEach(g => {
     const opt = document.createElement('option');
     opt.value = g; opt.textContent = g;
     gradeSel.appendChild(opt);
   });
   
-  // 嘗試填入單位 (如果只有一種)
-  const units = [...new Set(options.map(r => r.單位))].filter(Boolean);
+  // ?岫憛怠?桐? (憒??芣?銝蝔?
+  const units = [...new Set(options.map(r => r.?桐?))].filter(Boolean);
   if(units.length === 1) document.getElementById('orderUnit').value = units[0];
   calculateOrderPrice();
 }
@@ -3730,12 +3751,12 @@ function calculateOrderPrice() {
   
   if(!main || !qty || isNaN(qty)) return;
 
-  const match = settings.retailPrices.find(r => r.品種主類別 === main && r.品種次類別 === sub && r.等級 === grade);
-  if (match && match.售價) {
-    const unitPrice = parseFloat(match.售價);
+  const match = settings.retailPrices.find(r => r.?車銝駁???=== main && r.?車甈⊿???=== sub && r.蝑? === grade);
+  if (match && match.?桀) {
+    const unitPrice = parseFloat(match.?桀);
     document.getElementById('orderTotalPrice').value = unitPrice * qty;
-    if(match.單位) document.getElementById('orderUnit').value = match.單位;
-    // 顯示販售內容提示（如果 input hint 存在）
+    if(match.?桐?) document.getElementById('orderUnit').value = match.?桐?;
+    // 憿舐內鞎拙?批捆?內嚗???input hint 摮嚗?
     const hint = document.querySelector('#orderTotalPrice + .field-hint, #orderTotalPrice ~ .field-hint');
     if (!hint) {
       const h = document.createElement('small');
@@ -3744,15 +3765,15 @@ function calculateOrderPrice() {
       document.getElementById('orderTotalPrice').parentElement.appendChild(h);
     }
     const hintEl = document.querySelector('.price-hint');
-    if (hintEl) hintEl.textContent = match.販售內容 ? `該等級內容：${match.販售內容}，單價 $${match.售價}/箱` : '';
+    if (hintEl) hintEl.textContent = match.鞎拙?批捆 ? `閰脩?蝝摰對?${match.鞎拙?批捆}嚗??$${match.?桀}/蝞常 : '';
   }
 }
 
 let osn = document.getElementById('orderSenderName'); if(osn) osn.addEventListener('input', (e) => {
   const val = e.target.value.trim();
-  const cus = customersData.find(c => c.寄件人 === val);
+  const cus = customersData.find(c => c.撖辣鈭?=== val);
   if (cus) {
-    document.getElementById('orderSenderPhone').value = cus.寄件人電話 || '';
+    document.getElementById('orderSenderPhone').value = cus.撖辣鈭粹閰?|| '';
   }
 });
 
@@ -3763,9 +3784,9 @@ let osas = document.getElementById('orderSameAsSender'); if(osas) osas.addEventL
   }
 });
 
-// 黑貓到貨日防呆：不允許選擇禮拜日與禮拜一
+// 暺??啗疏?仿??銝?閮梢?旨??旨??
 let odt = document.getElementById('orderDeliveryType'); if(odt) odt.addEventListener('change', (e) => {
-  if (e.target.value === '黑貓宅配') {
+  if (e.target.value === '暺?摰?') {
     checkBlackCatDate();
   }
 });
@@ -3774,16 +3795,16 @@ document.getElementById('orderArrivalDate')?.addEventListener('change', checkBla
 function checkBlackCatDate() {
   const dt = document.getElementById('orderDeliveryType').value;
   const arr = document.getElementById('orderArrivalDate').value;
-  if (dt === '黑貓宅配' && arr) {
+  if (dt === '暺?摰?' && arr) {
     const d = new Date(arr).getDay();
     if (d === 0 || d === 1) {
-      showToast('⚠️ 黑貓宅配於週日/週一無法配送到貨，請重新選擇到貨日！', 'warning');
+      showToast('?? 暺?摰??潮望/?曹??⊥??鞎剁?隢??圈?鞎冽嚗?, 'warning');
       document.getElementById('orderArrivalDate').value = '';
     }
   }
 }
 
-// 儲存訂單
+// ?脣?閮
 document.getElementById('orderForm').onsubmit = async (e) => {
   e.preventDefault();
   const id = document.getElementById('orderRecordId').value;
@@ -3795,13 +3816,13 @@ document.getElementById('orderForm').onsubmit = async (e) => {
   const orderRow = [
     document.getElementById('orderMainCat').value,
     document.getElementById('orderSubCat').value,
-    document.getElementById('orderStatus') ? document.getElementById('orderStatus').value : '未指定',
+    document.getElementById('orderStatus') ? document.getElementById('orderStatus').value : '?芣?摰?,
     document.getElementById('orderDate').value,
     document.getElementById('orderArrivalDate').value,
     document.getElementById('orderGrade').value,
-    document.getElementById('orderQuantity').value + (document.getElementById('orderUnit').value || '箱'),
+    document.getElementById('orderQuantity').value + (document.getElementById('orderUnit').value || '蝞?),
     document.getElementById('orderTotalPrice').value || '',
-    isEdit ? (ordersData.find(x => x.id === id)?.客戶編號 || '') : '',
+    isEdit ? (ordersData.find(x => x.id === id)?.摰Ｘ蝺刻? || '') : '',
     sender,
     document.getElementById('orderSenderPhone').value,
     receiver,
@@ -3809,12 +3830,12 @@ document.getElementById('orderForm').onsubmit = async (e) => {
     document.getElementById('orderReceiverAddress').value,
     document.getElementById('orderNeedSenderRemark').checked ? 'TRUE' : 'FALSE',
     document.getElementById('orderDeliveryType').value,
-    document.getElementById('orderPaymentStatus') ? document.getElementById('orderPaymentStatus').value : '未付款',
-    document.getElementById('orderReconStatus') ? document.getElementById('orderReconStatus').value : '待對帳',
+    document.getElementById('orderPaymentStatus') ? document.getElementById('orderPaymentStatus').value : '?芯?甈?,
+    document.getElementById('orderReconStatus') ? document.getElementById('orderReconStatus').value : '敺?撣?,
     ''
   ];
 
-  showLoader(isEdit ? '更新中...' : '儲存中...');
+  showLoader(isEdit ? '?湔銝?..' : '?脣?銝?..');
   try {
     if (isEdit) {
       const idx = ordersData.findIndex(x => x.id === id);
@@ -3833,12 +3854,12 @@ document.getElementById('orderForm').onsubmit = async (e) => {
         resource: { values: [orderRow] }
       });
       
-      // 自動新增客戶若不存在
-      const cusExist = customersData.some(c => c.寄件人 === sender || c.客戶姓名 === sender);
+      // ?芸??啣?摰Ｘ?乩?摮
+      const cusExist = customersData.some(c => c.撖辣鈭?=== sender || c.摰Ｘ憪? === sender);
       if (!cusExist) {
         const cusRow = [
           `CUS_${Date.now()}`, sender, document.getElementById('orderSenderPhone').value, '',
-          '系統新增', '自動', ''
+          '蝟餌絞?啣?', '?芸?', ''
         ];
         await gapi.client.sheets.spreadsheets.append({
           spreadsheetId: SPREADSHEET_ID,
@@ -3846,7 +3867,7 @@ document.getElementById('orderForm').onsubmit = async (e) => {
           valueInputOption: 'USER_ENTERED',
           resource: { values: [cusRow] }
         });
-        showToast('已自動新增至客戶資料', 'success');
+        showToast('撌脰?憓摰Ｘ鞈?', 'success');
       }
     }
 
@@ -3854,10 +3875,10 @@ document.getElementById('orderForm').onsubmit = async (e) => {
     await fetchOrders();
     renderOrderTable();
     closeOrderModal();
-    showToast('訂單已儲存', 'success');
+    showToast('閮撌脣摮?, 'success');
   } catch (err) {
     console.error(err);
-    showToast('儲存失敗', 'error');
+    showToast('?脣?憭望?', 'error');
   }
   hideLoader();
 };
@@ -3865,7 +3886,7 @@ document.getElementById('orderForm').onsubmit = async (e) => {
 window.openOrderEdit = (id) => openOrderModal(id);
 
 // ============================================================
-// 14. 複製明細 Modal
+// 14. 銴ˊ?敦 Modal
 // ============================================================
 let _copyType = 'expense';
 
@@ -3891,53 +3912,53 @@ function generateCopyText() {
   if (!from || !to) return;
 
   const data = _copyType === 'income' ? incomeData : expenseData;
-  const filtered = data.filter(r => r.日期 >= from && r.日期 <= to);
+  const filtered = data.filter(r => r.?交? >= from && r.?交? <= to);
 
   if (filtered.length === 0) {
-    document.getElementById('copyPreview').value = '此期間無紀錄。';
+    document.getElementById('copyPreview').value = '甇斗??蝝??;
     return;
   }
 
-  filtered.sort((a, b) => new Date(a.日期) - new Date(b.日期));
+  filtered.sort((a, b) => new Date(a.?交?) - new Date(b.?交?));
 
   let text = '';
   if (_copyType === 'income') {
-    text = `📊 收入明細 ${from} ~ ${to}\n${'─'.repeat(30)}\n`;
+    text = `?? ?嗅?敦 ${from} ~ ${to}\n${'?'.repeat(30)}\n`;
     let total = 0;
     filtered.forEach(r => {
-      const gradeText = (r.等級資料 || []).map(g => `${g.等級} ${g.斤數}斤${g.箱數 ? ' ' + g.箱數 + '箱' : ''}`).join(' / ');
-      text += `\n📅 ${r.日期}\n`;
-      text += `  品種：${r.主類別}${r.其他備註 ? `（${r.其他備註}）` : ''}\n`;
-      if (gradeText) text += `  等級：${gradeText}\n`;
-      if (r.總價) {
-        const p = parseFloat(r.總價);
-        text += `  總價：$${p.toLocaleString()}\n`;
+      const gradeText = (r.蝑?鞈? || []).map(g => `${g.蝑?} ${g.?斗}??{g.蝞望 ? ' ' + g.蝞望 + '蝞? : ''}`).join(' / ');
+      text += `\n?? ${r.?交?}\n`;
+      text += `  ?車嚗?{r.銝駁??囚${r.?嗡??酉 ? `嚗?{r.?嗡??酉}嚗 : ''}\n`;
+      if (gradeText) text += `  蝑?嚗?{gradeText}\n`;
+      if (r.蝮賢) {
+        const p = parseFloat(r.蝮賢);
+        text += `  蝮賢嚗?${p.toLocaleString()}\n`;
         total += p;
       } else {
-        text += `  總價：待確認\n`;
+        text += `  蝮賢嚗?蝣箄?\n`;
       }
-      if (r.附註) text += `  備註：${r.附註}\n`;
+      if (r.?酉) text += `  ?酉嚗?{r.?酉}\n`;
     });
-    text += `\n${'─'.repeat(30)}\n💵 合計：$${total.toLocaleString()}`;
+    text += `\n${'?'.repeat(30)}\n? ??嚗?${total.toLocaleString()}`;
   } else {
-    text = `📊 支出明細 ${from} ~ ${to}\n${'─'.repeat(30)}\n`;
+    text = `?? ?臬?敦 ${from} ~ ${to}\n${'?'.repeat(30)}\n`;
     let total = 0;
     filtered.forEach(r => {
       const amt = calcExpenseTotal(r);
       total += amt;
-      text += `\n📅 ${r.日期}\n`;
-      text += `  類別：${r.主類別}${r.次類別 ? ` › ${r.次類別}` : ''}\n`;
-      if (r.工人姓名) text += `  工人：${r.工人姓名}\n`;
-      const wageInfo = r.計薪方式 === 'hourly'
-        ? `${r.數量}時 × $${r.單價}`
-        : r.計薪方式 === 'daily'
-        ? `${r.數量}天 × $${r.單價}`
-        : `${r.數量} × $${r.單價}`;
-      text += `  計算：${wageInfo}${r.含午餐 ? ' + 午餐$100' : ''}\n`;
-      text += `  金額：$${amt.toLocaleString()} ${r.已支付 ? '✓已付' : '⚠未付'}\n`;
-      if (r.附註) text += `  備註：${r.附註}\n`;
+      text += `\n?? ${r.?交?}\n`;
+      text += `  憿嚗?{r.銝駁??囚${r.甈⊿???? ` ??${r.甈⊿??囚` : ''}\n`;
+      if (r.撌乩犖憪?) text += `  撌乩犖嚗?{r.撌乩犖憪?}\n`;
+      const wageInfo = r.閮?孵? === 'hourly'
+        ? `${r.?賊?}??? $${r.?桀}`
+        : r.閮?孵? === 'daily'
+        ? `${r.?賊?}憭?? $${r.?桀}`
+        : `${r.?賊?} ? $${r.?桀}`;
+      text += `  閮?嚗?{wageInfo}${r.?怠?擗?? ' + ??$100' : ''}\n`;
+      text += `  ??嚗?${amt.toLocaleString()} ${r.撌脫隞?? '?歇隞? : '?隞?}\n`;
+      if (r.?酉) text += `  ?酉嚗?{r.?酉}\n`;
     });
-    text += `\n${'─'.repeat(30)}\n💸 合計：$${total.toLocaleString()}`;
+    text += `\n${'?'.repeat(30)}\n? ??嚗?${total.toLocaleString()}`;
   }
 
   document.getElementById('copyPreview').value = text;
@@ -3946,15 +3967,15 @@ function generateCopyText() {
 document.getElementById('doCopyBtn').onclick = () => {
   const text = document.getElementById('copyPreview').value;
   navigator.clipboard.writeText(text).then(() => {
-    showToast('✓ 已複製到剪貼簿');
+    showToast('??撌脰?鋆賢?芾票蝪?);
     document.getElementById('copyModal').style.display = 'none';
   }).catch(() => {
-    showToast('複製失敗，請手動選取文字', 'error');
+    showToast('銴ˊ憭望?嚗????詨???', 'error');
   });
 };
 
 // ============================================================
-// 15. 管理頁面
+// 15. 蝞∠??
 // ============================================================
 function renderAdminDashboard() {
   renderUserListAdmin();
@@ -3970,9 +3991,9 @@ function renderUserListAdmin() {
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td>${u.email}</td>
-      <td><span class="status-badge ${u.role === 'admin' ? 'paid' : 'pending'}">${u.role === 'admin' ? '管理員' : '使用者'}</span></td>
+      <td><span class="status-badge ${u.role === 'admin' ? 'paid' : 'pending'}">${u.role === 'admin' ? '蝞∠??? : '雿輻??}</span></td>
       <td><div class="table-actions">
-        <button class="btn-table-del admin-action" onclick="deleteUser(${i})" title="刪除"><span class="material-symbols-outlined">delete</span></button>
+        <button class="btn-table-del admin-action" onclick="deleteUser(${i})" title="?芷"><span class="material-symbols-outlined">delete</span></button>
       </div></td>`;
     tbody.appendChild(tr);
   });
@@ -3982,23 +4003,23 @@ function renderIncomeMainCatAdmin() {
   const tbody = document.getElementById('incomeMainCatBody');
   tbody.innerHTML = '';
   settings.incomeMainCats.forEach((c, i) => {
-    const subs = (c.次類別 || []);
+    const subs = (c.甈⊿???|| []);
     if (subs.length === 0) {
       const tr = document.createElement('tr');
       tr.innerHTML = `
-        <td><strong>${c.名稱}</strong></td>
-        <td>—</td>
+        <td><strong>${c.?迂}</strong></td>
+        <td>??/td>
         <td><div class="table-actions">
-          <button class="btn-table-del admin-action" onclick="deleteIncomeMainCat(${i})" title="刪除"><span class="material-symbols-outlined">delete</span></button>
+          <button class="btn-table-del admin-action" onclick="deleteIncomeMainCat(${i})" title="?芷"><span class="material-symbols-outlined">delete</span></button>
         </div></td>`;
       tbody.appendChild(tr);
     } else {
       subs.forEach((sub, si) => {
         const tr = document.createElement('tr');
         tr.innerHTML = `
-          <td>${si === 0 ? `<strong>${c.名稱}</strong>` : ''}</td>
+          <td>${si === 0 ? `<strong>${c.?迂}</strong>` : ''}</td>
           <td><span class="badge-sub">${sub}</span></td>
-          <td>${si === 0 ? `<div class="table-actions"><button class="btn-table-del admin-action" onclick="deleteIncomeMainCat(${i})" title="刪除"><span class="material-symbols-outlined">delete</span></button></div>` : ''}</td>`;
+          <td>${si === 0 ? `<div class="table-actions"><button class="btn-table-del admin-action" onclick="deleteIncomeMainCat(${i})" title="?芷"><span class="material-symbols-outlined">delete</span></button></div>` : ''}</td>`;
         tbody.appendChild(tr);
       });
     }
@@ -4009,29 +4030,29 @@ function renderExpenseMainCatAdmin() {
   const tbody = document.getElementById('expenseMainCatBody');
   tbody.innerHTML = '';
   settings.expenseMainCats.forEach((c, ci) => {
-    const typeLabel = c.類型 === 'worker' ? '工人' : c.類型 === 'meal' ? '伙食' : '材料';
-    c.次類別.forEach((sub, si) => {
+    const typeLabel = c.憿? === 'worker' ? '撌乩犖' : c.憿? === 'meal' ? '隡?' : '??';
+    c.甈⊿???forEach((sub, si) => {
       const tr = document.createElement('tr');
       tr.innerHTML = `
-        <td>${si === 0 ? `<strong>${c.名稱}</strong>` : ''}</td>
+        <td>${si === 0 ? `<strong>${c.?迂}</strong>` : ''}</td>
         <td>${si === 0 ? `<span class="status-badge pending">${typeLabel}</span>` : ''}</td>
-        <td>${sub.名稱}</td>
-        <td>${sub.預設金額 ? `$${sub.預設金額}` : '—'}</td>
+        <td>${sub.?迂}</td>
+        <td>${sub.?身?? ? `$${sub.?身??}` : '??}</td>
         <td><div class="table-actions">
-          ${si === 0 ? `<button class="btn-table-edit admin-action" onclick="editExpenseCat(${ci})" title="編輯主類別"><span class="material-symbols-outlined">edit</span></button>` : ''}
-          <button class="btn-table-del admin-action" onclick="deleteExpenseSubCat(${ci},${si})" title="刪除次類別"><span class="material-symbols-outlined">delete</span></button>
+          ${si === 0 ? `<button class="btn-table-edit admin-action" onclick="editExpenseCat(${ci})" title="蝺刻摩銝駁???><span class="material-symbols-outlined">edit</span></button>` : ''}
+          <button class="btn-table-del admin-action" onclick="deleteExpenseSubCat(${ci},${si})" title="?芷甈⊿???><span class="material-symbols-outlined">delete</span></button>
         </div></td>`;
       tbody.appendChild(tr);
     });
-    if (c.次類別.length === 0) {
+    if (c.甈⊿???length === 0) {
       const tr = document.createElement('tr');
       tr.innerHTML = `
-        <td><strong>${c.名稱}</strong></td>
+        <td><strong>${c.?迂}</strong></td>
         <td><span class="status-badge pending">${typeLabel}</span></td>
-        <td>—</td><td>—</td>
+        <td>??/td><td>??/td>
         <td><div class="table-actions">
-           <button class="btn-table-edit admin-action" onclick="editExpenseCat(${ci})" title="編輯主類別"><span class="material-symbols-outlined">edit</span></button>
-          <button class="btn-table-del admin-action" onclick="deleteExpenseMainCat(${ci})" title="刪除主類別"><span class="material-symbols-outlined">delete</span></button>
+           <button class="btn-table-edit admin-action" onclick="editExpenseCat(${ci})" title="蝺刻摩銝駁???><span class="material-symbols-outlined">edit</span></button>
+          <button class="btn-table-del admin-action" onclick="deleteExpenseMainCat(${ci})" title="?芷銝駁???><span class="material-symbols-outlined">delete</span></button>
         </div></td>`;
       tbody.appendChild(tr);
     }
@@ -4044,60 +4065,60 @@ function renderWorkerListAdmin() {
   settings.workers.forEach((w, i) => {
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td><strong>${w.姓名}</strong></td>
-      <td>$${w.預設時薪 || 190}</td>
-      <td>$${w.預設日薪 || 1500}</td>
+      <td><strong>${w.憪?}</strong></td>
+      <td>$${w.?身? || 190}</td>
+      <td>$${w.?身?亥 || 1500}</td>
       <td><div class="table-actions">
-        <button class="btn-table-edit admin-action" onclick="editWorker(${i})" title="編輯"><span class="material-symbols-outlined">edit</span></button>
-        <button class="btn-table-del admin-action" onclick="deleteWorker(${i})" title="刪除"><span class="material-symbols-outlined">delete</span></button>
+        <button class="btn-table-edit admin-action" onclick="editWorker(${i})" title="蝺刻摩"><span class="material-symbols-outlined">edit</span></button>
+        <button class="btn-table-del admin-action" onclick="deleteWorker(${i})" title="?芷"><span class="material-symbols-outlined">delete</span></button>
       </div></td>`;
     tbody.appendChild(tr);
   });
 }
 
-// 管理頁新增按鈕
+// 蝞∠??憓???
 document.getElementById('addUserBtn').onclick = () => {
   openAdminModal('user', null, [
     { id: 'au_email', label: 'Google Email *', type: 'email' },
-    { id: 'au_role', label: '角色 *', type: 'select', options: [{ val: 'user', label: '使用者' }, { val: 'admin', label: '管理員' }] },
+    { id: 'au_role', label: '閫 *', type: 'select', options: [{ val: 'user', label: '雿輻?? }, { val: 'admin', label: '蝞∠??? }] },
   ]);
 };
 
 document.getElementById('addWorkerBtn').onclick = () => {
   openAdminModal('worker', null, [
-    { id: 'aw_name', label: '姓名 *', type: 'text' },
-    { id: 'aw_hourly', label: '預設時薪', type: 'number', placeholder: '190' },
-    { id: 'aw_daily', label: '預設日薪', type: 'number', placeholder: '1500' },
+    { id: 'aw_name', label: '憪? *', type: 'text' },
+    { id: 'aw_hourly', label: '?身?', type: 'number', placeholder: '190' },
+    { id: 'aw_daily', label: '?身?亥', type: 'number', placeholder: '1500' },
   ]);
 };
 
 document.getElementById('addIncomeMainCatBtn').onclick = () => {
   openAdminModal('incomeMainCat', null, [
-    { id: 'aim_name', label: '類別名稱 *', type: 'text' },
+    { id: 'aim_name', label: '憿?迂 *', type: 'text' },
   ]);
 };
 
 document.getElementById('addExpenseMainCatBtn').onclick = () => {
   openAdminModal('expenseMainCat', null, [
-    { id: 'aem_name', label: '主類別名稱 *', type: 'text' },
-    { id: 'aem_type', label: '類型 *', type: 'select', options: [
-      { val: 'material', label: '材料/農藥' },
-      { val: 'worker', label: '工人薪資' },
-      { val: 'meal', label: '伙食' },
+    { id: 'aem_name', label: '銝駁??亙?蝔?*', type: 'text' },
+    { id: 'aem_type', label: '憿? *', type: 'select', options: [
+      { val: 'material', label: '??/颲脰' },
+      { val: 'worker', label: '撌乩犖?芾?' },
+      { val: 'meal', label: '隡?' },
     ]},
-    { id: 'aem_sub', label: '次類別（每行一個）', type: 'textarea', placeholder: '骨粉\n海鳥糞' },
+    { id: 'aem_sub', label: '甈⊿??伐?瘥?銝??', type: 'textarea', placeholder: '撉函?\n瘚琿野蝟? },
   ]);
 };
 
 function openAdminModal(type, data, fields) {
   document.getElementById('adminEditType').value = type;
   const titleMap = {
-    user: '新增使用者',
-    worker: '新增工人',
-    incomeMainCat: '新增收入類別',
-    expenseMainCat: '新增支出類別',
+    user: '?啣?雿輻??,
+    worker: '?啣?撌乩犖',
+    incomeMainCat: '?啣??嗅憿',
+    expenseMainCat: '?啣??臬憿',
   };
-  document.getElementById('adminModalTitle').textContent = titleMap[type] || '新增';
+  document.getElementById('adminModalTitle').textContent = titleMap[type] || '?啣?';
   const container = document.getElementById('adminFormFields');
   container.innerHTML = '';
   fields.forEach(f => {
@@ -4124,12 +4145,12 @@ document.getElementById('cancelAdminBtn').onclick = () => document.getElementByI
 document.getElementById('adminForm').onsubmit = async (e) => {
   e.preventDefault();
   const type = document.getElementById('adminEditType').value;
-  showLoader('儲存中...');
+  showLoader('?脣?銝?..');
   try {
     if (type === 'user') {
       const email = document.getElementById('au_email').value.trim();
       const role = document.getElementById('au_role').value;
-      if (!email) { showToast('請填寫 Email', 'error'); hideLoader(); return; }
+      if (!email) { showToast('隢‵撖?Email', 'error'); hideLoader(); return; }
       await appendToSheet(SHEET.USERS, [email, role, now()]);
       usersData.push({ email, role });
       renderUserListAdmin();
@@ -4137,23 +4158,23 @@ document.getElementById('adminForm').onsubmit = async (e) => {
       const name = document.getElementById('aw_name').value.trim();
       const hourly = document.getElementById('aw_hourly').value || '190';
       const daily = document.getElementById('aw_daily').value || '1500';
-      if (!name) { showToast('請填寫姓名', 'error'); hideLoader(); return; }
-      // 判斷是新增還是編輯, 簡單起見這裡採先更新 local array 再 rebuild
-      const existing = settings.workers.find(w => w.姓名 === name);
+      if (!name) { showToast('隢‵撖怠???, 'error'); hideLoader(); return; }
+      // ?斗?舀憓??舐楊頛? 蝪∪韏瑁??ㄐ?∪??湔 local array ??rebuild
+      const existing = settings.workers.find(w => w.憪? === name);
       if (existing) {
-        existing.預設時薪 = hourly;
-        existing.預設日薪 = daily;
+        existing.?身? = hourly;
+        existing.?身?亥 = daily;
       } else {
-        settings.workers.push({ 姓名: name, 預設時薪: hourly, 預設日薪: daily });
+        settings.workers.push({ 憪?: name, ?身?: hourly, ?身?亥: daily });
       }
       await rebuildAndSaveSettings('workers');
       renderWorkerListAdmin();
     } else if (type === 'incomeMainCat') {
       const name = document.getElementById('aim_name').value.trim();
-      if (!name) { showToast('請填寫名稱', 'error'); hideLoader(); return; }
-      const existing = settings.incomeMainCats.find(c => c.名稱 === name);
+      if (!name) { showToast('隢‵撖怠?蝔?, 'error'); hideLoader(); return; }
+      const existing = settings.incomeMainCats.find(c => c.?迂 === name);
       if(!existing){
-        settings.incomeMainCats.push({ 名稱: name, 次類別:[], 等級:[] });
+        settings.incomeMainCats.push({ ?迂: name, 甈⊿???[], 蝑?:[] });
         await rebuildAndSaveSettings('incomeCats');
       }
       renderIncomeMainCatAdmin();
@@ -4162,25 +4183,25 @@ document.getElementById('adminForm').onsubmit = async (e) => {
       const name = document.getElementById('aem_name').value.trim();
       const catType = document.getElementById('aem_type').value;
       const subText = document.getElementById('aem_sub').value;
-      if (!name) { showToast('請填寫名稱', 'error'); hideLoader(); return; }
+      if (!name) { showToast('隢‵撖怠?蝔?, 'error'); hideLoader(); return; }
       
-      const subs = subText.split('\n').map(s => s.trim()).filter(Boolean).map(s => ({ 名稱: s, 預設金額: '' }));
+      const subs = subText.split('\n').map(s => s.trim()).filter(Boolean).map(s => ({ ?迂: s, ?身??: '' }));
       
-      const existing = settings.expenseMainCats.find(c => c.名稱 === name);
+      const existing = settings.expenseMainCats.find(c => c.?迂 === name);
       if(existing) {
-         existing.類型 = catType;
-         existing.次類別 = subs; // 覆蓋次類別
+         existing.憿? = catType;
+         existing.甈⊿???= subs; // 閬?甈⊿???
       } else {
-         settings.expenseMainCats.push({ 名稱: name, 類型: catType, 次類別: subs });
+         settings.expenseMainCats.push({ ?迂: name, 憿?: catType, 甈⊿??? subs });
       }
       await rebuildAndSaveSettings('expenseCats');
       renderExpenseMainCatAdmin();
       renderExpenseFilterChips();
     }
     document.getElementById('adminModal').style.display = 'none';
-    showToast('✓ 儲存成功');
+    showToast('???脣???');
   } catch (err) {
-    showToast('儲存失敗：' + err.message, 'error');
+    showToast('?脣?憭望?嚗? + err.message, 'error');
   }
   hideLoader();
 };
@@ -4188,34 +4209,34 @@ document.getElementById('adminForm').onsubmit = async (e) => {
 window.editWorker = function(idx) {
   const w = settings.workers[idx];
   openAdminModal('worker', null, [
-    { id: 'aw_name', label: '姓名 * (不可改名)', type: 'text' },
-    { id: 'aw_hourly', label: '預設時薪', type: 'number', placeholder: '190' },
-    { id: 'aw_daily', label: '預設日薪', type: 'number', placeholder: '1500' },
+    { id: 'aw_name', label: '憪? * (銝?孵?)', type: 'text' },
+    { id: 'aw_hourly', label: '?身?', type: 'number', placeholder: '190' },
+    { id: 'aw_daily', label: '?身?亥', type: 'number', placeholder: '1500' },
   ]);
-  document.getElementById('aw_name').value = w.姓名;
+  document.getElementById('aw_name').value = w.憪?;
   document.getElementById('aw_name').readOnly = true;
-  document.getElementById('aw_hourly').value = w.預設時薪;
-  document.getElementById('aw_daily').value = w.預設日薪;
+  document.getElementById('aw_hourly').value = w.?身?;
+  document.getElementById('aw_daily').value = w.?身?亥;
 };
 
 window.editExpenseCat = function(idx) {
   const c = settings.expenseMainCats[idx];
   openAdminModal('expenseMainCat', null, [
-    { id: 'aem_name', label: '主類別名稱 *', type: 'text' },
-    { id: 'aem_type', label: '類型 *', type: 'select', options: [
-      { val: 'material', label: '材料/農藥' },
-      { val: 'worker', label: '工人薪資' },
-      { val: 'meal', label: '伙食' },
+    { id: 'aem_name', label: '銝駁??亙?蝔?*', type: 'text' },
+    { id: 'aem_type', label: '憿? *', type: 'select', options: [
+      { val: 'material', label: '??/颲脰' },
+      { val: 'worker', label: '撌乩犖?芾?' },
+      { val: 'meal', label: '隡?' },
     ]},
-    { id: 'aem_sub', label: '次類別（每行一個）', type: 'textarea', placeholder: '骨粉\n海鳥糞' },
+    { id: 'aem_sub', label: '甈⊿??伐?瘥?銝??', type: 'textarea', placeholder: '撉函?\n瘚琿野蝟? },
   ]);
-  document.getElementById('aem_name').value = c.名稱;
+  document.getElementById('aem_name').value = c.?迂;
   document.getElementById('aem_name').readOnly = true;
-  document.getElementById('aem_type').value = c.類型;
-  document.getElementById('aem_sub').value = c.次類別.map(s => s.名稱).join('\n');
+  document.getElementById('aem_type').value = c.憿?;
+  document.getElementById('aem_sub').value = c.甈⊿???map(s => s.?迂).join('\n');
 };
 
-// 管理頁刪除
+// 蝞∠????
 window.deleteUser = function(idx) {
   confirmAdminDelete(() => {
     usersData.splice(idx, 1);
@@ -4249,17 +4270,17 @@ window.deleteExpenseMainCat = function(catIdx) {
 };
 window.deleteExpenseSubCat = function(catIdx, subIdx) {
   confirmAdminDelete(() => {
-    settings.expenseMainCats[catIdx].次類別.splice(subIdx, 1);
+    settings.expenseMainCats[catIdx].甈⊿???splice(subIdx, 1);
     rebuildAndSaveSettings('expenseCats');
     renderExpenseMainCatAdmin();
   });
 };
 
-// 系統初始化按鈕
+// 蝟餌絞??????
 let isb = document.getElementById('initSystemBtn'); if(isb) isb.onclick = async () => {
-  if (!confirm('將把預設類別與範例工人資料寫入試算表，是否確定？')) return;
+  if (!confirm('撠??身憿??靘極鈭箄??神?亥岫蝞”嚗?衣Ⅱ摰?')) return;
   
-  showLoader('系統初始化中...');
+  showLoader('蝟餌絞???葉...');
   try {
     await clearSheet(SHEET.INCOME_CATS);
     for (const name of DEFAULT_INCOME_CATS) {
@@ -4268,40 +4289,40 @@ let isb = document.getElementById('initSystemBtn'); if(isb) isb.onclick = async 
     
     await clearSheet(SHEET.EXPENSE_CATS);
     for (const c of DEFAULT_EXPENSE_CATS) {
-      if(c.次類別.length === 0) {
-        await appendToSheet(SHEET.EXPENSE_CATS, [c.名稱, '', c.類型, '']);
+      if(c.甈⊿???length === 0) {
+        await appendToSheet(SHEET.EXPENSE_CATS, [c.?迂, '', c.憿?, '']);
       } else {
-        for (const sub of c.次類別) {
-          await appendToSheet(SHEET.EXPENSE_CATS, [c.名稱, sub.名稱, c.類型, sub.預設金額]);
+        for (const sub of c.甈⊿??? {
+          await appendToSheet(SHEET.EXPENSE_CATS, [c.?迂, sub.?迂, c.憿?, sub.?身??]);
         }
       }
     }
     
     await clearSheet(SHEET.WORKERS);
     const demoWorkers = [
-      { 姓名: '阿明', 預設時薪: '190', 預設日薪: '1500' },
-      { 姓名: '小華', 預設時薪: '190', 預設日薪: '1500' }
+      { 憪?: '?踵?', ?身?: '190', ?身?亥: '1500' },
+      { 憪?: '撠', ?身?: '190', ?身?亥: '1500' }
     ];
     for (const w of demoWorkers) {
-      await appendToSheet(SHEET.WORKERS, [w.姓名, w.預設時薪, w.預設日薪]);
+      await appendToSheet(SHEET.WORKERS, [w.憪?, w.?身?, w.?身?亥]);
     }
     
-    showToast('✓ 初始化完成，正在重新載入資料...');
+    showToast('????????甇??頛鞈?...');
     await fetchSettings();
     renderAll();
   } catch (e) {
     console.error(e);
-    showToast('初始化失敗', 'error');
+    showToast('???仃??, 'error');
   }
   hideLoader();
 };
 
 function confirmAdminDelete(cb) {
-  if (confirm('確定刪除？')) cb();
+  if (confirm('蝣箏??芷嚗?)) cb();
 }
 
 async function rebuildAndSaveSettings(target) {
-  showLoader('更新設定...');
+  showLoader('?湔閮剖?...');
   try {
     if (target === 'users') {
       await clearSheet(SHEET.USERS);
@@ -4311,27 +4332,27 @@ async function rebuildAndSaveSettings(target) {
     } else if (target === 'workers') {
       await clearSheet(SHEET.WORKERS);
       for (const w of settings.workers) {
-        await appendToSheet(SHEET.WORKERS, [w.姓名, w.預設時薪, w.預設日薪]);
+        await appendToSheet(SHEET.WORKERS, [w.憪?, w.?身?, w.?身?亥]);
       }
     } else if (target === 'incomeCats') {
       await clearSheet(SHEET.INCOME_CATS);
       for (const c of settings.incomeMainCats) {
-        await appendToSheet(SHEET.INCOME_CATS, [c.名稱, '', (c.次類別||[]).join(','), '', (c.等級||[]).join(',')]);
+        await appendToSheet(SHEET.INCOME_CATS, [c.?迂, '', (c.甈⊿??四|[]).join(','), '', (c.蝑?||[]).join(',')]);
       }
     } else if (target === 'expenseCats') {
       await clearSheet(SHEET.EXPENSE_CATS);
       for (const c of settings.expenseMainCats) {
-        if(c.次類別.length === 0) {
-           await appendToSheet(SHEET.EXPENSE_CATS, [c.名稱, '', c.類型, '']);
+        if(c.甈⊿???length === 0) {
+           await appendToSheet(SHEET.EXPENSE_CATS, [c.?迂, '', c.憿?, '']);
         } else {
-           for (const sub of c.次類別) {
-             await appendToSheet(SHEET.EXPENSE_CATS, [c.名稱, sub.名稱, c.類型, sub.預設金額]);
+           for (const sub of c.甈⊿??? {
+             await appendToSheet(SHEET.EXPENSE_CATS, [c.?迂, sub.?迂, c.憿?, sub.?身??]);
            }
         }
       }
     }
   } catch (e) {
-    showToast('設定更新失敗', 'error');
+    showToast('閮剖??湔憭望?', 'error');
   }
   hideLoader();
 }
@@ -4353,7 +4374,7 @@ async function appendToSheet(sheetName, rowArr) {
 }
 
 // ============================================================
-// 16. 工具函式
+// 16. 撌亙?賢?
 // ============================================================
 function generateId() {
   return Date.now().toString(36) + Math.random().toString(36).substr(2, 6);
@@ -4369,9 +4390,9 @@ function now() {
   return new Date().toISOString();
 }
 
-// --- 工具類結束 ---
+// --- 撌亙憿???---
 
-// Modal 點外部關閉
+// Modal 暺??券???
 ['incomeModal', 'expenseModal', 'copyModal', 'confirmModal', 'adminModal'].forEach(id => {
   document.getElementById(id)?.addEventListener('click', function(e) {
     if (e.target === this) this.style.display = 'none';
@@ -4379,80 +4400,80 @@ function now() {
 });
 
 // ============================================================
-// 15. 歷史資料匯入 (2025)
+// 15. 甇瑕鞈??臬 (2025)
 // ============================================================
 const HISTORICAL_DATA_2025 = {
   "expenses": [
-    {"日期":"2024-11-01","主類別":"什支備註","次類別":"龍虎330包","工人姓名":"","數量":"330","單位":"項","單價":"200","總額":"66000","已支付":true},
-    {"日期":"2024-11-20","主類別":"肥料","次類別":"上午施甜柿有機肥330包","工人姓名":"","數量":"32","單位":"項","單價":"150","總額":"4800","已支付":true},
-    {"日期":"2024-12-06","主類別":"農藥","次類別":"8K噴除草劑27缸","工人姓名":"","數量":"33","單位":"項","單價":"150","總額":"4950","已支付":true},
-    {"日期":"2024-12-07","主類別":"農藥","次類別":"8K噴除草劑13缸","工人姓名":"","數量":"10","單位":"項","單價":"150","總額":"1500","已支付":true},
-    {"日期":"2025-01-08","主類別":"什支備註","次類別":"矽藻土","工人姓名":"","數量":"2","單位":"項","單價":"1250","總額":"2500","已支付":true},
-    {"日期":"2025-01-08","主類別":"什支備註","次類別":"大生粉","工人姓名":"","數量":"1","單位":"項","單價":"4200","總額":"4200","已支付":true},
-    {"日期":"2024-12-01","主類別":"肥料","次類別":"肥料車困於陡坡，請怪手脫困費用","工人姓名":"","數量":"1","單位":"項","單價":"4000","總額":"4000","已支付":true},
-    {"日期":"2025-02-14","主類別":"工人薪資","次類別":"撿枝","工人姓名":"其他工人","數量":"9","單位":"項","單價":"150","總額":"1350","已支付":true},
-    {"日期":"2025-02-15","主類別":"工人薪資","次類別":"撿枝","工人姓名":"其他工人","數量":"6","單位":"項","單價":"150","總額":"900","已支付":true},
-    {"日期":"2025-02-20","主類別":"肥料","次類別":"白肥","工人姓名":"","數量":"35","單位":"項","單價":"550","總額":"19250","已支付":true},
-    {"日期":"2025-02-22","主類別":"工人薪資","次類別":"撿枝","工人姓名":"其他工人","數量":"8","單位":"項","單價":"150","總額":"1200","已支付":true},
-    {"日期":"2025-02-24","主類別":"包裝材料","次類別":"白鐵線(猴網電)","工人姓名":"","數量":"1","單位":"項","單價":"130","總額":"130","已支付":true},
-    {"日期":"2025-02-24","主類別":"包裝材料","次類別":"束帶(猴網電)","工人姓名":"","數量":"1","單位":"項","單價":"140","總額":"140","已支付":true},
-    {"日期":"2025-02-24","主類別":"包裝材料","次類別":"包梨鐵線(猴網電)","工人姓名":"","數量":"1","單位":"項","單價":"75","總額":"75","已支付":true},
-    {"日期":"2025-02-24","主類別":"什支備註","次類別":"92汽油","工人姓名":"","數量":"1","單位":"項","單價":"600","總額":"600","已支付":true},
-    {"日期":"2025-02-24","主類別":"工人薪資","次類別":"撿枝","工人姓名":"其他工人","數量":"18","單位":"項","單價":"150","總額":"2700","已支付":true},
-    {"日期":"2025-02-25","主類別":"工人薪資","次類別":"撿枝","工人姓名":"其他工人","數量":"8","單位":"項","單價":"150","總額":"1200","已支付":true},
-    {"日期":"2025-03-11","主類別":"農藥","次類別":"(甜柿清園32缸)馬拉松","工人姓名":"","數量":"5","單位":"項","單價":"380","總額":"1900","已支付":true},
-    {"日期":"2025-03-11","主類別":"什支備註","次類別":"安息香酸16","工人姓名":"","數量":"16","單位":"項","單價":"60","總額":"960","已支付":true},
-    {"日期":"2025-03-11","主類別":"什支備註","次類別":"硫磺粉(巴斯夫)","工人姓名":"","數量":"1","單位":"項","單價":"2500","總額":"2500","已支付":true},
-    {"日期":"2025-03-11","主類別":"農藥","次類別":"百克敏","工人姓名":"","數量":"3","單位":"項","單價":"300","總額":"900","職位":true,"已支付":true},
-    {"日期":"2025-03-11","主類別":"什支備註","次類別":"百利普芬","工人姓名":"","數量":"4","單位":"項","單價":"700","總額":"2800","已支付":true},
-    {"日期":"2025-03-11","主類別":"什支備註","次類別":"亞磷酸","工人姓名":"","數量":"1","單位":"項","單價":"12000","總額":"12000","已支付":true},
-    {"日期":"2025-03-11","主類別":"什支備註","次類別":"微量元素","工人姓名":"","數量":"2","單位":"項","單價":"6000","總額":"12000","已支付":true},
-    {"日期":"2025-03-14","主類別":"肥料","次類別":"下白肥","工人姓名":"","數量":"8","單位":"項","單價":"150","總額":"1200","已支付":true},
-    {"日期":"2025-04-01","主類別":"什支備註","次類別":"撲滅寧","工人姓名":"","數量":"2","單位":"項","單價":"800","總額":"1600","已支付":true},
-    {"日期":"2025-04-01","主類別":"農藥","次類別":"待克利","工人姓名":"","數量":"2","單位":"項","單價":"600","總額":"1200","已支付":true},
-    {"日期":"2025-04-01","主類別":"什支備註","次類別":"大喜精","工人姓名":"","數量":"4","單位":"項","單價":"280","總額":"1120","已支付":true},
-    {"日期":"2025-04-01","主類別":"什支備註","次類別":"大生粉","工人姓名":"","數量":"6","單位":"項","單價":"450","總額":"2700","已支付":true},
-    {"日期":"2025-02-01","主類別":"什支備註","次類別":"阿義除草","工人姓名":"","數量":"1","單位":"項","單價":"20000","總額":"20000","已支付":true},
-    {"日期":"2025-05-01","主類別":"什支備註","次類別":"阿義除草","工人姓名":"","數量":"1","單位":"項","單價":"20000","總額":"20000","已支付":true},
-    {"日期":"2025-04-24","主類別":"菜錢","次類別":"阿義斷水","工人姓名":"","數量":"1","單位":"項","單價":"8000","總額":"8000","已支付":true},
-    {"日期":"2025-01-01","主類別":"什支備註","次類別":"56200+49000","工人姓名":"","數量":"1","單位":"項","單價":"105200","總額":"105200","已支付":true},
-    {"日期":"2025-04-17","主類別":"什支備註","次類別":"高磷鉀","工人姓名":"","數量":"45","單位":"項","單價":"700","總額":"31500","已支付":true},
-    {"日期":"2025-04-17","主類別":"什支備註","次類別":"甜蜜鉀","工人姓名":"","數量":"60","單位":"項","單價":"650","總額":"39000","已支付":true},
-    {"日期":"2025-05-01","主類別":"什支備註","次類別":"信生(道理)","工人姓名":"","數量":"12","單位":"項","單價":"380","總額":"4560","已支付":true},
-    {"日期":"2025-05-01","主類別":"什支備註","次類別":"撲克拉","工人姓名":"","數量":"2","單位":"項","單價":"450","總額":"900","已支付":true},
-    {"日期":"2025-05-01","主類別":"什支備註","次類別":"賽洛寧(大勝)","工人姓名":"","數量":"4","單位":"項","單價":"400","總額":"1600","已支付":true},
-    {"日期":"2025-05-01","主類別":"農藥","次類別":"馬拉松","工人姓名":"","數量":"4","單位":"項","單價":"400","總額":"1600","已支付":true},
-    {"日期":"2025-05-01","主類別":"什支備註","次類別":"信生(日產)","工人姓名":"","數量":"12","單位":"項","單價":"250","總額":"3000","已支付":true},
-    {"日期":"2025-05-01","主類別":"農藥","次類別":"待克利","工人姓名":"","數量":"2","單位":"項","單價":"600","總額":"1200","已支付":true},
-    {"日期":"2025-05-01","主類別":"什支備註","次類別":"賽速洛寧(日產)","工人姓名":"","數量":"4","單位":"項","單價":"650","總額":"2600","已支付":true},
-    {"日期":"2025-05-01","主類別":"什支備註","次類別":"阿巴丁","工人姓名":"","數量":"2","單位":"項","單價":"400","總額":"800","已支付":true},
-    {"日期":"2025-05-01","主類別":"什支備註","次類別":"得芬諾","工人姓名":"","數量":"4","單位":"項","單價":"450","總額":"1800","已支付":true},
-    {"日期":"2025-05-01","主類別":"什支備註","次類別":"大生粉","工人姓名":"","數量":"1","單位":"項","單價":"4200","總額":"4200","已支付":true},
-    {"日期":"2025-06-09","主類別":"什支備註","次類別":"丁基加保扶","工人姓名":"","數量":"4","單位":"項","單價":"700","總額":"2800","已支付":true}
+    {"?交?":"2024-11-01","銝駁???:"隞?臬?閮?,"甈⊿???:"樴?330??,"撌乩犖憪?":"","?賊?":"330","?桐?":"??,"?桀":"200","蝮賡?":"66000","撌脫隞?:true},
+    {"?交?":"2024-11-20","銝駁???:"?交?","甈⊿???:"銝??賜??踵?璈330??,"撌乩犖憪?":"","?賊?":"32","?桐?":"??,"?桀":"150","蝮賡?":"4800","撌脫隞?:true},
+    {"?交?":"2024-12-06","銝駁???:"颲脰","甈⊿???:"8K?湧??27蝻?,"撌乩犖憪?":"","?賊?":"33","?桐?":"??,"?桀":"150","蝮賡?":"4950","撌脫隞?:true},
+    {"?交?":"2024-12-07","銝駁???:"颲脰","甈⊿???:"8K?湧??13蝻?,"撌乩犖憪?":"","?賊?":"10","?桐?":"??,"?桀":"150","蝮賡?":"1500","撌脫隞?:true},
+    {"?交?":"2025-01-08","銝駁???:"隞?臬?閮?,"甈⊿???:"?質??,"撌乩犖憪?":"","?賊?":"2","?桐?":"??,"?桀":"1250","蝮賡?":"2500","撌脫隞?:true},
+    {"?交?":"2025-01-08","銝駁???:"隞?臬?閮?,"甈⊿???:"憭抒?蝎?,"撌乩犖憪?":"","?賊?":"1","?桐?":"??,"?桀":"4200","蝮賡?":"4200","撌脫隞?:true},
+    {"?交?":"2024-12-01","銝駁???:"?交?","甈⊿???:"?交?頠?潮?∴?隢芣??怠鞎餌","撌乩犖憪?":"","?賊?":"1","?桐?":"??,"?桀":"4000","蝮賡?":"4000","撌脫隞?:true},
+    {"?交?":"2025-02-14","銝駁???:"撌乩犖?芾?","甈⊿???:"?踵?","撌乩犖憪?":"?嗡?撌乩犖","?賊?":"9","?桐?":"??,"?桀":"150","蝮賡?":"1350","撌脫隞?:true},
+    {"?交?":"2025-02-15","銝駁???:"撌乩犖?芾?","甈⊿???:"?踵?","撌乩犖憪?":"?嗡?撌乩犖","?賊?":"6","?桐?":"??,"?桀":"150","蝮賡?":"900","撌脫隞?:true},
+    {"?交?":"2025-02-20","銝駁???:"?交?","甈⊿???:"?質","撌乩犖憪?":"","?賊?":"35","?桐?":"??,"?桀":"550","蝮賡?":"19250","撌脫隞?:true},
+    {"?交?":"2025-02-22","銝駁???:"撌乩犖?芾?","甈⊿???:"?踵?","撌乩犖憪?":"?嗡?撌乩犖","?賊?":"8","?桐?":"??,"?桀":"150","蝮賡?":"1200","撌脫隞?:true},
+    {"?交?":"2025-02-24","銝駁???:"????","甈⊿???:"?賡蝺??渡雯??","撌乩犖憪?":"","?賊?":"1","?桐?":"??,"?桀":"130","蝮賡?":"130","撌脫隞?:true},
+    {"?交?":"2025-02-24","銝駁???:"????","甈⊿???:"?葆(?渡雯??","撌乩犖憪?":"","?賊?":"1","?桐?":"??,"?桀":"140","蝮賡?":"140","撌脫隞?:true},
+    {"?交?":"2025-02-24","銝駁???:"????","甈⊿???:"?◢?萇?(?渡雯??","撌乩犖憪?":"","?賊?":"1","?桐?":"??,"?桀":"75","蝮賡?":"75","撌脫隞?:true},
+    {"?交?":"2025-02-24","銝駁???:"隞?臬?閮?,"甈⊿???:"92瘙賣硃","撌乩犖憪?":"","?賊?":"1","?桐?":"??,"?桀":"600","蝮賡?":"600","撌脫隞?:true},
+    {"?交?":"2025-02-24","銝駁???:"撌乩犖?芾?","甈⊿???:"?踵?","撌乩犖憪?":"?嗡?撌乩犖","?賊?":"18","?桐?":"??,"?桀":"150","蝮賡?":"2700","撌脫隞?:true},
+    {"?交?":"2025-02-25","銝駁???:"撌乩犖?芾?","甈⊿???:"?踵?","撌乩犖憪?":"?嗡?撌乩犖","?賊?":"8","?桐?":"??,"?桀":"150","蝮賡?":"1200","撌脫隞?:true},
+    {"?交?":"2025-03-11","銝駁???:"颲脰","甈⊿???:"(?皜?32蝻?擐祆???,"撌乩犖憪?":"","?賊?":"5","?桐?":"??,"?桀":"380","蝮賡?":"1900","撌脫隞?:true},
+    {"?交?":"2025-03-11","銝駁???:"隞?臬?閮?,"甈⊿???:"摰擐16","撌乩犖憪?":"","?賊?":"16","?桐?":"??,"?桀":"60","蝮賡?":"960","撌脫隞?:true},
+    {"?交?":"2025-03-11","銝駁???:"隞?臬?閮?,"甈⊿???:"蝖怎ㄩ蝎?撌湔憭?","撌乩犖憪?":"","?賊?":"1","?桐?":"??,"?桀":"2500","蝮賡?":"2500","撌脫隞?:true},
+    {"?交?":"2025-03-11","銝駁???:"颲脰","甈⊿???:"?曉???,"撌乩犖憪?":"","?賊?":"3","?桐?":"??,"?桀":"300","蝮賡?":"900","?瑚?":true,"撌脫隞?:true},
+    {"?交?":"2025-03-11","銝駁???:"隞?臬?閮?,"甈⊿???:"?曉?株","撌乩犖憪?":"","?賊?":"4","?桐?":"??,"?桀":"700","蝮賡?":"2800","撌脫隞?:true},
+    {"?交?":"2025-03-11","銝駁???:"隞?臬?閮?,"甈⊿???:"鈭ㄦ??,"撌乩犖憪?":"","?賊?":"1","?桐?":"??,"?桀":"12000","蝮賡?":"12000","撌脫隞?:true},
+    {"?交?":"2025-03-11","銝駁???:"隞?臬?閮?,"甈⊿???:"敺桅???","撌乩犖憪?":"","?賊?":"2","?桐?":"??,"?桀":"6000","蝮賡?":"12000","撌脫隞?:true},
+    {"?交?":"2025-03-14","銝駁???:"?交?","甈⊿???:"銝??,"撌乩犖憪?":"","?賊?":"8","?桐?":"??,"?桀":"150","蝮賡?":"1200","撌脫隞?:true},
+    {"?交?":"2025-04-01","銝駁???:"隞?臬?閮?,"甈⊿???:"?脫?撖?,"撌乩犖憪?":"","?賊?":"2","?桐?":"??,"?桀":"800","蝮賡?":"1600","撌脫隞?:true},
+    {"?交?":"2025-04-01","銝駁???:"颲脰","甈⊿???:"敺???,"撌乩犖憪?":"","?賊?":"2","?桐?":"??,"?桀":"600","蝮賡?":"1200","撌脫隞?:true},
+    {"?交?":"2025-04-01","銝駁???:"隞?臬?閮?,"甈⊿???:"憭批?蝎?,"撌乩犖憪?":"","?賊?":"4","?桐?":"??,"?桀":"280","蝮賡?":"1120","撌脫隞?:true},
+    {"?交?":"2025-04-01","銝駁???:"隞?臬?閮?,"甈⊿???:"憭抒?蝎?,"撌乩犖憪?":"","?賊?":"6","?桐?":"??,"?桀":"450","蝮賡?":"2700","撌脫隞?:true},
+    {"?交?":"2025-02-01","銝駁???:"隞?臬?閮?,"甈⊿???:"?輻儔?方?","撌乩犖憪?":"","?賊?":"1","?桐?":"??,"?桀":"20000","蝮賡?":"20000","撌脫隞?:true},
+    {"?交?":"2025-05-01","銝駁???:"隞?臬?閮?,"甈⊿???:"?輻儔?方?","撌乩犖憪?":"","?賊?":"1","?桐?":"??,"?桀":"20000","蝮賡?":"20000","撌脫隞?:true},
+    {"?交?":"2025-04-24","銝駁???:"?","甈⊿???:"?輻儔?瑟偌","撌乩犖憪?":"","?賊?":"1","?桐?":"??,"?桀":"8000","蝮賡?":"8000","撌脫隞?:true},
+    {"?交?":"2025-01-01","銝駁???:"隞?臬?閮?,"甈⊿???:"56200+49000","撌乩犖憪?":"","?賊?":"1","?桐?":"??,"?桀":"105200","蝮賡?":"105200","撌脫隞?:true},
+    {"?交?":"2025-04-17","銝駁???:"隞?臬?閮?,"甈⊿???:"擃ㄦ?","撌乩犖憪?":"","?賊?":"45","?桐?":"??,"?桀":"700","蝮賡?":"31500","撌脫隞?:true},
+    {"?交?":"2025-04-17","銝駁???:"隞?臬?閮?,"甈⊿???:"???","撌乩犖憪?":"","?賊?":"60","?桐?":"??,"?桀":"650","蝮賡?":"39000","撌脫隞?:true},
+    {"?交?":"2025-05-01","銝駁???:"隞?臬?閮?,"甈⊿???:"靽∠?(??)","撌乩犖憪?":"","?賊?":"12","?桐?":"??,"?桀":"380","蝮賡?":"4560","撌脫隞?:true},
+    {"?交?":"2025-05-01","銝駁???:"隞?臬?閮?,"甈⊿???:"?脣???,"撌乩犖憪?":"","?賊?":"2","?桐?":"??,"?桀":"450","蝮賡?":"900","撌脫隞?:true},
+    {"?交?":"2025-05-01","銝駁???:"隞?臬?閮?,"甈⊿???:"鞈賣?撖?憭批?)","撌乩犖憪?":"","?賊?":"4","?桐?":"??,"?桀":"400","蝮賡?":"1600","撌脫隞?:true},
+    {"?交?":"2025-05-01","銝駁???:"颲脰","甈⊿???:"擐祆???,"撌乩犖憪?":"","?賊?":"4","?桐?":"??,"?桀":"400","蝮賡?":"1600","撌脫隞?:true},
+    {"?交?":"2025-05-01","銝駁???:"隞?臬?閮?,"甈⊿???:"靽∠?(?亦)","撌乩犖憪?":"","?賊?":"12","?桐?":"??,"?桀":"250","蝮賡?":"3000","撌脫隞?:true},
+    {"?交?":"2025-05-01","銝駁???:"颲脰","甈⊿???:"敺???,"撌乩犖憪?":"","?賊?":"2","?桐?":"??,"?桀":"600","蝮賡?":"1200","撌脫隞?:true},
+    {"?交?":"2025-05-01","銝駁???:"隞?臬?閮?,"甈⊿???:"鞈賡?撖??亦)","撌乩犖憪?":"","?賊?":"4","?桐?":"??,"?桀":"650","蝮賡?":"2600","撌脫隞?:true},
+    {"?交?":"2025-05-01","銝駁???:"隞?臬?閮?,"甈⊿???:"?踹毀銝?,"撌乩犖憪?":"","?賊?":"2","?桐?":"??,"?桀":"400","蝮賡?":"800","撌脫隞?:true},
+    {"?交?":"2025-05-01","銝駁???:"隞?臬?閮?,"甈⊿???:"敺隢?,"撌乩犖憪?":"","?賊?":"4","?桐?":"??,"?桀":"450","蝮賡?":"1800","撌脫隞?:true},
+    {"?交?":"2025-05-01","銝駁???:"隞?臬?閮?,"甈⊿???:"憭抒?蝎?,"撌乩犖憪?":"","?賊?":"1","?桐?":"??,"?桀":"4200","蝮賡?":"4200","撌脫隞?:true},
+    {"?交?":"2025-06-09","銝駁???:"隞?臬?閮?,"甈⊿???:"銝????,"撌乩犖憪?":"","?賊?":"4","?桐?":"??,"?桀":"700","蝮賡?":"2800","撌脫隞?:true}
   ],
   "income": [
-    {"日期":"2025-09-26","主類別":"甜柿","其他備註":"市場拍賣大數據匯入","總重":"136","箱數":"12","總價":"13404","價格確認":true},
-    {"日期":"2025-09-27","主類別":"甜柿","其他備註":"市場拍賣大數據匯入","總重":"160","箱數":"15","總價":"16392","價格確認":true},
-    {"日期":"2025-09-30","主類別":"甜柿","其他備註":"市場拍賣大數據匯入","總重":"420","箱數":"35","總價":"43286","價格確認":true},
-    {"日期":"2025-10-03","主類別":"甜柿","其他備註":"市場拍賣大數據匯入","總重":"349","箱數":"29","總價":"40640","價格確認":true},
-    {"日期":"2025-10-04","主類別":"甜柿","其他備註":"市場拍賣大數據匯入","總重":"494","箱數":"41","總價":"53370","價格確認":true},
-    {"日期":"2025-10-09","主類別":"甜柿","其他備註":"市場拍賣大數據匯入","總重":"558","箱數":"46","總價":"50703","價格確認":true}
+    {"?交?":"2025-09-26","銝駁???:"?","?嗡??酉":"撣?都憭扳???,"蝮賡?":"136","蝞望":"12","蝮賢":"13404","?寞蝣箄?":true},
+    {"?交?":"2025-09-27","銝駁???:"?","?嗡??酉":"撣?都憭扳???,"蝮賡?":"160","蝞望":"15","蝮賢":"16392","?寞蝣箄?":true},
+    {"?交?":"2025-09-30","銝駁???:"?","?嗡??酉":"撣?都憭扳???,"蝮賡?":"420","蝞望":"35","蝮賢":"43286","?寞蝣箄?":true},
+    {"?交?":"2025-10-03","銝駁???:"?","?嗡??酉":"撣?都憭扳???,"蝮賡?":"349","蝞望":"29","蝮賢":"40640","?寞蝣箄?":true},
+    {"?交?":"2025-10-04","銝駁???:"?","?嗡??酉":"撣?都憭扳???,"蝮賡?":"494","蝞望":"41","蝮賢":"53370","?寞蝣箄?":true},
+    {"?交?":"2025-10-09","銝駁???:"?","?嗡??酉":"撣?都憭扳???,"蝮賡?":"558","蝞望":"46","蝮賢":"50703","?寞蝣箄?":true}
   ]
 };
 
 async function importHistoricalData2025() {
-  if (!confirm('確定要匯入 2025 年度歷史資料嗎？這將會新增多筆紀錄到試算表中。')) return;
+  if (!confirm('蝣箏?閬??2025 撟游漲甇瑕鞈??????憓?蝑??閰衣?銵其葉??)) return;
   
-  showLoader('匯入中...');
+  showLoader('?臬銝?..');
   try {
     const expRows = HISTORICAL_DATA_2025.expenses.map(r => {
       const id = 'H2025-' + Math.random().toString(36).substr(2, 6);
-      return [id, r.日期, r.主類別, r.次類別, r.工人姓名, 'hourly', r.數量, r.單位, r.單價, r.總額, 'FALSE', r.已支付?'TRUE':'FALSE', '2025 匯入', now(), now()];
+      return [id, r.?交?, r.銝駁??? r.甈⊿??? r.撌乩犖憪?, 'hourly', r.?賊?, r.?桐?, r.?桀, r.蝮賡?, 'FALSE', r.撌脫隞?'TRUE':'FALSE', '2025 ?臬', now(), now()];
     });
     
     const incRows = HISTORICAL_DATA_2025.income.map(r => {
       const id = 'H2025I-' + Math.random().toString(36).substr(2, 6);
-      return [id, r.日期, r.主類別, r.其他備註, '{}', r.總重, r.箱數, r.總價, '0', '0', '', r.價格確認?'TRUE':'FALSE', now(), now()];
+      return [id, r.?交?, r.銝駁??? r.?嗡??酉, '{}', r.蝮賡?, r.蝞望, r.蝮賢, '0', '0', '', r.?寞蝣箄??'TRUE':'FALSE', now(), now()];
     });
 
     if (expRows.length > 0) {
@@ -4475,10 +4496,10 @@ async function importHistoricalData2025() {
 
     await fetchAllData();
     renderAll();
-    showToast('✓ 歷史資料匯入完成');
+    showToast('??甇瑕鞈??臬摰?');
   } catch (err) {
     console.error(err);
-    showToast('匯入失敗：' + err.message, 'error');
+    showToast('?臬憭望?嚗? + err.message, 'error');
   }
   hideLoader();
 }
@@ -4490,10 +4511,10 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ============================================================
-// 16. 結餘分頁邏輯
+// 16. 蝯????摩
 // ============================================================
-balanceChartInstance = null; // 已在全域頂部宣告
-currentBalancePeriod = 'all'; // 已在全域頂部宣告
+balanceChartInstance = null; // 撌脣?典??摰??
+currentBalancePeriod = 'all'; // 撌脣?典??摰??
 
 document.querySelectorAll('#page-balance .period-btn').forEach(btn => {
   btn.addEventListener('click', (e) => {
@@ -4505,44 +4526,44 @@ document.querySelectorAll('#page-balance .period-btn').forEach(btn => {
 });
 
 function renderBalancePage() {
-  // 1. 取得過濾後的資料
-  const incData = getFilteredByPeriod(incomeData, '日期', currentBalancePeriod);
-  const expData = getFilteredByPeriod(expenseData, '日期', currentBalancePeriod);
+  // 1. ???蕪敺?鞈?
+  const incData = getFilteredByPeriod(incomeData, '?交?', currentBalancePeriod);
+  const expData = getFilteredByPeriod(expenseData, '?交?', currentBalancePeriod);
   
-  // 訂單也需要過濾
+  // 閮銋?閬?瞈?
   let orderDataFiltered = [...ordersData];
   if (currentBalancePeriod !== 'all') {
     const now = new Date();
     orderDataFiltered = ordersData.filter(r => {
-      const d = new Date(r.到貨日期 || r.下定日期 || 0);
+      const d = new Date(r.?啗疏?交? || r.銝??交? || 0);
       if (currentBalancePeriod === 'year') return d.getFullYear() === now.getFullYear();
       if (currentBalancePeriod === 'month') return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
       return true;
     });
   }
 
-  // 2. 計算總和
+  // 2. 閮?蝮賢?
   let marketIncome = 0;
   let marketUnpaid = 0;
   let actualKG = 0;
   incData.forEach(r => {
-    marketIncome += (parseFloat(r.總價) || 0);
-    if (r.付款狀態 !== '已付款') marketUnpaid += (parseFloat(r.總價) || 0);
-    actualKG += (parseFloat(r.總重) || 0) * 0.6; // 假設總重是台斤 -> KG
+    marketIncome += (parseFloat(r.蝮賢) || 0);
+    if (r.隞狡???!== '撌脖?甈?) marketUnpaid += (parseFloat(r.蝮賢) || 0);
+    actualKG += (parseFloat(r.蝮賡?) || 0) * 0.6; // ?身蝮賡??臬??-> KG
   });
   
-  // 訂單依狀態分組計算
+  // 閮靘???蝯?蝞?
   let salesIncome = 0;
-  let salesByStatus = {}; // { '未指定': 金額, '預定出貨': 金額, '已出貨': 金額, ... }
+  let salesByStatus = {}; // { '?芣?摰?: ??, '???箄疏': ??, '撌脣鞎?: ??, ... }
   let salesUnpaid = 0;
   orderDataFiltered.forEach(r => {
-    const price = parseFloat(r.總價) || 0;
+    const price = parseFloat(r.蝮賢) || 0;
     salesIncome += price;
-    let status = r.狀態 || '未指定';
-    if (status === '不指定') status = '未指定';
+    let status = r.???|| '?芣?摰?;
+    if (status === '銝?摰?) status = '?芣?摰?;
     if (!salesByStatus[status]) salesByStatus[status] = 0;
     salesByStatus[status] += price;
-    if (r.付款狀態 !== '已付款') salesUnpaid += price;
+    if (r.隞狡???!== '撌脖?甈?) salesUnpaid += price;
   });
 
   const totalIncome = marketIncome + salesIncome;
@@ -4553,24 +4574,24 @@ function renderBalancePage() {
   
   expData.forEach(r => {
     totalExpense += calcExpenseTotal(r);
-    // 從支出項目提取套袋與損耗袋，這裡用次類別字串比對
-    const subCat = r.次類別 || '';
-    if (subCat.includes('套袋')) {
-      bagCount += (parseFloat(r.數量) || 0);
-    } else if (subCat.includes('損耗') && (subCat.includes('袋') || r.單位 === '袋' || r.主類別.includes('材料'))) {
-      lossBagCount += (parseFloat(r.數量) || 0);
+    // 敺?粹??格???鋡???嚗ㄐ?冽活憿摮葡瘥?
+    const subCat = r.甈⊿???|| '';
+    if (subCat.includes('憟?')) {
+      bagCount += (parseFloat(r.?賊?) || 0);
+    } else if (subCat.includes('??) && (subCat.includes('鋡?) || r.?桐? === '鋡? || r.銝駁???includes('??'))) {
+      lossBagCount += (parseFloat(r.?賊?) || 0);
     }
   });
 
   const netBalance = totalIncome - totalExpense;
 
-  // 更新訂單依狀態細項顯示
+  // ?湔閮靘??敦?＊蝷?
   const orderBreakdownEl = document.getElementById('balanceOrderBreakdown');
   if (orderBreakdownEl) {
     if (Object.keys(salesByStatus).length === 0) {
-      orderBreakdownEl.innerHTML = '<small style="color:var(--text-muted)">無訂單</small>';
+      orderBreakdownEl.innerHTML = '<small style="color:var(--text-muted)">?∟???/small>';
     } else {
-      const statusOrder = ['已出貨', '預定出貨', '未指定'];
+      const statusOrder = ['撌脣鞎?, '???箄疏', '?芣?摰?];
       const sorted = Object.entries(salesByStatus).sort((a, b) => {
         const ai = statusOrder.indexOf(a[0]);
         const bi = statusOrder.indexOf(b[0]);
@@ -4584,11 +4605,11 @@ function renderBalancePage() {
       ).join('');
     }
     if (salesUnpaid > 0) {
-      orderBreakdownEl.innerHTML += `<div style="font-size:0.75rem;color:var(--orange);margin-top:4px">未付款 $${salesUnpaid.toLocaleString()}</div>`;
+      orderBreakdownEl.innerHTML += `<div style="font-size:0.75rem;color:var(--orange);margin-top:4px">?芯?甈?$${salesUnpaid.toLocaleString()}</div>`;
     }
   }
 
-  // 3. 結餘與收入看板
+  // 3. 蝯???亦???
   const netEl = document.getElementById('balanceNetAmount');
   if(netEl) {
     netEl.textContent = `$${netBalance.toLocaleString()}`;
@@ -4600,13 +4621,13 @@ function renderBalancePage() {
     document.getElementById('balanceSalesIncome').textContent = `$${salesIncome.toLocaleString()}`;
     document.getElementById('balanceTotalExpense').textContent = `$${totalExpense.toLocaleString()}`;
   } else {
-    // 兼容舊版 ID
+    // ?澆捆?? ID
     if(document.getElementById('balanceTotalIncome')) document.getElementById('balanceTotalIncome').textContent = `$${totalIncome.toLocaleString()}`;
     if(document.getElementById('balanceTotalExpense')) document.getElementById('balanceTotalExpense').textContent = `$${totalExpense.toLocaleString()}`;
   }
   
-  // 4. 生產與損耗看板計算 (假設一袋平均 0.35 kg)
-  // 這些數值需要根據實際果園參數調整，此處設為預設預估
+  // 4. ??????輯?蝞?(?身銝鋡像??0.35 kg)
+  // ???詨潮?閬?祕?????貉矽?湛?甇方?閮剔?身?摯
   const expectedKG = bagCount * 0.35; 
   const lossExpectedKG = lossBagCount * 0.35;
   const actualLossKG = Math.max(0, expectedKG - actualKG);
@@ -4626,10 +4647,10 @@ function renderBalancePage() {
     if (lossPerEl) lossPerEl.textContent = lossPercent;
   }
 
-  // 5. 繪製圓餅圖 (Chart.js)
+  // 5. 蝜芾ˊ????(Chart.js)
   renderBalanceChart(totalIncome, totalExpense);
 
-  // 6. 繪製各月收支明細
+  // 6. 蝜芾ˊ???嗆?敦
   renderBalanceMonthlyTable(incData, expData, orderDataFiltered);
 }
 
@@ -4641,12 +4662,12 @@ function renderBalanceChart(income, expense) {
     balanceChartInstance.destroy();
   }
 
-  // 若都為 0 則顯示灰底
+  // ?仿??0 ?＊蝷箇摨?
   if (income === 0 && expense === 0) {
      balanceChartInstance = new Chart(ctx, {
        type: 'doughnut',
        data: {
-         labels: ['無資料'],
+         labels: ['?∟???],
          datasets: [{ data: [1], backgroundColor: ['#e2e8f0'], borderWidth: 0 }]
        },
        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { enabled: false } }, cutout: '75%' }
@@ -4657,7 +4678,7 @@ function renderBalanceChart(income, expense) {
   balanceChartInstance = new Chart(ctx, {
     type: 'doughnut',
     data: {
-      labels: ['收入', '支出'],
+      labels: ['?嗅', '?臬'],
       datasets: [{
         data: [income, expense],
         backgroundColor: ['#22c55e', '#ef4444'],
@@ -4692,41 +4713,41 @@ function renderBalanceMonthlyTable(incData, expData, orderDataFiltered = []) {
   const tbody = document.getElementById('balanceMonthlyTableBody');
   if (!tbody) return;
 
-  // 聚合到月份
+  // ???唳?隞?
   const monthlyMap = {};
   
-  // 處理市場收入
+  // ??撣?嗅
   incData.forEach(r => {
-    if(!r.日期) return;
-    const month = r.日期.substring(0, 7); // YYYY-MM
+    if(!r.?交?) return;
+    const month = r.?交?.substring(0, 7); // YYYY-MM
     if(!monthlyMap[month]) monthlyMap[month] = { market: 0, sales: 0, expense: 0, orderCount: 0 };
-    monthlyMap[month].market += (parseFloat(r.總價) || 0);
+    monthlyMap[month].market += (parseFloat(r.蝮賢) || 0);
   });
 
-  // 處理客戶銷售收入
+  // ??摰Ｘ?瑕?嗅
   orderDataFiltered.forEach(r => {
-    const d = r.到貨日期 || r.下定日期;
+    const d = r.?啗疏?交? || r.銝??交?;
     if(!d) return;
     const month = d.substring(0, 7); // YYYY-MM
     if(!monthlyMap[month]) monthlyMap[month] = { market: 0, sales: 0, expense: 0, orderCount: 0 };
-    monthlyMap[month].sales += (parseFloat(r.總價) || 0);
+    monthlyMap[month].sales += (parseFloat(r.蝮賢) || 0);
     monthlyMap[month].orderCount++;
   });
 
-  // 處理支出
+  // ???臬
   expData.forEach(r => {
-    if(!r.日期) return;
-    const month = r.日期.substring(0, 7); // YYYY-MM
+    if(!r.?交?) return;
+    const month = r.?交?.substring(0, 7); // YYYY-MM
     if(!monthlyMap[month]) monthlyMap[month] = { market: 0, sales: 0, expense: 0, orderCount: 0 };
     monthlyMap[month].expense += calcExpenseTotal(r);
   });
 
-  // 排序 (由新到舊)
+  // ?? (?望?啗?)
   const months = Object.keys(monthlyMap).sort((a,b) => b.localeCompare(a));
   
   tbody.innerHTML = '';
   if (months.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);">無資料</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);">?∟???/td></tr>';
     return;
   }
 
@@ -4738,88 +4759,16 @@ function renderBalanceMonthlyTable(incData, expData, orderDataFiltered = []) {
     tr.innerHTML = `
       <td><strong>${m}</strong></td>
       <td style="color:var(--green-dark);">$${stat.market.toLocaleString()}</td>
-      <td style="color:var(--green-dark);">$${stat.sales.toLocaleString()}${stat.orderCount>0?` <small style="color:var(--text-muted);font-size:0.7rem">(${stat.orderCount}筆)</small>`:''}</td>
+      <td style="color:var(--green-dark);">$${stat.sales.toLocaleString()}${stat.orderCount>0?` <small style="color:var(--text-muted);font-size:0.7rem">(${stat.orderCount}蝑?</small>`:''}</td>
       <td style="color:var(--red);">$${stat.expense.toLocaleString()}</td>
       <td style="font-weight:bold; color:${net >= 0 ? 'var(--green-dark)' : 'var(--red)'};">$${net.toLocaleString()}</td>
     `;
     tbody.appendChild(tr);
   });
-}
-// ============================================================
-// 17. 全域事件初始化
-// ============================================================
-
-function initModalTypeSwitchers() {
-  // 1. 收入 Modal 切換器
-  document.querySelectorAll('input[name="incomeTypeToggle"]').forEach(radio => {
-    radio.addEventListener('change', (e) => {
-      if (e.target.value === 'order') {
-        const date = document.getElementById('incomeDate').value;
-        closeIncomeModal();
-        openOrderModal();
-        if (date) document.getElementById('orderDate').value = date;
-        // 同步切換器狀態
-        const orderToggle = document.querySelector('input[name="orderTypeToggle"][value="order"]');
-        if (orderToggle) orderToggle.checked = true;
-      }
-    });
-  });
-
-  // 2. 訂單 Modal 切換器
-  document.querySelectorAll('input[name="orderTypeToggle"]').forEach(radio => {
-    radio.addEventListener('change', (e) => {
-      if (e.target.value === 'income') {
-        const date = document.getElementById('orderDate').value;
-        closeOrderModal();
-        openIncomeModal();
-        if (date) document.getElementById('incomeDate').value = date;
-        // 同步切換器狀態
-        const incomeToggle = document.querySelector('input[name="incomeTypeToggle"][value="income"]');
-        if (incomeToggle) incomeToggle.checked = true;
-      }
-    });
-  });
-
-  // 3. 支出 Modal 切換器
-  document.querySelectorAll('input[name="expenseTypeToggle"]').forEach(radio => {
-    radio.addEventListener('change', (e) => {
-      const type = e.target.value === 'salary' ? 'worker' : 'material';
-      // 取得目前的日期
-      const date = document.getElementById('expenseDate').value;
-      const recordId = document.getElementById('expenseRecordId').value;
-      
-      // 重新開啟 Modal 並指定類型（這會觸發 UI 更新）
-      openExpenseModal(recordId ? expenseData.find(r => r.id === recordId) : null, type);
-      if (date) document.getElementById('expenseDate').value = date;
-      
-      // 確保切換器狀態正確
-      const toggle = document.querySelector(`input[name="expenseTypeToggle"][value="${e.target.value}"]`);
-      if (toggle) toggle.checked = true;
-    });
-  });
-}
-
-function initAllEventListeners() {
-  if (window._listenersInited) return;
-  window._listenersInited = true;
-
-  console.log("Initializing all global event listeners...");
-
-  initFAB();
-  initModalTypeSwitchers();
-  
-  document.getElementById('closeIncomeModal')?.addEventListener('click', closeIncomeModal);
-  document.getElementById('cancelIncomeBtn')?.addEventListener('click', closeIncomeModal);
-  
-  // 3. 支出 Modal 關閉
-  document.getElementById('closeExpenseModal')?.addEventListener('click', closeExpenseModal);
-  document.getElementById('cancelExpenseBtn')?.addEventListener('click', closeExpenseModal);
-  
-  // 4. 訂單 Modal 關閉
   document.getElementById('closeOrderModal')?.addEventListener('click', closeOrderModal);
   document.getElementById('cancelOrderBtn')?.addEventListener('click', closeOrderModal);
 
-  // 5. 其他 Modal (管理頁、複製預覽等)
+  // 5. ?嗡? Modal (蝞∠???鋆賡?閬賜?)
   document.getElementById('closeAdminModal')?.addEventListener('click', () => {
     document.getElementById('adminModal').style.display = 'none';
   });
@@ -4828,10 +4777,10 @@ function initAllEventListeners() {
   });
 }
 
-// 在登入後或頁面載入完成後執行
-// 目前在 afterLogin 內調用
+// ?函?亙????Ｚ??亙????瑁?
+// ?桀???afterLogin ?扯矽??
 
-// --- 補全缺失的事件監聽器 ---
+// --- 鋆蝻箏仃??隞嗥?賢 ---
 document.getElementById('cancelIncomeBtn')?.addEventListener('click', closeIncomeModal);
 document.getElementById('cancelExpenseBtn')?.addEventListener('click', closeExpenseModal);
 document.getElementById('confirmCancel')?.addEventListener('click', () => {
@@ -4840,7 +4789,7 @@ document.getElementById('confirmCancel')?.addEventListener('click', () => {
 });
 
 // ============================================================
-// 15. 批量操作邏輯 (一鍵對帳/結清)
+// 15. ?寥????摩 (銝?萄?撣?蝯?)
 // ============================================================
 let multiSelectMode = { active: false, type: null };
 let selectedIds = new Set();
@@ -4855,12 +4804,12 @@ window.toggleMultiSelect = function(type) {
   multiSelectMode.type = type;
   selectedIds.clear();
   
-  // 顯示批量工具列
+  // 憿舐內?寥?撌亙??
   const bar = document.getElementById('bulkActionBar');
   if (bar) bar.classList.add('active');
   updateBulkCount();
   
-  // 在所有紀錄項目上添加 Checkbox 或點擊選取樣式
+  // ?冽??????桐?瘛餃? Checkbox ????見撘?
   document.querySelectorAll('.record-item').forEach(item => {
     if (item.dataset.type === type || (type === 'salary' && item.dataset.type === 'expense')) {
       item.classList.add('multi-select-ready');
@@ -4893,11 +4842,11 @@ window.cancelMultiSelect = function() {
   
   document.querySelectorAll('.record-item').forEach(item => {
     item.classList.remove('multi-select-ready', 'selected');
-    // 恢復原始點擊 (如果有)
+    // ?Ｗ儔??暺? (憒???
     item.onclick = null; 
   });
   
-  // 重新渲染表格以恢復原始事件
+  // ?皜脫?銵冽隞交敺拙?憪?隞?
   if (currentTab === 'revenue') renderIncomeTable();
   if (currentTab === 'expense') renderExpenseTable();
 };
@@ -4909,48 +4858,48 @@ function updateBulkCount() {
 
 window.handleBulkSettle = async function() {
   if (selectedIds.size === 0) {
-    showToast('請先選擇要處理的項目', 'warning');
+    showToast('隢??豢?閬????', 'warning');
     return;
   }
   
   const type = multiSelectMode.type;
   const idsToUpdate = Array.from(selectedIds);
   
-  showLoader('批次更新中...');
+  showLoader('?寞活?湔銝?..');
   try {
-    // 根據類型決定更新哪個欄位
+    // ?寞?憿?瘙箏??湔?芸?雿?
     let field = '';
     let newValue = '';
     let targetSheet = '';
     
     if (type === 'income') {
-      field = '對帳狀態';
+      field = '撠董???;
       newValue = 'OK';
       targetSheet = SHEET.MARKET_INCOME;
     } else if (type === 'order') {
-      field = '對帳狀態';
+      field = '撠董???;
       newValue = 'OK';
       targetSheet = SHEET.ORDERS;
     } else if (type === 'salary') {
-      field = '已支付';
+      field = '撌脫隞?;
       newValue = 'TRUE';
       targetSheet = SHEET.EXPENSE_SALARY;
     } else if (type === 'cost') {
-      field = '已支付';
+      field = '撌脫隞?;
       newValue = 'TRUE';
       targetSheet = SHEET.EXPENSE_COST;
     }
 
-    // 呼叫後端批次更新 (假設後端有 updateRecords)
-    // 這裡使用循環調用作為備案，如果量大建議改用後端 batchUpdate
+    // ?澆敺垢?寞活?湔 (?身敺垢??updateRecords)
+    // ?ㄐ雿輻敺芰隤輻雿??嚗???憭批遣霅唳?典?蝡?batchUpdate
     for (const id of idsToUpdate) {
       await updateRecordInSheet(targetSheet, id, field, newValue);
     }
     
-    showToast(`✓ 已成功處理 ${idsToUpdate.length} 筆項目`);
+    showToast(`??撌脫?????${idsToUpdate.length} 蝑??害);
     cancelMultiSelect();
     
-    // 重新載入數據
+    // ?頛?豢?
     if (type === 'income' || type === 'order') await fetchIncome();
     if (type === 'salary' || type === 'cost') await fetchExpense();
     
@@ -4960,7 +4909,7 @@ window.handleBulkSettle = async function() {
     renderExpenseChart();
   } catch (err) {
     console.error(err);
-    showToast('批次處理失敗', 'error');
+    showToast('?寞活??憭望?', 'error');
   } finally {
     hideLoader();
   }
@@ -4975,14 +4924,14 @@ async function updateRecordInSheet(sheetName, id, field, value) {
   const rowIdx = ids.indexOf(id) + 1;
   if (rowIdx <= 0) return;
 
-  // 根據 sheetName 和 field 決定 Column
+  // ?寞? sheetName ??field 瘙箏? Column
   let col = 'A';
   if (sheetName === SHEET.MARKET_INCOME) {
-    if (field === '對帳狀態') col = 'P'; // 假設 P 欄
+    if (field === '撠董???) col = 'P'; // ?身 P 甈?
   } else if (sheetName === SHEET.EXPENSE_SALARY) {
-    if (field === '已支付') col = 'O'; 
+    if (field === '撌脫隞?) col = 'O'; 
   } else if (sheetName === SHEET.EXPENSE_COST) {
-    if (field === '已支付') col = 'H';
+    if (field === '撌脫隞?) col = 'H';
   }
   
   await gapi.client.sheets.spreadsheets.values.update({
@@ -4994,14 +4943,14 @@ async function updateRecordInSheet(sheetName, id, field, value) {
 }
 
 // ============================================================
-// 16. 管理頁面編輯模式控管
+// 16. 蝞∠??蝺刻摩璅∪??抒恣
 // ============================================================
 let adminEditMode = false;
 
 window.toggleAdminEdit = function(btn) {
   adminEditMode = !adminEditMode;
   
-  // 切換圖示顏色或內容
+  // ???內憿?摰?
   if (btn) {
     btn.classList.toggle('active', adminEditMode);
     const icon = btn.querySelector('.material-symbols-outlined');
@@ -5010,333 +4959,19 @@ window.toggleAdminEdit = function(btn) {
     }
   }
 
-  // 控制所有管理按鈕的顯示
+  // ?批??恣????憿舐內
   document.querySelectorAll('.admin-action, .btn-table-edit, .btn-table-del, .btn-row-edit, .btn-row-delete').forEach(el => {
     el.style.display = adminEditMode ? 'inline-flex' : 'none';
   });
 
-  showToast(adminEditMode ? '已開啟管理編輯模式' : '已關閉管理編輯模式', 'info');
+  showToast(adminEditMode ? '撌脤??恣?楊頛舀芋撘? : '撌脤??恣?楊頛舀芋撘?, 'info');
 };
 
-// 確保渲染表格時考慮編輯模式
-// (需在各個 renderAdminXXX 函數中加入對 adminEditMode 的判斷，
-//  或者透過 CSS 直接控制，這裡建議透過 CSS 類別更優雅)
+// 蝣箔?皜脫?銵冽?蝺刻摩璅∪?
+// (??典???renderAdminXXX ?賣銝剖??亙? adminEditMode ??瘀?
+//  ?? CSS ?湔?批嚗ㄐ撱箄降?? CSS 憿?游??
 
-// ============================================================
-// 4. 通用導航與資料獲取
-// ============================================================
-window.switchTab = function(tabName) {
-  currentTab = tabName;
-  document.querySelectorAll('.tab-page').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-  
-  const page = document.getElementById('page-' + tabName);
-  const btn = document.querySelector(`.tab-btn[data-tab="${tabName}"]`);
-  if (page) page.classList.add('active');
-  if (btn) btn.classList.add('active');
-  
-  if (tabName === 'revenue') { renderIncomeChart(); renderIncomeTable(); }
-  if (tabName === 'expense') { renderExpenseChart(); renderExpenseTable(); }
-  if (tabName === 'balance') { renderBalancePage(); }
-  if (tabName === 'admin') { renderAdminDashboard(); }
-};
-let currentTab = 'revenue';
 
-async function fetchSettings() {
-  const res = await gapi.client.sheets.spreadsheets.values.get({
-    spreadsheetId: SPREADSHEET_ID,
-    range: `${SHEET.SETTINGS}!A:E`
-  });
-  const rows = res.result.values || [];
-  // 解析 settings... (簡化版)
-  settings.incomeMainCats = [];
-  rows.forEach(r => {
-    if (r[0] === '收入主類別') settings.incomeMainCats.push({ 名稱: r[1], 次類別: [], 等級: [] });
-  });
-}
 
-async function fetchIncome() {
-  const res = await gapi.client.sheets.spreadsheets.values.get({
-    spreadsheetId: SPREADSHEET_ID,
-    range: `${SHEET.MARKET_INCOME}!A:R`
-  });
-  const rows = res.result.values || [];
-  const headers = rows[0];
-  incomeData = rows.slice(1).map(r => {
-    let obj = {};
-    headers.forEach((h, i) => { obj[fieldMap[h] || h] = r[i]; });
-    // 特殊處理等級資料
-    try { obj.等級資料 = JSON.parse(obj.等級資料 || '[]'); } catch(e) { obj.等級資料 = []; }
-    return obj;
-  });
-}
+// [皜?摰?] 
 
-async function fetchExpense() {
-  const resSalary = await gapi.client.sheets.spreadsheets.values.get({
-    spreadsheetId: SPREADSHEET_ID,
-    range: `${SHEET.EXPENSE_SALARY}!A:O`
-  });
-  const resCost = await gapi.client.sheets.spreadsheets.values.get({
-    spreadsheetId: SPREADSHEET_ID,
-    range: `${SHEET.EXPENSE_COST}!A:H`
-  });
-  
-  const salaryRows = resSalary.result.values || [];
-  const salaryHeaders = salaryRows[0];
-  const salaryData = salaryRows.slice(1).map(r => {
-    let obj = { _sourceSheet: SHEET.EXPENSE_SALARY };
-    salaryHeaders.forEach((h, i) => { obj[fieldMap[h] || h] = r[i]; });
-    return obj;
-  });
-
-  const costRows = resCost.result.values || [];
-  const costHeaders = costRows[0];
-  const costData = costRows.slice(1).map(r => {
-    let obj = { _sourceSheet: SHEET.EXPENSE_COST };
-    costHeaders.forEach((h, i) => { obj[fieldMap[h] || h] = r[i]; });
-    return obj;
-  });
-
-  expenseData = [...salaryData, ...costData];
-}
-
-async function fetchCustomers() {
-  const res = await gapi.client.sheets.spreadsheets.values.get({
-    spreadsheetId: SPREADSHEET_ID,
-    range: `${SHEET.CUSTOMERS}!A:E`
-  });
-  const rows = res.result.values || [];
-  const headers = rows[0];
-  customersData = rows.slice(1).map(r => {
-    let obj = {};
-    headers.forEach((h, i) => { obj[fieldMap[h] || h] = r[i]; });
-    return obj;
-  });
-}
-
-async function fetchOrders() {
-  const res = await gapi.client.sheets.spreadsheets.values.get({
-    spreadsheetId: SPREADSHEET_ID,
-    range: `${SHEET.ORDERS}!A:R`
-  });
-  const rows = res.result.values || [];
-  const headers = rows[0];
-  ordersData = rows.slice(1).map(r => {
-    let obj = {};
-    headers.forEach((h, i) => { obj[fieldMap[h] || h] = r[i]; });
-    try { obj.等級資料 = JSON.parse(obj.等級資料 || '[]'); } catch(e) { obj.等級資料 = []; }
-    return obj;
-  });
-}
-
-async function fetchUsers() {
-  const res = await gapi.client.sheets.spreadsheets.values.get({
-    spreadsheetId: SPREADSHEET_ID,
-    range: `${SHEET.USERS}!A:C`
-  });
-  const rows = res.result.values || [];
-  const headers = rows[0];
-  usersData = rows.slice(1).map(r => {
-    let obj = {};
-    headers.forEach((h, i) => { obj[fieldMap[h] || h] = r[i]; });
-    return obj;
-  });
-}
-
-// 綁定 Tab 點擊事件
-document.querySelectorAll('.tab-btn').forEach(btn => {
-  btn.onclick = () => switchTab(btn.dataset.tab);
-});
-
-// ============================================================
-// 5. FAB 與 Modal 控制邏輯
-// ============================================================
-
-// --- FAB 控制 ---
-window.onload_fab = function() { 
-  const fabMain = document.getElementById('fabMain');
-  const fabMenu = document.getElementById('fabMenu');
-  
-  if (fabMain) {
-    fabMain.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const isActive = fabMain.classList.contains('active');
-      if (isActive) {
-        fabMain.classList.remove('active');
-        fabMenu.classList.remove('active');
-      } else {
-        fabMain.classList.add('active');
-        fabMenu.classList.add('active');
-      }
-    });
-  }
-
-  // 點擊外面關閉 FAB 選單
-  document.addEventListener('click', (e) => {
-    if (fabMenu && fabMenu.classList.contains('active') && !e.target.closest('#fabContainer')) {
-      fabMain.classList.remove('active');
-      fabMenu.classList.remove('active');
-    }
-  });
-};
-// 立即執行綁定
-setTimeout(window.onload_fab, 1000);
-
-window.handleFabAction = function(type) {
-  const fabMain = document.getElementById('fabMain');
-  const fabMenu = document.getElementById('fabMenu');
-  if (fabMain) fabMain.classList.remove('active');
-  if (fabMenu) fabMenu.classList.remove('active');
-  
-  if (type === 'income') {
-    openIncomeModal();
-  } else if (type === 'expense') {
-    openExpenseModal();
-  }
-};
-
-// --- Modal 控制 ---
-window.openIncomeModal = function() {
-  const modal = document.getElementById('incomeModal');
-  if (modal) modal.style.display = 'flex';
-  
-  // 隱藏 FAB
-  const fabWrap = document.getElementById('fabContainer');
-  if (fabWrap) fabWrap.style.display = 'none';
-
-  // 預設日期為今日
-  const dateInput = document.getElementById('incomeDate');
-  if (dateInput) {
-    const today = new Date();
-    const mm = String(today.getMonth() + 1).padStart(2, '0');
-    const dd = String(today.getDate()).padStart(2, '0');
-    dateInput.value = `${today.getFullYear()}-${mm}-${dd}`;
-  }
-
-  // 載入主類別
-  const mainCatSelect = document.getElementById('incomeMainCat');
-  if (mainCatSelect) {
-    mainCatSelect.innerHTML = '<option value="">請選擇</option>';
-    settings.incomeMainCats.forEach(cat => {
-      mainCatSelect.innerHTML += `<option value="${cat.名稱}">${cat.名稱}</option>`;
-    });
-    
-    // 綁定聯動事件
-    mainCatSelect.onchange = () => {
-      const selectedMainCat = mainCatSelect.value;
-      
-      // 如果是水蜜桃，自動帶入等級
-      const gradesContainer = document.getElementById('incomeGradesContainer');
-      if (gradesContainer) {
-        gradesContainer.innerHTML = ''; // 清空現有
-        if (selectedMainCat.includes('水蜜桃')) {
-          const defaultGrades = ['2A', '3A', '4A', '5A', '6A'];
-          defaultGrades.forEach(grade => {
-            gradesContainer.innerHTML += `
-              <div class="grade-row" style="display:flex; gap:10px; margin-bottom:10px;">
-                <input type="text" value="${grade}" placeholder="等級" class="grade-name" style="width:60px;" readonly>
-                <input type="number" placeholder="箱數" class="grade-boxes" style="width:80px;">
-                <input type="number" placeholder="總重" class="grade-weight" style="width:80px;">
-                <button type="button" class="btn-icon-sm" style="color:var(--red);" onclick="this.parentElement.remove()">
-                  <span class="material-symbols-outlined">delete</span>
-                </button>
-              </div>
-            `;
-          });
-        } else {
-           // 預設一筆空資料
-           gradesContainer.innerHTML = `
-              <div class="grade-row" style="display:flex; gap:10px; margin-bottom:10px;">
-                <input type="text" placeholder="等級" class="grade-name" style="width:60px;">
-                <input type="number" placeholder="箱數" class="grade-boxes" style="width:80px;">
-                <input type="number" placeholder="總重" class="grade-weight" style="width:80px;">
-                <button type="button" class="btn-icon-sm" style="color:var(--red);" onclick="this.parentElement.remove()">
-                  <span class="material-symbols-outlined">delete</span>
-                </button>
-              </div>
-            `;
-        }
-      }
-    };
-  }
-};
-
-window.closeIncomeModal = function() {
-  const modal = document.getElementById('incomeModal');
-  if (modal) modal.style.display = 'none';
-  
-  // 恢復 FAB
-  const fabWrap = document.getElementById('fabContainer');
-  if (fabWrap) fabWrap.style.display = 'flex';
-};
-
-window.openExpenseModal = function() {
-  const modal = document.getElementById('expenseModal');
-  if (modal) modal.style.display = 'flex';
-  
-  // 隱藏 FAB
-  const fabWrap = document.getElementById('fabContainer');
-  if (fabWrap) fabWrap.style.display = 'none';
-
-  // 預設日期為今日
-  const dateInput = document.getElementById('expenseDate');
-  if (dateInput) {
-    const today = new Date();
-    const mm = String(today.getMonth() + 1).padStart(2, '0');
-    const dd = String(today.getDate()).padStart(2, '0');
-    dateInput.value = `${today.getFullYear()}-${mm}-${dd}`;
-  }
-
-  // 載入主類別
-  const mainCatSelect = document.getElementById('expenseMainCat');
-  if (mainCatSelect) {
-    mainCatSelect.innerHTML = '<option value="">請選擇</option>';
-    mainCatSelect.innerHTML += '<option value="工人薪資">工人薪資</option>';
-    mainCatSelect.innerHTML += '<option value="資材成本">資材成本</option>';
-    
-    mainCatSelect.onchange = () => {
-      const type = mainCatSelect.value;
-      const workerFields = document.getElementById('expenseWorkerFields');
-      const materialFields = document.getElementById('expenseMaterialFields');
-      
-      if (type === '工人薪資') {
-        if(workerFields) workerFields.style.display = 'block';
-        if(materialFields) materialFields.style.display = 'none';
-        
-        // 預設薪資 200, 預設時間 7:00-12:00, 13:00-16:00
-        const wageInput = document.getElementById('workerWage');
-        if (wageInput) wageInput.value = '200';
-        
-        const amIn = document.getElementById('timeAmIn');
-        const amOut = document.getElementById('timeAmOut');
-        const pmIn = document.getElementById('timePmIn');
-        const pmOut = document.getElementById('timePmOut');
-        
-        if(amIn) amIn.value = '07:00';
-        if(amOut) amOut.value = '12:00';
-        if(pmIn) pmIn.value = '13:00';
-        if(pmOut) pmOut.value = '16:00';
-      } else {
-        if(workerFields) workerFields.style.display = 'none';
-        if(materialFields) materialFields.style.display = 'block';
-      }
-    };
-  }
-};
-
-window.closeExpenseModal = function() {
-  const modal = document.getElementById('expenseModal');
-  if (modal) modal.style.display = 'none';
-  
-  // 恢復 FAB
-  const fabWrap = document.getElementById('fabContainer');
-  if (fabWrap) fabWrap.style.display = 'flex';
-};
-
-// 綁定取消按鈕
-setTimeout(() => {
-  const btnIn = document.getElementById('cancelIncomeBtn');
-  const btnEx = document.getElementById('cancelExpenseBtn');
-  if(btnIn && !btnIn.onclick) btnIn.onclick = closeIncomeModal;
-  if(btnEx && !btnEx.onclick) btnEx.onclick = closeExpenseModal;
-}, 1500);
