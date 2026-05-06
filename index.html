@@ -228,11 +228,10 @@
           <div id="orderUnshippedSummary" class="order-unshipped-summary" style="margin-top:0.75rem"></div>
         </div>
 
-        <div class="filter-box" id="orderFilterBar">
-          <div id="orderMainCatChips" class="filter-chips-row main-cats"></div>
-          <div class="chips-divider"></div>
-          <div id="orderSubCatChips" class="filter-chips-row sub-cats"></div>
-          <div class="filter-actions-group">
+        <div class="filter-bar" id="orderFilterBar">
+          <div class="filter-chips" id="orderMainCatChips"></div>
+          <div class="filter-chips sub" id="orderSubCatChips" style="display:none"></div>
+          <div class="filter-tools">
             <button class="btn-tool" id="orderMultiSelectBtn" onclick="toggleMultiSelect('order')" title="多選模式">
               <span class="material-symbols-outlined">checklist</span>
             </button>

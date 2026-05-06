@@ -2596,7 +2596,7 @@ document.getElementById('incomeForm').onsubmit = async (e) => {
     客戶類別: document.getElementById('incomeCustomerType') ? document.getElementById('incomeCustomerType').value : '一般',
     客戶名稱: document.getElementById('incomeCustomerName') ? document.getElementById('incomeCustomerName').value : '',
     主類別: mainCat,
-    次類別: mainCat === '其他' ? document.getElementById('incomeOtherNote').value : (document.getElementById('incomeOtherNote').value || ''),
+    次類別: document.getElementById('incomeSubCat') ? document.getElementById('incomeSubCat').value : '',
     等級資料: JSON.stringify(gradeData),
     總重: totalWeight || '',
     箱數: totalBoxes || '',
@@ -3837,7 +3837,7 @@ document.getElementById('orderForm').onsubmit = async (e) => {
         resource: { values: [orderRow] }
       });
     } else {
-      await gapi.client.sheets.spreadsheets.values.append({
+      await safeSheetsAppend({
         spreadsheetId: SPREADSHEET_ID,
         range: `${SHEET.ORDERS}!A:S`,
         valueInputOption: 'USER_ENTERED',
@@ -3851,7 +3851,7 @@ document.getElementById('orderForm').onsubmit = async (e) => {
           `CUS_${Date.now()}`, sender, document.getElementById('orderSenderPhone').value, '',
           '系統新增', '自動', ''
         ];
-        await gapi.client.sheets.spreadsheets.append({
+        await safeSheetsAppend({
           spreadsheetId: SPREADSHEET_ID,
           range: `${SHEET.CUSTOMERS}!A:G`,
           valueInputOption: 'USER_ENTERED',
@@ -3972,6 +3972,24 @@ function renderAdminDashboard() {
   renderIncomeMainCatAdmin();
   renderExpenseMainCatAdmin();
   renderWorkerListAdmin();
+  renderCustomerListAdmin();
+}
+
+function renderCustomerListAdmin() {
+  const tbody = document.getElementById('customerListBody');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+  customersData.forEach((c, i) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${c.客戶姓名 || ''}</td>
+      <td>${c.電話 || ''}</td>
+      <td>${c.客戶來源 || ''}</td>
+      <td>${c.地址 || ''}</td>
+      <td></td>
+    `;
+    tbody.appendChild(tr);
+  });
 }
 
 function renderUserListAdmin() {
@@ -4082,6 +4100,15 @@ document.getElementById('addWorkerBtn').onclick = () => {
   ]);
 };
 
+document.getElementById('addCustomerBtn').onclick = () => {
+  openAdminModal('customer', null, [
+    { id: 'ac_name', label: '姓名 *', type: 'text' },
+    { id: 'ac_phone', label: '電話', type: 'text' },
+    { id: 'ac_address', label: '地址', type: 'text' },
+    { id: 'ac_source', label: '客源', type: 'text' },
+  ]);
+};
+
 document.getElementById('addIncomeMainCatBtn').onclick = () => {
   openAdminModal('incomeMainCat', null, [
     { id: 'aim_name', label: '類別名稱 *', type: 'text' },
@@ -4159,6 +4186,25 @@ document.getElementById('adminForm').onsubmit = async (e) => {
       }
       await rebuildAndSaveSettings('workers');
       renderWorkerListAdmin();
+    } else if (type === 'customer') {
+      const name = document.getElementById('ac_name').value.trim();
+      const phone = document.getElementById('ac_phone').value.trim();
+      const address = document.getElementById('ac_address').value.trim();
+      const source = document.getElementById('ac_source').value.trim();
+      
+      if (!name) { showToast('請填寫姓名', 'error'); hideLoader(); return; }
+      
+      const newCust = { 客戶編號: `CUS_${Date.now()}`, 客戶姓名: name, 電話: phone, 地址: address, 客戶來源: source, 客戶渠道: '系統新增', 介紹人: '' };
+      
+      const rowData = syncHeadersAndPrepareData(SHEET.CUSTOMERS, newCust);
+      await safeSheetsAppend({
+        spreadsheetId: SPREADSHEET_ID,
+        range: `${SHEET.CUSTOMERS}!A:G`,
+        valueInputOption: 'USER_ENTERED',
+        resource: { values: [rowData] }
+      });
+      await fetchCustomers();
+      renderCustomerListAdmin();
     } else if (type === 'incomeMainCat') {
       const name = document.getElementById('aim_name').value.trim();
       if (!name) { showToast('請填寫名稱', 'error'); hideLoader(); return; }

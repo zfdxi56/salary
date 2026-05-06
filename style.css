@@ -1506,10 +1506,6 @@ input::placeholder { color: var(--text-xs); }
   box-shadow: 0 4px 12px rgba(21, 128, 61, 0.3);
   border: 1px solid var(--green-dark);
 }
-  background: var(--green-dark);
-  color: white;
-  box-shadow: 0 4px 10px rgba(45, 117, 72, 0.25);
-}
 .sub-tab-page { display: none; }
 .sub-tab-page.active { display: block; }
 
