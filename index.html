@@ -11,8 +11,11 @@
   <link rel="apple-touch-icon" href="./icon.png">
   <link rel="apple-touch-icon" sizes="180x180" href="./icon.png">
   <link rel="stylesheet" href="style.css">
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700;900&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700;900&family=Inter:wght@300;400;500;600;700&display=swap"
+    rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0"
+    rel="stylesheet">
   <script src="https://accounts.google.com/gsi/client" onload="gisLoaded()" async defer></script>
   <script src="https://apis.google.com/js/api.js" onload="gapiLoaded()"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -23,7 +26,7 @@
   <!-- Token 過期重新驗證按鈕 -->
   <button id="tokenRefreshBtn" class="token-refresh-btn glass glass-effect" style="display:none">
     <span class="material-symbols-outlined">key</span>
-    登入逾時，請點此重新驗證
+    登入逾時，請點此重新驗證~
   </button>
 
   <!-- 頂部 Header -->
@@ -204,433 +207,433 @@
 
 
 
-      <!-- ---- 客戶訂單子頁 ---- -->
-      <div id="subpage-orders" class="sub-tab-page">
-        <!-- 訂單統計 -->
-        <div class="card glass chart-card" id="orderChartCard">
-          <div class="card-header">
-            <div class="header-main">
-              <h2><span class="material-symbols-outlined">shopping_cart</span> 訂單統計</h2>
-              <div id="orderTotalSummary" class="chart-summary">總計：$0</div>
+        <!-- ---- 客戶訂單子頁 ---- -->
+        <div id="subpage-orders" class="sub-tab-page">
+          <!-- 訂單統計 -->
+          <div class="card glass chart-card" id="orderChartCard">
+            <div class="card-header">
+              <div class="header-main">
+                <h2><span class="material-symbols-outlined">shopping_cart</span> 訂單統計</h2>
+                <div id="orderTotalSummary" class="chart-summary">總計：$0</div>
+              </div>
+              <div class="chart-period-btns">
+                <button class="period-btn" data-period="all">全部</button>
+                <button class="period-btn active" data-period="year">今年</button>
+                <button class="period-btn" data-period="month">本月</button>
+              </div>
             </div>
-            <div class="chart-period-btns">
+            <div class="income-chart-layout">
+              <div class="income-pie-wrap">
+                <canvas id="orderPieChart"></canvas>
+              </div>
+              <div id="orderChartArea" class="chart-area income-chart-right"></div>
+            </div>
+            <div id="orderUnshippedSummary" class="order-unshipped-summary" style="margin-top:0.75rem"></div>
+          </div>
+
+          <div class="filter-bar" id="orderFilterBar">
+            <div class="filter-chips" id="orderMainCatChips"></div>
+            <div class="filter-chips sub" id="orderSubCatChips" style="display:none"></div>
+            <div class="filter-tools">
+              <button class="btn-tool" id="orderMultiSelectBtn" onclick="toggleMultiSelect('order')" title="多選模式">
+                <span class="material-symbols-outlined">checklist</span>
+              </button>
+              <button class="btn-tool" id="orderClearFilter" title="清除篩選">
+                <span class="material-symbols-outlined">filter_alt_off</span>
+              </button>
+              <button class="btn-tool" id="orderCopyBtn" title="複製訂單明細">
+                <span class="material-symbols-outlined">content_copy</span>
+              </button>
+            </div>
+          </div>
+
+          <div id="orderRecordContainer"></div>
+          <div id="orderEmpty" class="empty-state" style="display:none">
+            <span class="material-symbols-outlined">list_alt</span>
+            <p>尚無訂單紀錄</p>
+          </div>
+        </div>
+      </div> <!-- .page-inner 正確關閉處，確保包含所有子分頁 -->
+    </section>
+
+
+
+
+    <!-- ==================== 支出分頁 ==================== -->
+    <section id="page-expense" class="tab-page">
+      <div class="page-inner">
+
+        <!-- 複合式支出卡片 (區塊 1: 薪資 vs 成本 & 堆疊條形圖) -->
+        <div class="card glass composite-revenue-card composite-expense-card">
+          <div class="composite-section">
+            <div class="section-header">
+              <div class="annual-total-mini expense-bg">
+                <span class="label">年度支出總額</span>
+                <span class="value" id="expenseTotalAmount">$0</span>
+              </div>
+
+              <div class="stacked-bar-container">
+                <div class="stacked-bar-segment salary" id="barSalary" style="width: 50%">
+                  <span class="segment-label">工人薪資</span>
+                  <span class="segment-value" id="barSalaryVal">$0</span>
+                </div>
+                <div class="stacked-bar-segment cost" id="barCost" style="width: 50%">
+                  <span class="segment-label">成本開銷</span>
+                  <span class="segment-value" id="barCostVal">$0</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="section-divider"></div>
+
+            <!-- 區塊 2: 明細清單 (Flex Layout) -->
+            <div class="section-details">
+              <div class="details-column">
+                <h3 class="details-title salary-color">薪資明細</h3>
+                <div id="salarySummaryDetails" class="details-list">
+                  <!-- JS Render -->
+                </div>
+              </div>
+              <div class="details-column">
+                <h3 class="details-title cost-color">成本明細</h3>
+                <div id="costSummaryDetails" class="details-list">
+                  <!-- JS Render -->
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 支出切換 Tab -->
+        <div class="sub-tab-nav">
+          <button class="sub-tab-btn active" data-subtab="salary" id="stab-salary">
+            <span class="material-symbols-outlined">badge</span>
+            工人薪資
+          </button>
+          <button class="sub-tab-btn" data-subtab="costs" id="stab-costs">
+            <span class="material-symbols-outlined">shopping_cart</span>
+            成本開銷
+          </button>
+        </div>
+
+        <!-- ---- 工人薪資子頁 ---- -->
+        <div id="subpage-salary" class="sub-tab-page">
+          <!-- 工人薪資詳情（點選後展開） -->
+          <div id="workerDetailPanel" class="worker-detail-panel" style="display:none">
+            <div class="panel-header">
+              <span id="workerDetailName" class="panel-title"></span>
+              <button class="btn-icon-sm" id="closeWorkerDetail">
+                <span class="material-symbols-outlined">close</span>
+              </button>
+            </div>
+            <div id="workerDetailContent"></div>
+          </div>
+
+          <div class="filter-bar" id="salaryFilterBar">
+            <div class="filter-chips" id="salaryMainCatChips"></div>
+            <div class="filter-tools">
+              <button class="btn-tool" id="salaryMultiSelectBtn" onclick="toggleMultiSelect('salary')" title="多選模式">
+                <span class="material-symbols-outlined">checklist</span>
+              </button>
+              <button class="btn-tool" id="salaryClearFilter" title="清除篩選">
+                <span class="material-symbols-outlined">filter_alt_off</span>
+              </button>
+              <button class="btn-tool" id="salarySortBtn" title="切換排序" data-order="desc">
+                <span class="material-symbols-outlined">sort</span>
+              </button>
+            </div>
+          </div>
+
+          <div id="salaryRecordContainer"></div>
+          <div id="salaryEmpty" class="empty-state" style="display:none">
+            <span class="material-symbols-outlined">inbox</span>
+            <p>尚無薪資紀錄</p>
+          </div>
+        </div>
+
+        <!-- ---- 成本開銷子頁 ---- -->
+        <div id="subpage-costs" class="sub-tab-page" style="display:none">
+          <div class="filter-bar" id="costFilterBar">
+            <div class="filter-chips" id="costMainCatChips"></div>
+            <div class="filter-tools">
+              <button class="btn-tool" id="costMultiSelectBtn" onclick="toggleMultiSelect('cost')" title="多選模式">
+                <span class="material-symbols-outlined">checklist</span>
+              </button>
+              <button class="btn-tool" id="costClearFilter" title="清除篩選">
+                <span class="material-symbols-outlined">filter_alt_off</span>
+              </button>
+              <button class="btn-tool" id="costSortBtn" title="切換排序" data-order="desc">
+                <span class="material-symbols-outlined">sort</span>
+              </button>
+            </div>
+          </div>
+
+          <div id="costRecordContainer"></div>
+          <div id="costEmpty" class="empty-state" style="display:none">
+            <span class="material-symbols-outlined">inbox</span>
+            <p>尚無成本紀錄</p>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ==================== 結餘分頁 ==================== -->
+    <section id="page-balance" class="tab-page">
+      <div class="page-inner">
+
+        <!-- 結餘金額（最上面） -->
+        <div class="balance-net-card glass">
+          <div class="balance-period-btns-wrap">
+            <div class="balance-period-btns">
               <button class="period-btn" data-period="all">全部</button>
               <button class="period-btn active" data-period="year">今年</button>
               <button class="period-btn" data-period="month">本月</button>
             </div>
           </div>
-          <div class="income-chart-layout">
-            <div class="income-pie-wrap">
-              <canvas id="orderPieChart"></canvas>
-            </div>
-            <div id="orderChartArea" class="chart-area income-chart-right"></div>
+          <div class="balance-net-main">
+            <span class="balance-net-label">淨結餘</span>
+            <span class="balance-net-value" id="balanceNetAmount">$0</span>
           </div>
-          <div id="orderUnshippedSummary" class="order-unshipped-summary" style="margin-top:0.75rem"></div>
-        </div>
-
-        <div class="filter-bar" id="orderFilterBar">
-          <div class="filter-chips" id="orderMainCatChips"></div>
-          <div class="filter-chips sub" id="orderSubCatChips" style="display:none"></div>
-          <div class="filter-tools">
-            <button class="btn-tool" id="orderMultiSelectBtn" onclick="toggleMultiSelect('order')" title="多選模式">
-              <span class="material-symbols-outlined">checklist</span>
-            </button>
-            <button class="btn-tool" id="orderClearFilter" title="清除篩選">
-              <span class="material-symbols-outlined">filter_alt_off</span>
-            </button>
-            <button class="btn-tool" id="orderCopyBtn" title="複製訂單明細">
-              <span class="material-symbols-outlined">content_copy</span>
-            </button>
+          <div class="balance-sub-grid">
+            <div class="balance-sub-item income-color">
+              <span class="label">市場收入</span>
+              <span class="value" id="balanceMarketIncome">$0</span>
+            </div>
+            <div class="balance-sub-item income-color">
+              <span class="label">客戶訂單</span>
+              <span class="value" id="balanceSalesIncome">$0</span>
+            </div>
+            <div class="balance-sub-item expense-color">
+              <span class="label">總支出</span>
+              <span class="value" id="balanceTotalExpense">$0</span>
+            </div>
           </div>
         </div>
 
-        <div id="orderRecordContainer"></div>
-        <div id="orderEmpty" class="empty-state" style="display:none">
-          <span class="material-symbols-outlined">list_alt</span>
-          <p>尚無訂單紀錄</p>
-        </div>
-      </div>
-    </div> <!-- .page-inner 正確關閉處，確保包含所有子分頁 -->
-  </section>
-
-
-
-
-  <!-- ==================== 支出分頁 ==================== -->
-  <section id="page-expense" class="tab-page">
-    <div class="page-inner">
-
-      <!-- 複合式支出卡片 (區塊 1: 薪資 vs 成本 & 堆疊條形圖) -->
-      <div class="card glass composite-revenue-card composite-expense-card">
-        <div class="composite-section">
-          <div class="section-header">
-            <div class="annual-total-mini expense-bg">
-              <span class="label">年度支出總額</span>
-              <span class="value" id="expenseTotalAmount">$0</span>
-            </div>
-
-            <div class="stacked-bar-container">
-              <div class="stacked-bar-segment salary" id="barSalary" style="width: 50%">
-                <span class="segment-label">工人薪資</span>
-                <span class="segment-value" id="barSalaryVal">$0</span>
-              </div>
-              <div class="stacked-bar-segment cost" id="barCost" style="width: 50%">
-                <span class="segment-label">成本開銷</span>
-                <span class="segment-value" id="barCostVal">$0</span>
+        <!-- 結餘圓餅圖 -->
+        <div class="card glass chart-card">
+          <div class="card-header" style="justify-content:center; margin-bottom: 0;">
+            <h2>結算比例</h2>
+          </div>
+          <div style="display:flex; gap:1rem; flex-wrap:wrap;">
+            <div style="flex:1; min-width:180px;">
+              <div class="chart-container"
+                style="position: relative; height:30vh; width:100%; display:flex; justify-content:center; align-items:center;">
+                <canvas id="balancePieChart"></canvas>
               </div>
             </div>
-          </div>
-
-          <div class="section-divider"></div>
-
-          <!-- 區塊 2: 明細清單 (Flex Layout) -->
-          <div class="section-details">
-            <div class="details-column">
-              <h3 class="details-title salary-color">薪資明細</h3>
-              <div id="salarySummaryDetails" class="details-list">
-                <!-- JS Render -->
-              </div>
-            </div>
-            <div class="details-column">
-              <h3 class="details-title cost-color">成本明細</h3>
-              <div id="costSummaryDetails" class="details-list">
-                <!-- JS Render -->
-              </div>
+            <div id="balancePieLegend"
+              style="flex:1; min-width:150px; display:flex; flex-direction:column; justify-content:center; gap:0.5rem; padding:0.5rem;">
             </div>
           </div>
         </div>
-      </div>
 
-      <!-- 支出切換 Tab -->
-      <div class="sub-tab-nav">
-        <button class="sub-tab-btn active" data-subtab="salary" id="stab-salary">
-          <span class="material-symbols-outlined">badge</span>
-          工人薪資
-        </button>
-        <button class="sub-tab-btn" data-subtab="costs" id="stab-costs">
-          <span class="material-symbols-outlined">shopping_cart</span>
-          成本開銷
-        </button>
-      </div>
-
-      <!-- ---- 工人薪資子頁 ---- -->
-      <div id="subpage-salary" class="sub-tab-page">
-        <!-- 工人薪資詳情（點選後展開） -->
-        <div id="workerDetailPanel" class="worker-detail-panel" style="display:none">
-          <div class="panel-header">
-            <span id="workerDetailName" class="panel-title"></span>
-            <button class="btn-icon-sm" id="closeWorkerDetail">
-              <span class="material-symbols-outlined">close</span>
-            </button>
+        <!-- 主類別金額統計 -->
+        <div class="card glass">
+          <div class="card-header">
+            <h2>主類別金額</h2>
           </div>
-          <div id="workerDetailContent"></div>
+          <div id="balanceCatGrid" class="stat-grid" style="padding:0"></div>
         </div>
 
-        <div class="filter-bar" id="salaryFilterBar">
-          <div class="filter-chips" id="salaryMainCatChips"></div>
-          <div class="filter-tools">
-            <button class="btn-tool" id="salaryMultiSelectBtn" onclick="toggleMultiSelect('salary')" title="多選模式">
-              <span class="material-symbols-outlined">checklist</span>
-            </button>
-            <button class="btn-tool" id="salaryClearFilter" title="清除篩選">
-              <span class="material-symbols-outlined">filter_alt_off</span>
-            </button>
-            <button class="btn-tool" id="salarySortBtn" title="切換排序" data-order="desc">
-              <span class="material-symbols-outlined">sort</span>
-            </button>
+        <!-- 生產數據（依年度） -->
+        <div class="card glass">
+          <div class="card-header">
+            <h2>生產農業數據</h2>
           </div>
-        </div>
-
-        <div id="salaryRecordContainer"></div>
-        <div id="salaryEmpty" class="empty-state" style="display:none">
-          <span class="material-symbols-outlined">inbox</span>
-          <p>尚無薪資紀錄</p>
-        </div>
-      </div>
-
-      <!-- ---- 成本開銷子頁 ---- -->
-      <div id="subpage-costs" class="sub-tab-page" style="display:none">
-        <div class="filter-bar" id="costFilterBar">
-          <div class="filter-chips" id="costMainCatChips"></div>
-          <div class="filter-tools">
-            <button class="btn-tool" id="costMultiSelectBtn" onclick="toggleMultiSelect('cost')" title="多選模式">
-              <span class="material-symbols-outlined">checklist</span>
-            </button>
-            <button class="btn-tool" id="costClearFilter" title="清除篩選">
-              <span class="material-symbols-outlined">filter_alt_off</span>
-            </button>
-            <button class="btn-tool" id="costSortBtn" title="切換排序" data-order="desc">
-              <span class="material-symbols-outlined">sort</span>
-            </button>
-          </div>
-        </div>
-
-        <div id="costRecordContainer"></div>
-        <div id="costEmpty" class="empty-state" style="display:none">
-          <span class="material-symbols-outlined">inbox</span>
-          <p>尚無成本紀錄</p>
-        </div>
-      </div>
-
-    </div>
-  </section>
-
-  <!-- ==================== 結餘分頁 ==================== -->
-  <section id="page-balance" class="tab-page">
-    <div class="page-inner">
-
-      <!-- 結餘金額（最上面） -->
-      <div class="balance-net-card glass">
-        <div class="balance-period-btns-wrap">
-          <div class="balance-period-btns">
-            <button class="period-btn" data-period="all">全部</button>
-            <button class="period-btn active" data-period="year">今年</button>
-            <button class="period-btn" data-period="month">本月</button>
-          </div>
-        </div>
-        <div class="balance-net-main">
-          <span class="balance-net-label">淨結餘</span>
-          <span class="balance-net-value" id="balanceNetAmount">$0</span>
-        </div>
-        <div class="balance-sub-grid">
-          <div class="balance-sub-item income-color">
-            <span class="label">市場收入</span>
-            <span class="value" id="balanceMarketIncome">$0</span>
-          </div>
-          <div class="balance-sub-item income-color">
-            <span class="label">客戶訂單</span>
-            <span class="value" id="balanceSalesIncome">$0</span>
-          </div>
-          <div class="balance-sub-item expense-color">
-            <span class="label">總支出</span>
-            <span class="value" id="balanceTotalExpense">$0</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- 結餘圓餅圖 -->
-      <div class="card glass chart-card">
-        <div class="card-header" style="justify-content:center; margin-bottom: 0;">
-          <h2>結算比例</h2>
-        </div>
-        <div style="display:flex; gap:1rem; flex-wrap:wrap;">
-          <div style="flex:1; min-width:180px;">
-            <div class="chart-container"
-              style="position: relative; height:30vh; width:100%; display:flex; justify-content:center; align-items:center;">
-              <canvas id="balancePieChart"></canvas>
+          <div class="balance-summary-row grid-2">
+            <div class="summary-item default-color">
+              <span class="label">套袋數</span>
+              <span class="value" id="balanceBagCount">0</span>
+            </div>
+            <div class="summary-item default-color">
+              <span class="label">預估損耗袋數</span>
+              <span class="value" id="balanceLossBagCount">0</span>
             </div>
           </div>
-          <div id="balancePieLegend"
-            style="flex:1; min-width:150px; display:flex; flex-direction:column; justify-content:center; gap:0.5rem; padding:0.5rem;">
+        </div>
+
+        <!-- 月度/日期明細 -->
+        <div class="card glass">
+          <div class="card-header">
+            <h2>月度收支明細</h2>
+          </div>
+          <div class="table-wrap">
+            <table class="records-table">
+              <thead>
+                <tr>
+                  <th>期間</th>
+                  <th>市場收入</th>
+                  <th>客戶銷售</th>
+                  <th>支出</th>
+                  <th>淨結餘</th>
+                </tr>
+              </thead>
+              <tbody id="balanceMonthlyTableBody"></tbody>
+            </table>
           </div>
         </div>
       </div>
+    </section>
 
-      <!-- 主類別金額統計 -->
-      <div class="card glass">
-        <div class="card-header">
-          <h2>主類別金額</h2>
+    <!-- ==================== 管理頁面 ==================== -->
+    <section id="page-admin" class="tab-page">
+      <div class="page-inner">
+
+        <!-- 客戶資料管理 -->
+        <div class="card glass admin-card">
+          <div class="card-header">
+            <div class="header-main">
+              <h2><span class="material-symbols-outlined">people</span> 客戶資料管理</h2>
+            </div>
+            <div class="header-actions" style="display:flex; gap:8px;">
+              <button class="btn btn-sm btn-secondary admin-action" id="addCustomerBtn">
+                <span class="material-symbols-outlined">person_add</span> 新增客戶
+              </button>
+              <button class="btn-edit-toggle" onclick="toggleAdminEdit(this)" title="切換編輯模式">
+                <span class="material-symbols-outlined">edit_note</span>
+              </button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table class="records-table">
+              <thead>
+                <tr>
+                  <th>客戶姓名</th>
+                  <th>電話</th>
+                  <th>客源</th>
+                  <th>地址</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody id="customerListBody"></tbody>
+            </table>
+          </div>
         </div>
-        <div id="balanceCatGrid" class="stat-grid" style="padding:0"></div>
+
+        <!-- 收入類別管理 -->
+        <div class="card glass admin-card">
+          <div class="card-header">
+            <div class="header-main">
+              <h2><span class="material-symbols-outlined">trending_up</span> 收入類別管理</h2>
+            </div>
+            <div class="header-actions" style="display:flex; gap:8px;">
+              <button class="btn btn-sm btn-secondary admin-action" id="addIncomeMainCatBtn">
+                <span class="material-symbols-outlined">add</span> 新增
+              </button>
+              <button class="btn-edit-toggle" onclick="toggleAdminEdit(this)" title="切換編輯模式">
+                <span class="material-symbols-outlined">edit_note</span>
+              </button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table class="records-table">
+              <thead>
+                <tr>
+                  <th>主類別</th>
+                  <th>次類別</th>
+                  <th>等級</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody id="incomeMainCatBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- 支出類別管理 -->
+        <div class="card glass admin-card">
+          <div class="card-header">
+            <div class="header-main">
+              <h2><span class="material-symbols-outlined">trending_down</span> 支出類別管理</h2>
+            </div>
+            <div class="header-actions" style="display:flex; gap:8px;">
+              <button class="btn btn-sm btn-secondary admin-action" id="addExpenseMainCatBtn">
+                <span class="material-symbols-outlined">add</span> 新增
+              </button>
+              <button class="btn-edit-toggle" onclick="toggleAdminEdit(this)" title="切換編輯模式">
+                <span class="material-symbols-outlined">edit_note</span>
+              </button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table class="records-table">
+              <thead>
+                <tr>
+                  <th>編號</th>
+                  <th>主類別</th>
+                  <th>次類別</th>
+                  <th>類型</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody id="expenseMainCatBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- 工人名單管理 -->
+        <div class="card glass admin-card">
+          <div class="card-header">
+            <div class="header-main">
+              <h2><span class="material-symbols-outlined">groups</span> 工人名單</h2>
+            </div>
+            <div class="header-actions" style="display:flex; gap:8px;">
+              <button class="btn btn-sm btn-secondary admin-action" id="addWorkerBtn">
+                <span class="material-symbols-outlined">person_add</span> 新增
+              </button>
+              <button class="btn-edit-toggle" onclick="toggleAdminEdit(this)" title="切換編輯模式">
+                <span class="material-symbols-outlined">edit_note</span>
+              </button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table class="records-table">
+              <thead>
+                <tr>
+                  <th>姓名</th>
+                  <th>預設時薪</th>
+                  <th>預設日薪</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody id="workerListBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- 使用者權限清單（隱藏） -->
+        <div class="card glass admin-card" style="display:none">
+          <div class="card-header">
+            <div class="header-main">
+              <h2><span class="material-symbols-outlined">manage_accounts</span> 使用者管理</h2>
+            </div>
+            <div class="header-actions" style="display:flex; gap:8px;">
+              <button class="btn btn-sm btn-secondary admin-action" id="addUserBtn">
+                <span class="material-symbols-outlined">person_add</span> 新增
+              </button>
+              <button class="btn-edit-toggle" onclick="toggleAdminEdit(this)" title="切換編輯模式">
+                <span class="material-symbols-outlined">edit_note</span>
+              </button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table class="records-table">
+              <thead>
+                <tr>
+                  <th>Google 帳號 Email</th>
+                  <th>角色</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody id="userListBody"></tbody>
+            </table>
+          </div>
+        </div>
+
       </div>
-
-      <!-- 生產數據（依年度） -->
-      <div class="card glass">
-        <div class="card-header">
-          <h2>生產農業數據</h2>
-        </div>
-        <div class="balance-summary-row grid-2">
-          <div class="summary-item default-color">
-            <span class="label">套袋數</span>
-            <span class="value" id="balanceBagCount">0</span>
-          </div>
-          <div class="summary-item default-color">
-            <span class="label">預估損耗袋數</span>
-            <span class="value" id="balanceLossBagCount">0</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- 月度/日期明細 -->
-      <div class="card glass">
-        <div class="card-header">
-          <h2>月度收支明細</h2>
-        </div>
-        <div class="table-wrap">
-          <table class="records-table">
-            <thead>
-              <tr>
-                <th>期間</th>
-                <th>市場收入</th>
-                <th>客戶銷售</th>
-                <th>支出</th>
-                <th>淨結餘</th>
-              </tr>
-            </thead>
-            <tbody id="balanceMonthlyTableBody"></tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ==================== 管理頁面 ==================== -->
-  <section id="page-admin" class="tab-page">
-    <div class="page-inner">
-
-      <!-- 客戶資料管理 -->
-      <div class="card glass admin-card">
-        <div class="card-header">
-          <div class="header-main">
-            <h2><span class="material-symbols-outlined">people</span> 客戶資料管理</h2>
-          </div>
-          <div class="header-actions" style="display:flex; gap:8px;">
-            <button class="btn btn-sm btn-secondary admin-action" id="addCustomerBtn">
-              <span class="material-symbols-outlined">person_add</span> 新增客戶
-            </button>
-            <button class="btn-edit-toggle" onclick="toggleAdminEdit(this)" title="切換編輯模式">
-              <span class="material-symbols-outlined">edit_note</span>
-            </button>
-          </div>
-        </div>
-        <div class="table-wrap">
-          <table class="records-table">
-            <thead>
-              <tr>
-                <th>客戶姓名</th>
-                <th>電話</th>
-                <th>客源</th>
-                <th>地址</th>
-                <th>操作</th>
-              </tr>
-            </thead>
-            <tbody id="customerListBody"></tbody>
-          </table>
-        </div>
-      </div>
-
-      <!-- 收入類別管理 -->
-      <div class="card glass admin-card">
-        <div class="card-header">
-          <div class="header-main">
-            <h2><span class="material-symbols-outlined">trending_up</span> 收入類別管理</h2>
-          </div>
-          <div class="header-actions" style="display:flex; gap:8px;">
-            <button class="btn btn-sm btn-secondary admin-action" id="addIncomeMainCatBtn">
-              <span class="material-symbols-outlined">add</span> 新增
-            </button>
-            <button class="btn-edit-toggle" onclick="toggleAdminEdit(this)" title="切換編輯模式">
-              <span class="material-symbols-outlined">edit_note</span>
-            </button>
-          </div>
-        </div>
-        <div class="table-wrap">
-          <table class="records-table">
-            <thead>
-              <tr>
-                <th>主類別</th>
-                <th>次類別</th>
-                <th>等級</th>
-                <th>操作</th>
-              </tr>
-            </thead>
-            <tbody id="incomeMainCatBody"></tbody>
-          </table>
-        </div>
-      </div>
-
-      <!-- 支出類別管理 -->
-      <div class="card glass admin-card">
-        <div class="card-header">
-          <div class="header-main">
-            <h2><span class="material-symbols-outlined">trending_down</span> 支出類別管理</h2>
-          </div>
-          <div class="header-actions" style="display:flex; gap:8px;">
-            <button class="btn btn-sm btn-secondary admin-action" id="addExpenseMainCatBtn">
-              <span class="material-symbols-outlined">add</span> 新增
-            </button>
-            <button class="btn-edit-toggle" onclick="toggleAdminEdit(this)" title="切換編輯模式">
-              <span class="material-symbols-outlined">edit_note</span>
-            </button>
-          </div>
-        </div>
-        <div class="table-wrap">
-          <table class="records-table">
-            <thead>
-              <tr>
-                <th>編號</th>
-                <th>主類別</th>
-                <th>次類別</th>
-                <th>類型</th>
-                <th>操作</th>
-              </tr>
-            </thead>
-            <tbody id="expenseMainCatBody"></tbody>
-          </table>
-        </div>
-      </div>
-
-      <!-- 工人名單管理 -->
-      <div class="card glass admin-card">
-        <div class="card-header">
-          <div class="header-main">
-            <h2><span class="material-symbols-outlined">groups</span> 工人名單</h2>
-          </div>
-          <div class="header-actions" style="display:flex; gap:8px;">
-            <button class="btn btn-sm btn-secondary admin-action" id="addWorkerBtn">
-              <span class="material-symbols-outlined">person_add</span> 新增
-            </button>
-            <button class="btn-edit-toggle" onclick="toggleAdminEdit(this)" title="切換編輯模式">
-              <span class="material-symbols-outlined">edit_note</span>
-            </button>
-          </div>
-        </div>
-        <div class="table-wrap">
-          <table class="records-table">
-            <thead>
-              <tr>
-                <th>姓名</th>
-                <th>預設時薪</th>
-                <th>預設日薪</th>
-                <th>操作</th>
-              </tr>
-            </thead>
-            <tbody id="workerListBody"></tbody>
-          </table>
-        </div>
-      </div>
-
-      <!-- 使用者權限清單（隱藏） -->
-      <div class="card glass admin-card" style="display:none">
-        <div class="card-header">
-          <div class="header-main">
-            <h2><span class="material-symbols-outlined">manage_accounts</span> 使用者管理</h2>
-          </div>
-          <div class="header-actions" style="display:flex; gap:8px;">
-            <button class="btn btn-sm btn-secondary admin-action" id="addUserBtn">
-              <span class="material-symbols-outlined">person_add</span> 新增
-            </button>
-            <button class="btn-edit-toggle" onclick="toggleAdminEdit(this)" title="切換編輯模式">
-              <span class="material-symbols-outlined">edit_note</span>
-            </button>
-          </div>
-        </div>
-        <div class="table-wrap">
-          <table class="records-table">
-            <thead>
-              <tr>
-                <th>Google 帳號 Email</th>
-                <th>角色</th>
-                <th>操作</th>
-              </tr>
-            </thead>
-            <tbody id="userListBody"></tbody>
-          </table>
-        </div>
-      </div>
-
-    </div>
-  </section>
+    </section>
 
   </div><!-- /workspace -->
 
@@ -753,7 +756,8 @@
         <div class="modal-actions">
           <button type="button" class="btn btn-secondary" id="cancelIncomeBtn">取消</button>
           <button type="submit" class="btn btn-primary" id="saveIncomeBtn" name="submitType" value="close">存並關閉</button>
-          <button type="submit" class="btn btn-primary" id="saveIncomeAddNextBtn" name="submitType" value="addNext">存並新增</button>
+          <button type="submit" class="btn btn-primary" id="saveIncomeAddNextBtn" name="submitType"
+            value="addNext">存並新增</button>
         </div>
       </form>
     </div>
@@ -930,8 +934,10 @@
 
         <div class="modal-actions">
           <button type="button" class="btn btn-secondary" id="cancelExpenseBtn">取消</button>
-          <button type="submit" class="btn btn-primary" id="saveExpenseBtn" name="submitType" value="close">存並關閉</button>
-          <button type="submit" class="btn btn-primary" id="saveExpenseAddNextBtn" name="submitType" value="addNext">存並新增</button>
+          <button type="submit" class="btn btn-primary" id="saveExpenseBtn" name="submitType"
+            value="close">存並關閉</button>
+          <button type="submit" class="btn btn-primary" id="saveExpenseAddNextBtn" name="submitType"
+            value="addNext">存並新增</button>
         </div>
       </form>
     </div>
@@ -1214,4 +1220,5 @@
 
   <script src="app.js"></script>
 </body>
+
 </html>
