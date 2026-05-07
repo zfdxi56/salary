@@ -61,43 +61,7 @@ let sheetHeadersCache = {}; // 快取試算表第一列標題
 // Google API / GIS 初始化與登入邏輯
 // ============================================================
 
-function gapiLoaded() {
-  gapi.load('client', intializeGapiClient);
-}
-
-async function intializeGapiClient() {
-  try {
-    await gapi.client.init({
-      discoveryDocs: ['https://sheets.googleapis.com/$discovery/rest?version=v4'],
-    });
-    gapiInited = true;
-    maybeEnableAuth();
-  } catch (err) {
-    console.error('GAPI Init Failed', err);
-  }
-}
-
-function gisLoaded() {
-  tokenClient = google.accounts.oauth2.initTokenClient({
-    client_id: CLIENT_ID,
-    scope: SCOPES,
-    callback: '', // 後續動態設定
-  });
-  gisInited = true;
-  maybeEnableAuth();
-}
-
-function maybeEnableAuth() {
-  if (gapiInited && gisInited) {
-    const authBtn = document.getElementById('authBtn');
-    if (authBtn) {
-      authBtn.style.display = 'inline-flex';
-      authBtn.onclick = handleLogin;
-    }
-  }
-}
-
-// [冗餘登入與初始化邏輯已移除，統一使用後方的 afterLogin 與 fetchAllData 流程]
+// 冗餘登入與初始化邏輯已移除，統一使用後方的 afterLogin 與 fetchAllData 流程
 
 
 // 登出邏輯
@@ -1052,12 +1016,11 @@ document.querySelectorAll('.sub-tab-btn').forEach(btn => {
 // ============================================================
 function renderAll() {
   renderCompositeIncomeCard(); // 優先渲染複合式卡片
+  renderCompositeExpenseCard(); // 同步渲染支出複合卡片
   
-  renderRevenueSummary();
   renderIncomeTable();
   renderIncomeFilterChips();
 
-  renderExpenseChart();
   renderExpenseTable();
   renderExpenseFilterChips();
   initExpenseSubTabs(); // 初始化支出子頁切換
@@ -1436,14 +1399,7 @@ function duplicateRecord(type, data) {
   }
 }
 
-// ============================================================
-// 10. 快捷功能工具
-// ============================================================
 
-// 收入總覽卡片（市場+訂單合計，依今年）
-function renderRevenueSummary() {
-  // 修正由複合卡片處理，此處僅更新舊有的標籤文字(如有)
-}
 
 // ============================================================
 // 12. 收入分頁
@@ -1572,84 +1528,7 @@ function getAmountClass(val) {
 }
 let _orderPieInstance = null;
 
-function renderIncomeChart() {
-  const period = filterState.income.period;
-  const data = getFilteredByPeriod(incomeData, '日期', period);
 
-  const catMap = {};
-  settings.incomeMainCats.forEach((c, i) => {
-    const clr = getCategoryColor(c.名稱, i);
-    catMap[c.名稱] = { total: 0, count: 0, pending: 0, unpaidAmount: 0, ...clr };
-  });
-
-  let grandTotal = 0;
-  data.forEach(r => {
-    const key = r.主類別;
-    if (!catMap[key]) {
-      const clr = getCategoryColor(key, Object.keys(catMap).length);
-      catMap[key] = { total: 0, count: 0, pending: 0, unpaidAmount: 0, ...clr };
-    }
-    const price = parseFloat(r.總價) || 0;
-    catMap[key].total += price;
-    catMap[key].count++;
-    grandTotal += price;
-    if (r.付款狀態 !== '已付款') {
-      catMap[key].pending++;
-      catMap[key].unpaidAmount += price;
-    }
-  });
-
-  document.getElementById('incomeTotalSummary').textContent = `總計：$${grandTotal.toLocaleString()}`;
-
-  const entries = Object.entries(catMap).filter(([, v]) => v.count > 0);
-
-  // 圓餅圖
-  const ctx = document.getElementById('incomePieChart');
-  if (ctx) {
-    if (_incomePieInstance) _incomePieInstance.destroy();
-    if (entries.length > 0) {
-      _incomePieInstance = new Chart(ctx, {
-        type: 'doughnut',
-        data: {
-          labels: entries.map(([n]) => n),
-          datasets: [{ data: entries.map(([, v]) => v.total), backgroundColor: entries.map(([n]) => catMap[n].color), borderWidth: 2, borderColor: 'white' }]
-        },
-        options: {
-          responsive: true, maintainAspectRatio: false, cutout: '65%',
-          plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ` $${ctx.parsed.toLocaleString()}` } } }
-        }
-      });
-    }
-  }
-
-  // 右側方格
-  const area = document.getElementById('incomeChartArea');
-  if (!area) return;
-  area.innerHTML = '';
-
-  if (entries.length === 0) {
-    area.innerHTML = '<p style="color:var(--text-xs);font-size:0.82rem;padding:0.5rem 0">該時段尚無紀錄</p>';
-    return;
-  }
-
-  entries.sort((a, b) => b[1].total - a[1].total).forEach(([name, v]) => {
-    const color = catMap[name]?.color || '#22c55e';
-    const d = document.createElement('div');
-    d.className = 'pie-legend-item';
-    d.style.cursor = 'pointer';
-    d.innerHTML = `
-      <span class="pie-legend-dot" style="background:${color}"></span>
-      <span class="pie-legend-name">${name}<span style="color:var(--text-muted);font-size:0.7rem;margin-left:4px">${v.count}筆${v.pending>0?`·⚠️${v.pending}未收`:''}</span></span>
-      <span class="pie-legend-val">$${v.total.toLocaleString()}</span>`;
-    d.onclick = () => {
-      filterState.income.mainCat = filterState.income.mainCat === name ? null : name;
-      filterState.income.subCat = null;
-      renderIncomeFilterChips();
-      renderIncomeTable();
-    };
-    area.appendChild(d);
-  });
-}
 
 // 期間切換按鈕 — 收入
 document.querySelector('#incomeChartCard')?.addEventListener('click', e => {
@@ -1658,7 +1537,7 @@ document.querySelector('#incomeChartCard')?.addEventListener('click', e => {
   document.querySelectorAll('#incomeChartCard .period-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   filterState.income.period = btn.dataset.period;
-  renderIncomeChart();
+  renderCompositeIncomeCard();
 });
 
 
@@ -2635,7 +2514,7 @@ document.getElementById('incomeForm').onsubmit = async (e) => {
       });
     }
     await fetchIncome();
-    renderIncomeChart();
+    renderCompositeIncomeCard();
     renderIncomeTable();
     
     showToast(isEdit ? '✓ 更新成功' : '✓ 收入已記錄');
@@ -2673,9 +2552,7 @@ document.getElementById('incomeForm').onsubmit = async (e) => {
 // --- 圖表 ---
 // _expensePieInstance 已在頂層定義
 
-function renderExpenseChart() {
-  renderCompositeExpenseCard();
-}
+
 
 
 // 期間切換 — 支出
@@ -2685,7 +2562,7 @@ document.querySelector('#expenseChartCard')?.addEventListener('click', e => {
   document.querySelectorAll('#expenseChartCard .period-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   filterState.expense.period = btn.dataset.period;
-  renderExpenseChart();
+  renderCompositeExpenseCard();
 });
 
 function calcExpenseTotal(r) {
@@ -2782,7 +2659,7 @@ window.togglePaid = async function(id) {
       resource: { values: [[newVal ? 'TRUE' : 'FALSE']] }
     });
     r.已支付 = newVal;
-    renderExpenseChart();
+    renderCompositeExpenseCard();
     renderExpenseTable();
     // 重新渲染工人明細
     if (r.工人姓名) showWorkerDetail(r.工人姓名);
@@ -3432,7 +3309,7 @@ document.getElementById('expenseForm').onsubmit = async (e) => {
     }
 
     await fetchExpense();
-    renderExpenseChart();
+    renderCompositeExpenseCard();
     renderExpenseTable();
     
     showToast(isEdit ? '✓ 更新成功' : `✓ 已記錄 ${recordsToSave.length} 筆項目`);
@@ -3594,11 +3471,11 @@ async function deleteRecord(type, id) {
     });
     if (type === 'income') {
       incomeData = incomeData.filter(r => r.id !== id);
-      renderIncomeChart();
+      renderCompositeIncomeCard();
       renderIncomeTable();
     } else {
       expenseData = expenseData.filter(r => r.id !== id);
-      renderExpenseChart();
+      renderCompositeExpenseCard();
       renderExpenseTable();
     }
     showToast('✓ 刪除成功');
@@ -4400,14 +4277,7 @@ async function clearSheet(sheetName) {
   });
 }
 
-async function appendToSheet(sheetName, rowArr) {
-  await gapi.client.sheets.spreadsheets.values.append({
-    spreadsheetId: SPREADSHEET_ID,
-    range: `${sheetName}!A:Z`,
-    valueInputOption: 'USER_ENTERED',
-    resource: { values: [rowArr] }
-  });
-}
+
 
 // ============================================================
 // 16. 工具函式
@@ -5013,8 +4883,8 @@ window.handleBulkSettle = async function() {
     
     renderIncomeTable();
     renderExpenseTable();
-    renderIncomeChart();
-    renderExpenseChart();
+    renderCompositeIncomeCard();
+    renderCompositeExpenseCard();
   } catch (err) {
     console.error(err);
     showToast('批次處理失敗', 'error');
@@ -5092,113 +4962,14 @@ window.switchTab = function(tabName) {
   if (page) page.classList.add('active');
   if (btn) btn.classList.add('active');
   
-  if (tabName === 'revenue') { renderIncomeChart(); renderIncomeTable(); }
-  if (tabName === 'expense') { renderExpenseChart(); renderExpenseTable(); }
+  if (tabName === 'revenue') { renderCompositeIncomeCard(); renderIncomeTable(); }
+  if (tabName === 'expense') { renderCompositeExpenseCard(); renderExpenseTable(); }
   if (tabName === 'balance') { renderBalancePage(); }
   if (tabName === 'admin') { renderAdminDashboard(); }
 };
 let currentTab = 'revenue';
 
-async function fetchSettings() {
-  const res = await gapi.client.sheets.spreadsheets.values.get({
-    spreadsheetId: SPREADSHEET_ID,
-    range: `${SHEET.SETTINGS}!A:E`
-  });
-  const rows = res.result.values || [];
-  // 解析 settings... (簡化版)
-  settings.incomeMainCats = [];
-  rows.forEach(r => {
-    if (r[0] === '收入主類別') settings.incomeMainCats.push({ 名稱: r[1], 次類別: [], 等級: [] });
-  });
-}
-
-async function fetchIncome() {
-  const res = await gapi.client.sheets.spreadsheets.values.get({
-    spreadsheetId: SPREADSHEET_ID,
-    range: `${SHEET.MARKET_INCOME}!A:R`
-  });
-  const rows = res.result.values || [];
-  const headers = rows[0];
-  incomeData = rows.slice(1).map(r => {
-    let obj = {};
-    headers.forEach((h, i) => { obj[fieldMap[h] || h] = r[i]; });
-    // 特殊處理等級資料
-    try { obj.等級資料 = JSON.parse(obj.等級資料 || '[]'); } catch(e) { obj.等級資料 = []; }
-    return obj;
-  });
-}
-
-async function fetchExpense() {
-  const resSalary = await gapi.client.sheets.spreadsheets.values.get({
-    spreadsheetId: SPREADSHEET_ID,
-    range: `${SHEET.EXPENSE_SALARY}!A:O`
-  });
-  const resCost = await gapi.client.sheets.spreadsheets.values.get({
-    spreadsheetId: SPREADSHEET_ID,
-    range: `${SHEET.EXPENSE_COST}!A:H`
-  });
-  
-  const salaryRows = resSalary.result.values || [];
-  const salaryHeaders = salaryRows[0];
-  const salaryData = salaryRows.slice(1).map(r => {
-    let obj = { _sourceSheet: SHEET.EXPENSE_SALARY };
-    salaryHeaders.forEach((h, i) => { obj[fieldMap[h] || h] = r[i]; });
-    return obj;
-  });
-
-  const costRows = resCost.result.values || [];
-  const costHeaders = costRows[0];
-  const costData = costRows.slice(1).map(r => {
-    let obj = { _sourceSheet: SHEET.EXPENSE_COST };
-    costHeaders.forEach((h, i) => { obj[fieldMap[h] || h] = r[i]; });
-    return obj;
-  });
-
-  expenseData = [...salaryData, ...costData];
-}
-
-async function fetchCustomers() {
-  const res = await gapi.client.sheets.spreadsheets.values.get({
-    spreadsheetId: SPREADSHEET_ID,
-    range: `${SHEET.CUSTOMERS}!A:E`
-  });
-  const rows = res.result.values || [];
-  const headers = rows[0];
-  customersData = rows.slice(1).map(r => {
-    let obj = {};
-    headers.forEach((h, i) => { obj[fieldMap[h] || h] = r[i]; });
-    return obj;
-  });
-}
-
-async function fetchOrders() {
-  const res = await gapi.client.sheets.spreadsheets.values.get({
-    spreadsheetId: SPREADSHEET_ID,
-    range: `${SHEET.ORDERS}!A:R`
-  });
-  const rows = res.result.values || [];
-  const headers = rows[0];
-  ordersData = rows.slice(1).map(r => {
-    let obj = {};
-    headers.forEach((h, i) => { obj[fieldMap[h] || h] = r[i]; });
-    try { obj.等級資料 = JSON.parse(obj.等級資料 || '[]'); } catch(e) { obj.等級資料 = []; }
-    return obj;
-  });
-}
-
-async function fetchUsers() {
-  const res = await gapi.client.sheets.spreadsheets.values.get({
-    spreadsheetId: SPREADSHEET_ID,
-    range: `${SHEET.USERS}!A:C`
-  });
-  const rows = res.result.values || [];
-  const headers = rows[0];
-  usersData = rows.slice(1).map(r => {
-    let obj = {};
-    headers.forEach((h, i) => { obj[fieldMap[h] || h] = r[i]; });
-    return obj;
-  });
-}
+// 重複的簡易版 fetch 資料邏輯已移除，統一使用上方完整版
 
 // 綁定 Tab 點擊事件
 document.querySelectorAll('.tab-btn').forEach(btn => {
