@@ -826,18 +826,33 @@ async function fetchSettings() {
 
     // 支出類別（設定_支出類別：編號[0], 主類別[1], 次類別[2], 預設金額[3], 備註(類型標籤)[4]）
     (resExp.result.values || []).forEach(r => {
-      const main = r[1], sub = r[2], rawType = r[4] || 'material', amt = r[3] || '';
-      // 支援中文類型標籤連動
-      let type = rawType;
-      if (rawType === '勞工') type = 'worker';
-      if (rawType === '成本') type = 'material';
-      if (rawType === '開銷') type = 'meal';
-      if (!main) return; // 編號列有值但主類別為空則跳過
+      const main = r[1], sub = r[2], rawType = (r[4] || '').trim(), amt = r[3] || '';
+      if (!main) return; 
+
+      // 支援多種中文類型標籤，並根據名稱進行自動推斷
+      let type = 'material'; // 預設為成本
+      if (rawType === '勞工' || rawType === '工人' || rawType === 'worker') {
+        type = 'worker';
+      } else if (rawType === '成本' || rawType === '材料' || rawType === 'material') {
+        type = 'material';
+      } else if (rawType === '開銷' || rawType === '伙食' || rawType === 'meal') {
+        type = 'meal';
+      } else {
+        // 如果標籤不匹配，根據名稱關鍵字自動推斷
+        if (main.includes('薪資') || main.includes('工人') || main.includes('勞工')) {
+          type = 'worker';
+        } else if (main.includes('餐') || main.includes('伙食')) {
+          type = 'meal';
+        }
+      }
       
       let cat = settings.expenseMainCats.find(c => c.名稱 === main);
       if (!cat) {
         cat = { 名稱: main, 類型: type, 次類別: [] };
         settings.expenseMainCats.push(cat);
+      } else {
+        // 如果已經存在（例如來自預設值），更新類型（以試算表設定優先）
+        cat.類型 = type;
       }
       if (sub) cat.次類別.push({ 名稱: sub, 預設金額: amt });
     });
@@ -1216,11 +1231,13 @@ function renderCompositeExpenseCard() {
   // 1. 計算金額
   const salaryRows = data.filter(r => {
     const cat = settings.expenseMainCats.find(c => c.名稱 === r.主類別);
-    return cat?.類型 === 'worker';
+    return (cat && cat.類型 === 'worker') || 
+           (r._sourceSheet === SHEET.EXPENSE_SALARY) ||
+           (r.主類別 && (r.主類別.includes('薪資') || r.主類別.includes('工人')));
   });
   const costRows = data.filter(r => {
-    const cat = settings.expenseMainCats.find(c => c.名稱 === r.主類別);
-    return cat?.類型 !== 'worker';
+    const isSalary = salaryRows.includes(r);
+    return !isSalary;
   });
 
   const salaryTotal = salaryRows.reduce((s, r) => s + calcExpenseTotal(r), 0);
@@ -2677,8 +2694,9 @@ function renderExpenseFilterChips() {
   container.innerHTML = '';
 
   const relMainCats = settings.expenseMainCats.filter(c => {
-    if (isSalaryTab) return c.類型 === 'worker';
-    return c.類型 !== 'worker';
+    const isActuallyWorker = c.類型 === 'worker' || c.名稱.includes('薪資') || c.名稱.includes('工人');
+    if (isSalaryTab) return isActuallyWorker;
+    return !isActuallyWorker;
   });
 
   relMainCats.forEach(cat => {
@@ -2731,9 +2749,14 @@ function renderExpenseTable() {
   // 先過濾類型
   data = data.filter(r => {
     const cat = settings.expenseMainCats.find(c => c.名稱 === r.主類別);
-    if (!cat) return false;
-    if (isSalaryTab) return cat.類型 === 'worker';
-    return cat.類型 !== 'worker';
+    
+    // 雙重檢查：如果來自「工人薪資」工作表，或者是分類標籤設為 worker，則視為薪資類
+    const isActuallyWorker = (cat && cat.類型 === 'worker') || 
+                             (r._sourceSheet === SHEET.EXPENSE_SALARY) ||
+                             (r.主類別 && (r.主類別.includes('薪資') || r.主類別.includes('工人')));
+
+    if (isSalaryTab) return isActuallyWorker;
+    return !isActuallyWorker;
   });
 
   // 再過濾主類別與次類別
