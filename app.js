@@ -36,7 +36,7 @@ const SHEET = {
 // ============================================================
 // --- 圖表實體與全域狀態 ---
 let _expensePieInstance = null;
-let _incomePieInstance = null; 
+let _incomePieInstance = null;
 let _balanceChartInstance = null;
 let _loaderCount = 0;
 let _toastTimer = null;
@@ -61,11 +61,11 @@ let sheetHeadersCache = {}; // 快取試算表第一列標題
 // Google API / GIS 初始化與登入邏輯
 // ============================================================
 
-// 冗餘登入與初始化邏輯已移除，統一使用後方的 afterLogin 與 fetchAllData 流程
+// 冗餘登入與初始化邏輯已經移除，統一使用後方的 afterLogin 與 fetchAllData 之流程
 
 
 // 登出邏輯
-window.handleLogout = function() {
+window.handleLogout = function () {
   const token = gapi.client.getToken();
   if (token !== null) {
     google.accounts.oauth2.revoke(token.access_token);
@@ -319,7 +319,7 @@ function maybeEnableAuth() {
   if (gapiInited && gisInited) {
     document.getElementById('authBtn').style.display = 'inline-flex';
     document.getElementById('authBtn').onclick = handleLogin;
-    
+
     const token = gapi.client.getToken();
     if (token) {
       afterLogin();
@@ -368,11 +368,11 @@ initDeveloperShortcuts();
 async function handleMockLogin() {
   showLoader('正在進入測試模式...');
   console.warn('⚠️ 注意：目前處於開發測試模式，資料將不會同步至 Google Sheets');
-  
+
   // 模擬 GAPI 行為
   if (typeof gapi === 'undefined') window.gapi = { client: {} };
   if (!gapi.client) gapi.client = {};
-  
+
   if (!gapi.client.sheets) {
     gapi.client.sheets = {
       spreadsheets: {
@@ -388,7 +388,7 @@ async function handleMockLogin() {
   // 設定測試身分
   currentUser = { email: 'test@example.com', role: 'admin' };
   isAdmin = true;
-  
+
   // 初始化畫布數據 (從 DEFAULT 中繼承)
   settings.incomeMainCats = DEFAULT_INCOME_CATS.map(n => ({ 名稱: n, 次類別: [], 等級: GRADE_OPTIONS }));
   settings.expenseMainCats = DEFAULT_EXPENSE_CATS.map(c => ({ ...c }));
@@ -402,7 +402,7 @@ async function handleMockLogin() {
     { 客戶編號: 'C002', 客戶姓名: '王先生', 電話: '0921-888777', 地址: '台北市...', 客戶來源: 'FB' }
   ];
   ordersData = []; // 初始設為空，供後續測試新增用
-  
+
   // 更新 UI
   document.getElementById('userRoleBadge').textContent = `測試管理員 · Antigravity`;
   document.getElementById('userRoleBadge').className = `role-badge admin`;
@@ -418,7 +418,7 @@ async function handleMockLogin() {
 
   switchTab('revenue');
   try { renderAll(); } catch (e) { console.error('renderAll error:', e); }
-  
+
   showToast('已進入測試模式 (Mock Mode)', 'success');
   _loaderCount = 0;
   hideLoader();
@@ -451,7 +451,7 @@ async function afterLogin() {
     // 確認使用者角色
     const cleanEmail = email.trim().toLowerCase();
     let userRow = usersData.find(u => u.email === cleanEmail);
-    
+
     // 如果系統完全沒有使用者，或者是特定條件下的首位登入者
     if (usersData.length === 0 && !userRow) {
       console.log('系統初始登入：自動將首位使用者設為管理員');
@@ -471,9 +471,9 @@ async function afterLogin() {
     // 更新 header
     const currentName = userRow?.nickname || (email ? email.split('@')[0] : '訪客');
     const roleDisplay = isAdmin ? '管理員' : '使用者';
-    
+
     // 將別名整合進身分標籤，並隱藏原本重複的暱稱文字
-    document.getElementById('userNameDisplay').style.display = 'none'; 
+    document.getElementById('userNameDisplay').style.display = 'none';
     document.getElementById('userRoleBadge').textContent = `${roleDisplay} · ${currentName}`;
     document.getElementById('userRoleBadge').className = `role-badge${isAdmin ? ' admin' : ''}`;
     document.getElementById('userInfo').style.display = 'flex';
@@ -617,7 +617,7 @@ async function appendToSheet(sheetName, row) {
 }
 
 document.getElementById('logoutBtn').onclick = () => {
-  google.accounts.oauth2.revoke(gapi.client.getToken()?.access_token, () => {});
+  google.accounts.oauth2.revoke(gapi.client.getToken()?.access_token, () => { });
   gapi.client.setToken(null);
   currentUser = null;
   isAdmin = false;
@@ -754,7 +754,7 @@ async function fetchHeadersCache() {
       spreadsheetId: SPREADSHEET_ID,
       ranges: ranges
     });
-    
+
     if (res.result.valueRanges) {
       res.result.valueRanges.forEach(vr => {
         const sheetName = vr.range.split('!')[0].replace(/'/g, '');
@@ -776,8 +776,8 @@ async function fetchUsers() {
     });
     usersData = (res.result.values || []).map(r => ({
       nickname: (r[0] || '').trim(),
-      email: (r[1] || '').trim().toLowerCase(), 
-      role: (r[2] || 'user').trim().toLowerCase(), 
+      email: (r[1] || '').trim().toLowerCase(),
+      role: (r[2] || 'user').trim().toLowerCase(),
     }));
   } catch (e) { usersData = []; }
 }
@@ -798,14 +798,14 @@ async function fetchSettings() {
     (resInc.result.values || []).forEach(r => {
       const main = r[1], sub = r[2] || '', grade = r[3] || '';
       if (!main) return;
-      
+
       let cat = settings.incomeMainCats.find(c => c.名稱 === main);
       if (!cat) {
         cat = { 名稱: main, 次類別: [], 等級: [] };
         settings.incomeMainCats.push(cat);
       }
       if (sub && !cat.次類別.includes(sub)) cat.次類別.push(sub);
-      
+
       if (grade && !cat.等級.includes(grade)) cat.等級.push(grade);
     });
 
@@ -827,7 +827,7 @@ async function fetchSettings() {
     // 支出類別（設定_支出類別：編號[0], 主類別[1], 次類別[2], 預設金額[3], 備註(類型標籤)[4]）
     (resExp.result.values || []).forEach(r => {
       const main = r[1], sub = r[2], rawType = (r[4] || '').trim(), amt = r[3] || '';
-      if (!main) return; 
+      if (!main) return;
 
       // 支援多種中文類型標籤，並根據名稱進行自動推斷
       let type = 'material'; // 預設為成本
@@ -845,7 +845,7 @@ async function fetchSettings() {
           type = 'meal';
         }
       }
-      
+
       let cat = settings.expenseMainCats.find(c => c.名稱 === main);
       if (!cat) {
         cat = { 名稱: main, 類型: type, 次類別: [] };
@@ -866,14 +866,14 @@ async function fetchSettings() {
     });
 
     // 預設值備援
-    if (settings.incomeMainCats.length === 0) settings.incomeMainCats = DEFAULT_INCOME_CATS.map(n => ({ 名稱: n, 次類別:[], 等級: GRADE_OPTIONS }));
+    if (settings.incomeMainCats.length === 0) settings.incomeMainCats = DEFAULT_INCOME_CATS.map(n => ({ 名稱: n, 次類別: [], 等級: GRADE_OPTIONS }));
     if (settings.expenseMainCats.length === 0) settings.expenseMainCats = DEFAULT_EXPENSE_CATS.map(c => ({ ...c }));
     if (settings.units.length === 0) settings.units = ['包', '罐', '箱', '件', '斤', '天', '小時'];
-    
+
   } catch (e) {
     console.error('fetchSettings 失敗:', e);
     settings = {
-      incomeMainCats: DEFAULT_INCOME_CATS.map(n => ({ 名稱: n, 次類別:[], 等級: GRADE_OPTIONS })),
+      incomeMainCats: DEFAULT_INCOME_CATS.map(n => ({ 名稱: n, 次類別: [], 等級: GRADE_OPTIONS })),
       retailPrices: [],
       expenseMainCats: DEFAULT_EXPENSE_CATS.map(c => ({ ...c })),
       workers: [],
@@ -896,9 +896,9 @@ async function fetchIncome() {
       if (!obj.對帳狀態) obj.對帳狀態 = '待對帳';
       return obj;
     });
-  } catch (e) { 
+  } catch (e) {
     console.error('fetchIncome 失敗:', e);
-    incomeData = []; 
+    incomeData = [];
   }
 }
 
@@ -928,9 +928,9 @@ async function fetchExpense() {
     });
 
     expenseData = [...salaryItems, ...costItems];
-  } catch (e) { 
+  } catch (e) {
     console.error('fetchExpense 失敗:', e);
-    expenseData = []; 
+    expenseData = [];
   }
 }
 
@@ -942,9 +942,9 @@ async function fetchCustomers() {
     });
     const headers = sheetHeadersCache[SHEET.CUSTOMERS];
     customersData = (res.result.values || []).map(r => mapRowToObject(headers, r));
-  } catch (e) { 
+  } catch (e) {
     console.error('fetchCustomers 失敗:', e);
-    customersData = []; 
+    customersData = [];
   }
 }
 
@@ -967,9 +967,9 @@ async function fetchOrders() {
       return obj;
     });
     ordersData.forEach((od, i) => od._localIdx = i + 2);
-  } catch (e) { 
+  } catch (e) {
     console.error('fetchOrders 失敗:', e);
-    ordersData = []; 
+    ordersData = [];
   }
 }
 
@@ -978,13 +978,13 @@ function getFilteredByPeriod(data, field, period) {
   const now = new Date();
   const currentYear = now.getFullYear();
   const currentMonth = now.getMonth();
-  
+
   return data.filter(r => {
     const val = r[field];
     if (!val) return false;
     const d = new Date(val);
     if (isNaN(d.getTime())) return false;
-    
+
     if (period === 'year') return d.getFullYear() === currentYear;
     if (period === 'month') return d.getFullYear() === currentYear && d.getMonth() === currentMonth;
     return true;
@@ -1032,7 +1032,7 @@ document.querySelectorAll('.sub-tab-btn').forEach(btn => {
 function renderAll() {
   renderCompositeIncomeCard(); // 優先渲染複合式卡片
   renderCompositeExpenseCard(); // 同步渲染支出複合卡片
-  
+
   renderIncomeTable();
   renderIncomeFilterChips();
 
@@ -1103,7 +1103,7 @@ function handleFabAction(type) {
 
 function renderCompositeIncomeCard() {
   const period = filterState.composite.period;
-  
+
   // 1. 計算金額
   const marketRows = getFilteredByPeriod(incomeData, '日期', period);
   const orderRows = getFilteredByPeriod(ordersData, '下定日期', period); // 訂單以客源日期為主
@@ -1132,7 +1132,7 @@ function renderCompositeIncomeCard() {
 
   // 3. 渲染左右明細 (按品種分組)
   renderCompositeDetails(marketRows, orderRows);
-  
+
   // 4. 渲染未出貨警告
   renderUnshippedAlerts();
 }
@@ -1156,7 +1156,7 @@ function renderCompositeDetails(mRows, oRows) {
   const orderMap = groupByCat(oRows, '訂購品項');
 
   const buildHtml = (map) => {
-    const entries = Object.entries(map).sort((a,b) => b[1] - a[1]);
+    const entries = Object.entries(map).sort((a, b) => b[1] - a[1]);
     if (entries.length === 0) return '<div class="detail-item"><span class="detail-name">暫無數據</span></div>';
     return entries.map(([name, val]) => `
       <div class="detail-item">
@@ -1185,12 +1185,12 @@ function renderUnshippedAlerts() {
   const aggregate = {}; // { "甜柿": { "6A": 10, ... } }
   pendingOrders.forEach(o => {
     const item = o.訂購品項 || '其他';
-    const gradeData = safeParseJSON(o.訂購等級, {}); 
+    const gradeData = safeParseJSON(o.訂購等級, {});
     // 註：有些訂單的訂購等級可能是 JSON 字串，有些可能是直接字串
     // 根據現有代碼，訂單內容是複雜結構
 
     if (!aggregate[item]) aggregate[item] = {};
-    
+
     // 解析訂單內的等級與數量
     // 假設訂單明細格式為：[{grade: "6A", qty: 2}, ...]
     const details = safeParseJSON(o.訂單內容, []);
@@ -1231,9 +1231,9 @@ function renderCompositeExpenseCard() {
   // 1. 計算金額
   const salaryRows = data.filter(r => {
     const cat = settings.expenseMainCats.find(c => c.名稱 === r.主類別);
-    return (cat && cat.類型 === 'worker') || 
-           (r._sourceSheet === SHEET.EXPENSE_SALARY) ||
-           (r.主類別 && (r.主類別.includes('薪資') || r.主類別.includes('工人')));
+    return (cat && cat.類型 === 'worker') ||
+      (r._sourceSheet === SHEET.EXPENSE_SALARY) ||
+      (r.主類別 && (r.主類別.includes('薪資') || r.主類別.includes('工人')));
   });
   const costRows = data.filter(r => {
     const isSalary = salaryRows.includes(r);
@@ -1284,7 +1284,7 @@ function renderExpenseSummaryDetails(sRows, cRows) {
   const costMap = groupByCat(cRows);
 
   const buildHtml = (map) => {
-    const entries = Object.entries(map).sort((a,b) => b[1] - a[1]);
+    const entries = Object.entries(map).sort((a, b) => b[1] - a[1]);
     if (entries.length === 0) return '<div class="detail-item"><span class="detail-name">暫無數據</span></div>';
     return entries.map(([name, val]) => `
       <div class="detail-item">
@@ -1307,14 +1307,14 @@ function initExpenseSubTabs() {
     filterState.expense.type = type === 'salary' ? 'worker' : 'material';
     filterState.expense.mainCat = null;
     filterState.expense.subCat = null;
-    
+
     // UI 切換
     document.getElementById('subpage-salary').style.display = type === 'salary' ? 'block' : 'none';
     document.getElementById('subpage-costs').style.display = type === 'costs' ? 'block' : 'none';
-    
+
     salaryBtn.classList.toggle('active', type === 'salary');
     costsBtn.classList.toggle('active', type === 'costs');
-    
+
     renderExpenseFilterChips();
     renderExpenseTable();
   };
@@ -1351,20 +1351,20 @@ function duplicateRecord(type, data) {
         document.getElementById('incomeMainCat').dispatchEvent(new Event('change'));
       }
       setTimeout(() => {
-         if (document.getElementById('incomeSubCat')) document.getElementById('incomeSubCat').value = data.次類別 || '';
-         if (document.getElementById('incomeCustomerName')) document.getElementById('incomeCustomerName').value = data.客戶名稱 || '';
-         if (document.getElementById('incomeNotes')) document.getElementById('incomeNotes').value = data.附註 || '';
-         if (document.getElementById('incomeTotalPrice')) document.getElementById('incomeTotalPrice').value = data.總價 || '';
-         
-         // 等級回填 (複雜結構)
-         if (Array.isArray(data.等級資料) && data.等級資料.length > 0) {
-           const container = document.getElementById('gradeRowsContainer');
-           container.innerHTML = '';
-           data.等級資料.forEach(g => {
-             addGradeRow(g.等級, g.斤數, g.箱數);
-           });
-         }
-         showToast('已複製規格與內容，請檢查後儲存', 'success');
+        if (document.getElementById('incomeSubCat')) document.getElementById('incomeSubCat').value = data.次類別 || '';
+        if (document.getElementById('incomeCustomerName')) document.getElementById('incomeCustomerName').value = data.客戶名稱 || '';
+        if (document.getElementById('incomeNotes')) document.getElementById('incomeNotes').value = data.附註 || '';
+        if (document.getElementById('incomeTotalPrice')) document.getElementById('incomeTotalPrice').value = data.總價 || '';
+
+        // 等級回填 (複雜結構)
+        if (Array.isArray(data.等級資料) && data.等級資料.length > 0) {
+          const container = document.getElementById('gradeRowsContainer');
+          container.innerHTML = '';
+          data.等級資料.forEach(g => {
+            addGradeRow(g.等級, g.斤數, g.箱數);
+          });
+        }
+        showToast('已複製規格與內容，請檢查後儲存', 'success');
       }, 50);
     }, 100);
   } else if (type === 'order') {
@@ -1385,7 +1385,7 @@ function duplicateRecord(type, data) {
         if (document.getElementById('orderReceiverName')) document.getElementById('orderReceiverName').value = data.收件人 || '';
         if (document.getElementById('orderReceiverPhone')) document.getElementById('orderReceiverPhone').value = data.收件人電話 || '';
         if (document.getElementById('orderReceiverAddress')) document.getElementById('orderReceiverAddress').value = data.收件人地址 || '';
-        
+
         // 等級容器
         const details = safeParseJSON(data.訂單內容, []);
         const container = document.getElementById('orderGradeContainer');
@@ -1446,14 +1446,14 @@ function getCategoryIcon(name) {
 
 /* Helper: 取得語意化類別顏色 */
 const CAT_COLORS = {
-  '甜柿':   { color: '#f97316', bg: '#fff7ed', border: '#fed7aa' },
+  '甜柿': { color: '#f97316', bg: '#fff7ed', border: '#fed7aa' },
   '水蜜桃': { color: '#ec4899', bg: '#fdf2f8', border: '#fbcfe8' },
-  '橘子':   { color: '#84cc16', bg: '#f7fee7', border: '#d9f99d' },
+  '橘子': { color: '#84cc16', bg: '#f7fee7', border: '#d9f99d' },
   '固定成本': { color: '#3b82f6', bg: '#eff6ff', border: '#bfdbfe' },
   '變動成本': { color: '#8b5cf6', bg: '#f3f0ff', border: '#ddd6fe' },
   '工人薪資': { color: '#8b5cf6', bg: '#f3f0ff', border: '#ddd6fe' }
 };
-const CAT_FALLBACK_PALETTE = ['#22c55e','#3b82f6','#a855f7','#f97316','#eab308','#ef4444','#06b6d4','#64748b'];
+const CAT_FALLBACK_PALETTE = ['#22c55e', '#3b82f6', '#a855f7', '#f97316', '#eab308', '#ef4444', '#06b6d4', '#64748b'];
 
 function getCategoryColor(name, fallbackIndex = 0) {
   if (CAT_COLORS[name]) return CAT_COLORS[name];
@@ -1479,7 +1479,7 @@ function setupSwipeLogic(itemEl, editCb, delCb) {
     if (!isSwiping) return;
     currentX = e.touches[0].clientX;
     const diff = currentX - startX;
-    
+
     // 只允許向左滑 (負值)
     if (diff < 0) {
       const move = Math.max(diff, -actionWidth - 40); // 稍微多一點彈性
@@ -1512,8 +1512,8 @@ function setupSwipeLogic(itemEl, editCb, delCb) {
     <button class="swipe-btn edit"><span class="material-symbols-outlined">edit</span>編輯</button>
     <button class="swipe-btn del"><span class="material-symbols-outlined">delete</span>刪除</button>
   `;
-  actionsWrap.querySelector('.copy').onclick = (e) => { 
-    e.stopPropagation(); 
+  actionsWrap.querySelector('.copy').onclick = (e) => {
+    e.stopPropagation();
     // 我們需要知道 type，這裡可以從 itemEl 的屬性或回呼函數獲取
     // 為了通用性，讓 itemEl 攜帶或是傳入更多參數
     const type = itemEl.dataset.type;
@@ -1522,12 +1522,12 @@ function setupSwipeLogic(itemEl, editCb, delCb) {
       const data = (type === 'income' ? incomeData : (type === 'order' ? ordersData : expenseData)).find(x => x.id === dataId);
       duplicateRecord(type, data);
     }
-    itemEl.classList.remove('swiped'); 
-    content.style.transform = 'translateX(0)'; 
+    itemEl.classList.remove('swiped');
+    content.style.transform = 'translateX(0)';
   };
   actionsWrap.querySelector('.edit').onclick = (e) => { e.stopPropagation(); editCb(); itemEl.classList.remove('swiped'); content.style.transform = 'translateX(0)'; };
-  actionsWrap.querySelector('.del').onclick  = (e) => { e.stopPropagation(); delCb(); itemEl.classList.remove('swiped'); content.style.transform = 'translateX(0)'; };
-  
+  actionsWrap.querySelector('.del').onclick = (e) => { e.stopPropagation(); delCb(); itemEl.classList.remove('swiped'); content.style.transform = 'translateX(0)'; };
+
   itemEl.appendChild(actionsWrap);
 
   // 點擊 content 時若已展開則關閉
@@ -1563,7 +1563,7 @@ function renderIncomeFilterChips() {
   const mainContainer = document.getElementById('incomeMainCatChips');
   const subContainer = document.getElementById('incomeSubCatChips');
   if (!mainContainer || !subContainer) return;
-  
+
   mainContainer.innerHTML = '';
   subContainer.innerHTML = '';
 
@@ -1618,7 +1618,7 @@ document.getElementById('incomeClearFilter').onclick = () => {
   renderIncomeTable();
 };
 
-document.getElementById('incomeSortBtn').onclick = function() {
+document.getElementById('incomeSortBtn').onclick = function () {
   filterState.income.sortOrder = filterState.income.sortOrder === 'desc' ? 'asc' : 'desc';
   this.title = filterState.income.sortOrder === 'desc' ? '日期新→舊' : '日期舊→新';
   renderIncomeTable();
@@ -1630,7 +1630,7 @@ document.getElementById('incomeCopyBtn').onclick = () => openCopyModal('income')
 function renderIncomeTable() {
   const period = filterState.income.period;
   let data = getFilteredByPeriod(incomeData, '日期', period);
-  
+
   if (filterState.income.mainCat) data = data.filter(r => r.主類別 === filterState.income.mainCat);
   if (filterState.income.subCat) data = data.filter(r => r.客戶類別 === filterState.income.subCat);
 
@@ -1645,10 +1645,10 @@ function renderIncomeTable() {
   container.innerHTML = '';
   container.classList.add('horizontal-scroll-row');
 
-  if (data.length === 0) { 
+  if (data.length === 0) {
     container.classList.remove('horizontal-scroll-row');
-    empty.style.display = 'block'; 
-    return; 
+    empty.style.display = 'block';
+    return;
   }
   empty.style.display = 'none';
 
@@ -1763,7 +1763,7 @@ function renderIncomeTable() {
                 ${r.盤商價 ? `<small style="color:var(--text-muted);font-size:0.68rem">盤 $${parseFloat(r.盤商價).toLocaleString()}</small>` : ''}
               </div>
             </div>`;
-          
+
           setupSwipeLogic(item, () => openIncomeEdit(r.id), () => confirmDelete('income', r.id));
           moBody.appendChild(item);
         });
@@ -1862,7 +1862,8 @@ function renderOrderChart() {
           labels: entries.map(([n]) => n),
           datasets: [{ data: entries.map(([, v]) => v.total), backgroundColor: entries.map(([n]) => catMap[n].color), borderWidth: 2, borderColor: 'white' }]
         },
-        options: { responsive: true, maintainAspectRatio: false, cutout: '65%',
+        options: {
+          responsive: true, maintainAspectRatio: false, cutout: '65%',
           plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => ` $${c.parsed.toLocaleString()}` } } }
         }
       });
@@ -1880,7 +1881,7 @@ function renderOrderChart() {
     d.style.cursor = 'pointer';
     d.innerHTML = `
       <span class="pie-legend-dot" style="background:${v.color}"></span>
-      <span class="pie-legend-name">${name}<span style="color:var(--text-muted);font-size:0.7rem;margin-left:4px">${v.count}筆${v.pending>0?`·⚠${v.pending}未付`:''}</span></span>
+      <span class="pie-legend-name">${name}<span style="color:var(--text-muted);font-size:0.7rem;margin-left:4px">${v.count}筆${v.pending > 0 ? `·⚠${v.pending}未付` : ''}</span></span>
       <span class="pie-legend-val" style="color:${v.color}">$${v.total.toLocaleString()}</span>`;
     area.appendChild(d);
   });
@@ -1898,7 +1899,7 @@ function renderOrderChart() {
         gradeCount[m[1]] += parseInt(m[2]);
       }
     });
-    const gradeHtml = Object.entries(gradeCount).sort((a,b)=>a[0].localeCompare(b[0]))
+    const gradeHtml = Object.entries(gradeCount).sort((a, b) => a[0].localeCompare(b[0]))
       .map(([g, qty]) => `<span class="order-unshipped-item"><strong>${g}</strong>：${qty}</span>`).join('');
     unshippedSummary.innerHTML = `
       <div class="order-unshipped-title">⚠️ 未出貨 ${unshipped.length} 筆（依等級）</div>
@@ -1974,7 +1975,7 @@ document.querySelector('#orderChartCard')?.addEventListener('click', e => {
 
 function renderOrderTable() {
   let data = getFilteredByPeriod(ordersData, '下定日期', filterState.order.period);
-  
+
   if (filterState.order.mainCat) data = data.filter(r => (r.訂購品項 || '').trim() === filterState.order.mainCat);
   if (filterState.order.subCat) data = data.filter(r => (r.品項類別 || '').trim() === filterState.order.subCat);
 
@@ -2003,7 +2004,7 @@ function renderOrderTable() {
   mainCatSet.forEach((catName, ci) => {
     const catData = data.filter(r => r.訂購品項 === catName);
     if (catData.length === 0) return;
-    
+
     const clr = getCategoryColor(catName, ci);
     const color = clr.color;
 
@@ -2064,7 +2065,7 @@ function buildOrderSubSection(label, records, defaultExpanded, isShipped, color)
   const h = document.createElement('div');
   h.className = 'record-subsection-header';
   h.innerHTML = `
-    <span style="color:${isShipped?'var(--text-muted)':'var(--orange)'}">
+    <span style="color:${isShipped ? 'var(--text-muted)' : 'var(--orange)'}">
       ${isShipped ? '📦 已出貨' : '⏳ 未出貨'}
       <span class="record-section-count">${records.length}筆</span>
     </span>
@@ -2080,28 +2081,28 @@ function buildOrderSubSection(label, records, defaultExpanded, isShipped, color)
     const yearMap = {};
     records.forEach(r => {
       const dateKey = r.到貨日期 || r.下定日期 || '';
-      const yr = dateKey.substring(0,4) || '未知';
-      const mo = dateKey.substring(0,7) || '未知';
+      const yr = dateKey.substring(0, 4) || '未知';
+      const mo = dateKey.substring(0, 7) || '未知';
       if (!yearMap[yr]) yearMap[yr] = {};
       if (!yearMap[yr][mo]) yearMap[yr][mo] = [];
       yearMap[yr][mo].push(r);
     });
-    Object.keys(yearMap).sort((a,b) => b.localeCompare(a)).forEach(yr => {
+    Object.keys(yearMap).sort((a, b) => b.localeCompare(a)).forEach(yr => {
       const yrDiv = document.createElement('div');
       const yrH = document.createElement('div');
       yrH.className = 'record-year-header';
-      const yrTotal = Object.values(yearMap[yr]).flat().reduce((s,r) => s+(parseFloat(r.總價)||0), 0);
+      const yrTotal = Object.values(yearMap[yr]).flat().reduce((s, r) => s + (parseFloat(r.總價) || 0), 0);
       yrH.innerHTML = `<span>📅 ${yr} 年</span><span>$${yrTotal.toLocaleString()}</span>`;
       const yrB = document.createElement('div');
       yrB.className = 'record-year-body'; // 預設折疊
       yrH.onclick = () => yrB.classList.toggle('expanded');
-      Object.keys(yearMap[yr]).sort((a,b) => b.localeCompare(a)).forEach(mo => {
+      Object.keys(yearMap[yr]).sort((a, b) => b.localeCompare(a)).forEach(mo => {
         const moList = yearMap[yr][mo];
         const moDiv = document.createElement('div');
         const moH = document.createElement('div');
         moH.className = 'record-month-header';
-        const moTotal = moList.reduce((s,r) => s+(parseFloat(r.總價)||0),0);
-        moH.innerHTML = `<span>${mo.substring(5,7)} 月 <span class="record-section-count">${moList.length}筆</span></span><span>$${moTotal.toLocaleString()}</span>`;
+        const moTotal = moList.reduce((s, r) => s + (parseFloat(r.總價) || 0), 0);
+        moH.innerHTML = `<span>${mo.substring(5, 7)} 月 <span class="record-section-count">${moList.length}筆</span></span><span>$${moTotal.toLocaleString()}</span>`;
         const moB = document.createElement('div');
         moB.className = 'record-month-body'; // 預設折疊
         moH.onclick = () => moB.classList.toggle('expanded');
@@ -2126,7 +2127,7 @@ function buildOrderSubSection(label, records, defaultExpanded, isShipped, color)
       const uB = document.createElement('div');
       uB.className = 'record-year-body expanded';
       uH.onclick = () => uB.classList.toggle('expanded');
-      unspecified.sort((a,b) => new Date(b.下定日期||0) - new Date(a.下定日期||0)).forEach(r => uB.appendChild(buildOrderItem(r)));
+      unspecified.sort((a, b) => new Date(b.下定日期 || 0) - new Date(a.下定日期 || 0)).forEach(r => uB.appendChild(buildOrderItem(r)));
       b.appendChild(uH);
       b.appendChild(uB);
     }
@@ -2137,7 +2138,7 @@ function buildOrderSubSection(label, records, defaultExpanded, isShipped, color)
       const sB = document.createElement('div');
       sB.className = 'record-year-body expanded';
       sH.onclick = () => sB.classList.toggle('expanded');
-      scheduled.sort((a,b) => new Date(a.到貨日期||a.下定日期||0) - new Date(b.到貨日期||b.下定日期||0)).forEach(r => sB.appendChild(buildOrderItem(r)));
+      scheduled.sort((a, b) => new Date(a.到貨日期 || a.下定日期 || 0) - new Date(b.到貨日期 || b.下定日期 || 0)).forEach(r => sB.appendChild(buildOrderItem(r)));
       b.appendChild(sH);
       b.appendChild(sB);
     }
@@ -2160,8 +2161,8 @@ function buildOrderItem(r) {
     if (clean.length > 5) return `${prefix} ${clean.substring(5)}`;
     return `${prefix} ${clean}`;
   };
-  const dateDisplay = r.狀態 === '未指定' 
-    ? formatDate(r.下定日期, '訂') 
+  const dateDisplay = r.狀態 === '未指定'
+    ? formatDate(r.下定日期, '訂')
     : (r.到貨日期 ? formatDate(r.到貨日期, '到') : formatDate(r.下定日期, '訂'));
 
   // 訂單狀態切換
@@ -2192,7 +2193,7 @@ function buildOrderItem(r) {
         <span class="record-item-amount ${amtClass}">$${priceVal.toLocaleString()}</span>
       </div>
     </div>`;
-  
+
   setupSwipeLogic(item, () => openOrderEdit(r.id), () => confirmDelete('order', r.id));
   return item;
 }
@@ -2243,7 +2244,7 @@ window.toggleOrderRecon = async (id) => {
   hideLoader();
 };
 
-window.toggleTableGroup = function(groupId) {
+window.toggleTableGroup = function (groupId) {
   document.querySelectorAll(`.${groupId}`).forEach(el => {
     el.style.display = el.style.display === 'none' ? 'table-row' : 'none';
   });
@@ -2311,42 +2312,42 @@ function openIncomeModal(record = null) {
   const isEdit = !!record;
   const titleEl = document.getElementById('incomeModalTitle');
   if (titleEl) titleEl.textContent = isEdit ? '編輯市場收入' : '市場收入';
-  
+
   const modal = document.getElementById('incomeModal');
   if (modal) modal.style.display = 'flex';
-  
+
   // 重置切換器
   const toggle = document.querySelector('input[name="incomeTypeToggle"][value="income"]');
   if (toggle) toggle.checked = true;
 
   const idEl = document.getElementById('incomeRecordId');
   if (idEl) idEl.value = isEdit ? record.id : '';
-  
+
   const dateEl = document.getElementById('incomeDate');
   if (dateEl) dateEl.value = isEdit ? record.日期 : today();
-  
+
   const noteEl = document.getElementById('incomeNotes');
   if (noteEl) noteEl.value = isEdit ? record.附註 : '';
-  
+
   const priceEl = document.getElementById('incomeTotalPrice');
   if (priceEl) priceEl.value = isEdit ? record.總價 : '';
-  
+
   const dealerEl = document.getElementById('incomeDealerPrice');
   if (dealerEl) dealerEl.value = isEdit ? record.盤商價 : '';
-  
+
   const shipEl = document.getElementById('incomeShippingFee');
   if (shipEl) shipEl.value = isEdit ? record.運費 : '';
 
   // 新欄位回填 (依據 HTML 實況決定是否存取)
   const custTypeEl = document.getElementById('incomeCustomerType');
   if (custTypeEl) custTypeEl.value = isEdit ? (record.客戶類別 || '一般') : '一般';
-  
+
   const custNameEl = document.getElementById('incomeCustomerName');
   if (custNameEl) custNameEl.value = isEdit ? (record.客戶名稱 || '') : '';
-  
+
   const payStatusEl = document.getElementById('incomePaymentStatus');
   if (payStatusEl) payStatusEl.value = isEdit ? (record.付款狀態 || '未付款') : '未付款';
-  
+
   const reconStatusEl = document.getElementById('incomeReconStatus');
   if (reconStatusEl) reconStatusEl.value = isEdit ? (record.對帳狀態 || '待對帳') : '待對帳';
 
@@ -2397,7 +2398,7 @@ function openIncomeEdit(id) {
 window.openIncomeEdit = openIncomeEdit;
 
 // 打開填入價格的 modal（快捷編輯）
-window.openFillPriceModal = function(id) {
+window.openFillPriceModal = function (id) {
   const r = incomeData.find(x => x.id === id);
   if (r) openIncomeModal(r);
 };
@@ -2420,8 +2421,8 @@ function onIncomeMainCatChange() {
   const val = document.getElementById('incomeMainCat').value;
   const isOther = val === '其他';
   const isAddNew = val === 'ADD_NEW';
-  let w1 = document.getElementById('incomeOtherNoteWrap'); if(w1) w1.style.display = isOther ? 'flex' : 'none';
-  let w2 = document.getElementById('incomeCustomCatWrap'); if(w2) w2.style.display = isAddNew ? 'flex' : 'none';
+  let w1 = document.getElementById('incomeOtherNoteWrap'); if (w1) w1.style.display = isOther ? 'flex' : 'none';
+  let w2 = document.getElementById('incomeCustomCatWrap'); if (w2) w2.style.display = isAddNew ? 'flex' : 'none';
 }
 
 document.getElementById('addGradeRowBtn').onclick = () => addGradeRow();
@@ -2446,7 +2447,7 @@ document.getElementById('incomeForm').onsubmit = async (e) => {
   e.preventDefault();
   const submitType = e.submitter ? e.submitter.value : 'close';
   const btns = document.querySelectorAll('#incomeForm button[type="submit"]');
-  
+
   const totalPrice = document.getElementById('incomeTotalPrice').value;
   if (totalPrice && parseFloat(totalPrice) < 0) {
     showToast('金額不可小於 0', 'error');
@@ -2478,10 +2479,10 @@ document.getElementById('incomeForm').onsubmit = async (e) => {
   let isNewCat = false;
   if (mainCat === 'ADD_NEW') {
     mainCat = document.getElementById('incomeCustomCat').value.trim();
-    if (!mainCat) { 
-      showToast('請輸入新品種名稱', 'error'); 
+    if (!mainCat) {
+      showToast('請輸入新品種名稱', 'error');
       btns.forEach(b => b.disabled = false);
-      return; 
+      return;
     }
     isNewCat = true;
   }
@@ -2533,9 +2534,9 @@ document.getElementById('incomeForm').onsubmit = async (e) => {
     await fetchIncome();
     renderCompositeIncomeCard();
     renderIncomeTable();
-    
+
     showToast(isEdit ? '✓ 更新成功' : '✓ 收入已記錄');
-    
+
     if (submitType === 'addNext') {
       const currentDate = document.getElementById('incomeDate').value;
       const currentMainCat = document.getElementById('incomeMainCat').value;
@@ -2590,7 +2591,7 @@ function calcExpenseTotal(r) {
 }
 
 // 工人明細面板
-window.showWorkerDetail = function(name) {
+window.showWorkerDetail = function (name) {
   const panel = document.getElementById('workerDetailPanel');
   document.getElementById('workerDetailName').textContent = `🧑‍🌾 ${name} 的薪資明細`;
   panel.style.display = 'block';
@@ -2643,12 +2644,12 @@ document.getElementById('closeWorkerDetail').onclick = () => {
 };
 
 // 切換已付狀態
-window.togglePaid = async function(id) {
+window.togglePaid = async function (id) {
   const r = expenseData.find(x => x.id === id);
   if (!r) return;
   const newVal = !r.已支付;
   const targetSheet = r._sourceSheet || SHEET.EXPENSE;
-  
+
   // 找出行號
   const res = await gapi.client.sheets.spreadsheets.values.get({
     spreadsheetId: SPREADSHEET_ID,
@@ -2728,12 +2729,12 @@ document.getElementById('costClearFilter').onclick = () => {
   renderExpenseTable();
 };
 
-document.getElementById('salarySortBtn').onclick = function() {
+document.getElementById('salarySortBtn').onclick = function () {
   filterState.expense.sortOrder = filterState.expense.sortOrder === 'desc' ? 'asc' : 'desc';
   renderExpenseTable();
 };
 
-document.getElementById('costSortBtn').onclick = function() {
+document.getElementById('costSortBtn').onclick = function () {
   filterState.expense.sortOrder = filterState.expense.sortOrder === 'desc' ? 'asc' : 'desc';
   renderExpenseTable();
 };
@@ -2745,15 +2746,15 @@ if (expenseCopyBtn) expenseCopyBtn.onclick = () => openCopyModal('expense');
 function renderExpenseTable() {
   const isSalaryTab = filterState.expense.type === 'worker';
   let data = getFilteredByPeriod(expenseData, '日期', filterState.expense.period);
-  
+
   // 先過濾類型
   data = data.filter(r => {
     const cat = settings.expenseMainCats.find(c => c.名稱 === r.主類別);
-    
+
     // 雙重檢查：如果來自「工人薪資」工作表，或者是分類標籤設為 worker，則視為薪資類
-    const isActuallyWorker = (cat && cat.類型 === 'worker') || 
-                             (r._sourceSheet === SHEET.EXPENSE_SALARY) ||
-                             (r.主類別 && (r.主類別.includes('薪資') || r.主類別.includes('工人')));
+    const isActuallyWorker = (cat && cat.類型 === 'worker') ||
+      (r._sourceSheet === SHEET.EXPENSE_SALARY) ||
+      (r.主類別 && (r.主類別.includes('薪資') || r.主類別.includes('工人')));
 
     if (isSalaryTab) return isActuallyWorker;
     return !isActuallyWorker;
@@ -2798,7 +2799,7 @@ function renderExpenseTable() {
   mainCatSet.forEach((catName, ci) => {
     const catData = data.filter(r => r.主類別 === catName);
     if (catData.length === 0) return;
-    
+
     const clr = getCategoryColor(catName, ci);
     const color = clr.color;
     const catTotal = catData.reduce((s, r) => s + calcExpenseTotal(r), 0);
@@ -2880,7 +2881,7 @@ function renderExpenseTable() {
                 <span class="record-item-amount expense ${getAmountClass(total)}">$${total.toLocaleString()}</span>
               </div>
             </div>`;
-          
+
           setupSwipeLogic(item, () => openExpenseEdit(r.id), () => confirmDelete('expense', r.id));
           moB.appendChild(item);
         });
@@ -2915,7 +2916,7 @@ function openExpenseModal(record = null, defaultType = null) {
   const isEdit = !!record;
   document.getElementById('expenseModalTitle').textContent = isEdit ? '編輯支出紀錄' : '支出紀錄';
   document.getElementById('expenseRecordId').value = isEdit ? record.id : '';
-  
+
   // 同步切換器狀態
   const typeVal = defaultType === 'material' ? 'cost' : 'salary';
   const toggle = document.querySelector(`input[name="expenseTypeToggle"][value="${typeVal}"]`);
@@ -2925,17 +2926,17 @@ function openExpenseModal(record = null, defaultType = null) {
   document.getElementById('expenseIsPaid').checked = isEdit ? record.已支付 : false;
   document.getElementById('includeLunch').checked = isEdit ? record.含午餐 : false;
   document.getElementById('expenseUnit').value = isEdit ? (record.單位 || '') : '';
-  
+
   // 新欄位：時間 (預設 7:00-12:00, 13:00-16:00)
   document.getElementById('salaryMorningStart').value = isEdit ? (record.上午上班 || '') : '07:00';
   document.getElementById('salaryMorningEnd').value = isEdit ? (record.上午休息 || '') : '12:00';
   document.getElementById('salaryAfternoonStart').value = isEdit ? (record.下午上班 || '') : '13:00';
   document.getElementById('salaryAfternoonEnd').value = isEdit ? (record.下午下班 || '') : '16:00';
-  
+
   // 新欄位：支付日期
   const paidDateEl = document.getElementById('expensePaidDate');
   if (paidDateEl) paidDateEl.value = isEdit ? (record.支付日期 || '') : '';
-  
+
   // 更新單位下拉選單
   const unitList = document.getElementById('unitOptions');
   if (unitList) {
@@ -2949,7 +2950,7 @@ function openExpenseModal(record = null, defaultType = null) {
     if (defaultType === 'material') return c.類型 !== 'worker';
     return true;
   });
-  
+
   mainSel.innerHTML = availableCats.map(c => `<option value="${c.名稱}">${c.名稱}</option>`).join('');
   mainSel.value = isEdit ? record.主類別 : availableCats[0]?.名稱;
 
@@ -3027,8 +3028,8 @@ function onExpenseMainCatChange(editRecord = null) {
     // 工人下拉
     const wSel = document.getElementById('expenseWorker');
     wSel.innerHTML = '<option value="">-- 請選擇 --</option>' +
-                     '<option value="ADD_NEW">+ 新增工人...</option>' +
-                     settings.workers.map(w => `<option value="${w.姓名}">${w.姓名}</option>`).join('');
+      '<option value="ADD_NEW">+ 新增工人...</option>' +
+      settings.workers.map(w => `<option value="${w.姓名}">${w.姓名}</option>`).join('');
     wSel.value = editRecord ? editRecord.工人姓名 : '';
     onExpenseWorkerChange();
 
@@ -3111,15 +3112,15 @@ function onExpenseSubCatChange() {
   const val = sel.value;
   const isBulk = val === 'ADD_NEW_BULK';
   const isNew = val === 'ADD_NEW';
-  
+
   document.getElementById('expenseBulkInputWrap').style.display = isBulk ? 'block' : 'none';
   document.getElementById('expenseCustomSubCatWrap').style.display = isNew ? 'flex' : 'none';
-  
+
   // 批次輸入時隱藏數量/單價列，單筆新增時則保留
   const hideDetails = isBulk;
   document.getElementById('quantityPriceRow').style.display = hideDetails ? 'none' : 'grid';
   document.getElementById('priceDetailRow').style.display = hideDetails ? 'none' : 'grid';
-  
+
   if (isBulk) {
     document.getElementById('expenseQty').required = false;
     document.getElementById('expenseUnitPrice').required = false;
@@ -3227,10 +3228,10 @@ document.getElementById('expenseForm').onsubmit = async (e) => {
       workerName = document.getElementById('expenseWorker').value;
       if (workerName === 'ADD_NEW') {
         workerName = document.getElementById('expenseCustomWorker').value.trim();
-        if (!workerName) { 
-          showToast('請輸入姓名', 'error'); 
+        if (!workerName) {
+          showToast('請輸入姓名', 'error');
           btns.forEach(b => b.disabled = false);
-          return; 
+          return;
         }
         isNewWorker = true;
       }
@@ -3238,10 +3239,10 @@ document.getElementById('expenseForm').onsubmit = async (e) => {
       subCat = subCatVal;
       if (subCat === 'ADD_NEW') {
         subCat = document.getElementById('expenseCustomSubCat').value.trim();
-        if (!subCat) { 
-          showToast('請輸入次類別項目名稱', 'error'); 
+        if (!subCat) {
+          showToast('請輸入次類別項目名稱', 'error');
           btns.forEach(b => b.disabled = false);
-          return; 
+          return;
         }
         isNewSubCat = true;
       }
@@ -3310,7 +3311,7 @@ document.getElementById('expenseForm').onsubmit = async (e) => {
         });
         const ids = (res.result.values || []).map(row => row[0]);
         const rowIdx = ids.indexOf(id) + 1; // sheets 是 1-based
-        
+
         if (rowIdx > 0) {
           await safeSheetsUpdate({
             spreadsheetId: SPREADSHEET_ID,
@@ -3334,9 +3335,9 @@ document.getElementById('expenseForm').onsubmit = async (e) => {
     await fetchExpense();
     renderCompositeExpenseCard();
     renderExpenseTable();
-    
+
     showToast(isEdit ? '✓ 更新成功' : `✓ 已記錄 ${recordsToSave.length} 筆項目`);
-    
+
     if (submitType === 'addNext') {
       const currentDate = document.getElementById('expenseDate').value;
       const currentMainCat = document.getElementById('expenseMainCat').value;
@@ -3345,20 +3346,20 @@ document.getElementById('expenseForm').onsubmit = async (e) => {
       document.getElementById('expenseDate').value = currentDate;
       document.getElementById('expenseMainCat').value = currentMainCat;
       // 重置所有條件顯示欄位
-      ['workerNameWrap','expenseCustomWorkerWrap','wageTypeWrap','workerSubCatWrap',
-       'generalSubCatWrap','expenseCustomSubCatWrap','expenseBulkInputWrap',
-       'salaryTimeFields','expensePaidDateWrap','lunchAllowanceWrap'].forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.style.display = 'none';
-      });
+      ['workerNameWrap', 'expenseCustomWorkerWrap', 'wageTypeWrap', 'workerSubCatWrap',
+        'generalSubCatWrap', 'expenseCustomSubCatWrap', 'expenseBulkInputWrap',
+        'salaryTimeFields', 'expensePaidDateWrap', 'lunchAllowanceWrap'].forEach(id => {
+          const el = document.getElementById(id);
+          if (el) el.style.display = 'none';
+        });
       // 觸發 change 重建 UI
       document.getElementById('expenseMainCat').dispatchEvent(new Event('change'));
       setTimeout(() => {
         const workerSel = document.getElementById('expenseWorker');
         if (workerSel && workerSel.offsetParent !== null) {
-            workerSel.focus();
+          workerSel.focus();
         } else {
-            document.getElementById('expenseQty').focus();
+          document.getElementById('expenseQty').focus();
         }
       }, 50);
     } else {
@@ -3382,7 +3383,7 @@ function parseBulkInput(text) {
   // 先依「、」或換行分割
   const lines = text.split(/[、\n]/).map(l => l.trim()).filter(l => l);
   const result = [];
-  
+
   lines.forEach(line => {
     // 格式 1：項目 數量 單位 $單價   → 以單價計算總額
     // 格式 2：項目 數量 單位 =總額   → 以總額反推單價
@@ -3396,7 +3397,7 @@ function parseBulkInput(text) {
     const rawPriceStr = line.slice(match[0].lastIndexOf(match[3]) + match[3].length).trim();
     const isTotal = rawPriceStr.startsWith('=');
     const priceVal = parseFloat(match[4]);
-    
+
     if (!name || isNaN(qty) || qty <= 0 || isNaN(priceVal)) return;
 
     let unitPrice, total;
@@ -3407,7 +3408,7 @@ function parseBulkInput(text) {
       unitPrice = priceVal;
       total = Math.round(qty * unitPrice);
     }
-    
+
     result.push({
       id: generateId(),
       次類別: name,
@@ -3426,7 +3427,7 @@ function parseBulkInput(text) {
 // ============================================================
 let _pendingDelete = null;
 
-window.confirmDelete = function(type, id) {
+window.confirmDelete = function (type, id) {
   _pendingDelete = { type, id };
   document.getElementById('confirmMsg').textContent =
     type === 'income' ? '確定要刪除這筆收入紀錄嗎？' : '確定要刪除這筆支出紀錄嗎？';
@@ -3526,7 +3527,7 @@ function openOrderModal(recordId = null) {
   // 同步切換器狀態
   const toggle = document.querySelector('input[name="orderTypeToggle"][value="order"]');
   if (toggle) toggle.checked = true;
-  
+
   // 填充下拉
   const catSel = document.getElementById('orderMainCat');
   catSel.innerHTML = '<option value="">--請選擇--</option>';
@@ -3535,7 +3536,7 @@ function openOrderModal(recordId = null) {
     opt.value = c; opt.textContent = c;
     catSel.appendChild(opt);
   });
-  
+
   // 填充客源 datalist
   const cDataList = document.getElementById('customerList');
   if (cDataList) {
@@ -3551,18 +3552,18 @@ function openOrderModal(recordId = null) {
 
   if (recordId) {
     const r = ordersData.find(x => x.id === recordId);
-    if(r) {
+    if (r) {
       document.getElementById('orderDate').value = r.下定日期;
       document.getElementById('orderArrivalDate').value = r.到貨日期;
       document.getElementById('orderMainCat').value = r.訂購品項;
       triggerOrderMainCatChange();
       document.getElementById('orderSubCat').value = r.品項類別;
-      triggerOrderGradeChange(); 
+      triggerOrderGradeChange();
       document.getElementById('orderGrade').value = r.訂購等級;
       const q = r.訂單內容.match(/\d+/);
-      if(q) document.getElementById('orderQuantity').value = q[0];
+      if (q) document.getElementById('orderQuantity').value = q[0];
       const u = r.訂單內容.replace(/[0-9]/g, '');
-      if(u) document.getElementById('orderUnit').value = u;
+      if (u) document.getElementById('orderUnit').value = u;
 
       document.getElementById('orderSenderName').value = r.寄件人;
       document.getElementById('orderSenderPhone').value = r.寄件人電話;
@@ -3582,7 +3583,7 @@ function openOrderModal(recordId = null) {
     if (document.getElementById('orderPaymentStatus')) document.getElementById('orderPaymentStatus').value = '未付款';
     if (document.getElementById('orderReconStatus')) document.getElementById('orderReconStatus').value = '待對帳';
   }
-  
+
   document.getElementById('orderModal').style.display = 'flex';
 }
 
@@ -3613,7 +3614,7 @@ function triggerOrderGradeChange() {
   const sub = document.getElementById('orderSubCat').value;
   const gradeSel = document.getElementById('orderGrade');
   gradeSel.innerHTML = '<option value="">--無等級--</option>';
-  
+
   const options = settings.retailPrices.filter(r => r.品種主類別 === main && (sub === '' || r.品種次類別 === sub));
   const grades = [...new Set(options.map(r => r.等級))].filter(Boolean);
   grades.forEach(g => {
@@ -3621,10 +3622,10 @@ function triggerOrderGradeChange() {
     opt.value = g; opt.textContent = g;
     gradeSel.appendChild(opt);
   });
-  
+
   // 嘗試填入單位 (如果只有一種)
   const units = [...new Set(options.map(r => r.單位))].filter(Boolean);
-  if(units.length === 1) document.getElementById('orderUnit').value = units[0];
+  if (units.length === 1) document.getElementById('orderUnit').value = units[0];
   calculateOrderPrice();
 }
 
@@ -3638,14 +3639,14 @@ function calculateOrderPrice() {
   const grade = document.getElementById('orderGrade').value;
   const qtyStr = document.getElementById('orderQuantity').value;
   const qty = parseFloat(qtyStr);
-  
-  if(!main || !qty || isNaN(qty)) return;
+
+  if (!main || !qty || isNaN(qty)) return;
 
   const match = settings.retailPrices.find(r => r.品種主類別 === main && r.品種次類別 === sub && r.等級 === grade);
   if (match && match.售價) {
     const unitPrice = parseFloat(match.售價);
     document.getElementById('orderTotalPrice').value = unitPrice * qty;
-    if(match.單位) document.getElementById('orderUnit').value = match.單位;
+    if (match.單位) document.getElementById('orderUnit').value = match.單位;
     // 顯示販售內容提示（如果 input hint 存在）
     const hint = document.querySelector('#orderTotalPrice + .field-hint, #orderTotalPrice ~ .field-hint');
     if (!hint) {
@@ -3659,7 +3660,7 @@ function calculateOrderPrice() {
   }
 }
 
-let osn = document.getElementById('orderSenderName'); if(osn) osn.addEventListener('input', (e) => {
+let osn = document.getElementById('orderSenderName'); if (osn) osn.addEventListener('input', (e) => {
   const val = e.target.value.trim();
   const cus = customersData.find(c => c.寄件人 === val);
   if (cus) {
@@ -3667,15 +3668,15 @@ let osn = document.getElementById('orderSenderName'); if(osn) osn.addEventListen
   }
 });
 
-let osas = document.getElementById('orderSameAsSender'); if(osas) osas.addEventListener('change', (e) => {
-  if(e.target.checked) {
+let osas = document.getElementById('orderSameAsSender'); if (osas) osas.addEventListener('change', (e) => {
+  if (e.target.checked) {
     document.getElementById('orderReceiverName').value = document.getElementById('orderSenderName').value;
     document.getElementById('orderReceiverPhone').value = document.getElementById('orderSenderPhone').value;
   }
 });
 
 // 黑貓到貨日防呆：不允許選擇禮拜日與禮拜一
-let odt = document.getElementById('orderDeliveryType'); if(odt) odt.addEventListener('change', (e) => {
+let odt = document.getElementById('orderDeliveryType'); if (odt) odt.addEventListener('change', (e) => {
   if (e.target.value === '黑貓宅配') {
     checkBlackCatDate();
   }
@@ -3702,7 +3703,7 @@ document.getElementById('orderForm').onsubmit = async (e) => {
 
   const sender = document.getElementById('orderSenderName').value.trim();
   const receiver = document.getElementById('orderReceiverName').value.trim();
-  
+
   const orderRow = [
     document.getElementById('orderMainCat').value,
     document.getElementById('orderSubCat').value,
@@ -3743,7 +3744,7 @@ document.getElementById('orderForm').onsubmit = async (e) => {
         valueInputOption: 'USER_ENTERED',
         resource: { values: [orderRow] }
       });
-      
+
       // 自動新增客戶若不存在
       const cusExist = customersData.some(c => c.寄件人 === sender || c.客戶姓名 === sender);
       if (!cusExist) {
@@ -3842,8 +3843,8 @@ function generateCopyText() {
       const wageInfo = r.計薪方式 === 'hourly'
         ? `${r.數量}時 × $${r.單價}`
         : r.計薪方式 === 'daily'
-        ? `${r.數量}天 × $${r.單價}`
-        : `${r.數量} × $${r.單價}`;
+          ? `${r.數量}天 × $${r.單價}`
+          : `${r.數量} × $${r.單價}`;
       text += `  計算：${wageInfo}${r.含午餐 ? ' + 午餐$100' : ''}\n`;
       text += `  金額：$${amt.toLocaleString()} ${r.已支付 ? '✓已付' : '⚠未付'}\n`;
       if (r.附註) text += `  備註：${r.附註}\n`;
@@ -4018,11 +4019,13 @@ document.getElementById('addIncomeMainCatBtn').onclick = () => {
 document.getElementById('addExpenseMainCatBtn').onclick = () => {
   openAdminModal('expenseMainCat', null, [
     { id: 'aem_name', label: '主類別名稱 *', type: 'text' },
-    { id: 'aem_type', label: '類型 *', type: 'select', options: [
-      { val: 'material', label: '材料/農藥' },
-      { val: 'worker', label: '工人薪資' },
-      { val: 'meal', label: '伙食' },
-    ]},
+    {
+      id: 'aem_type', label: '類型 *', type: 'select', options: [
+        { val: 'material', label: '材料/農藥' },
+        { val: 'worker', label: '工人薪資' },
+        { val: 'meal', label: '伙食' },
+      ]
+    },
     { id: 'aem_sub', label: '次類別（每行一個）', type: 'textarea', placeholder: '骨粉\n海鳥糞' },
   ]);
 };
@@ -4091,11 +4094,11 @@ document.getElementById('adminForm').onsubmit = async (e) => {
       const phone = document.getElementById('ac_phone').value.trim();
       const address = document.getElementById('ac_address').value.trim();
       const source = document.getElementById('ac_source').value.trim();
-      
+
       if (!name) { showToast('請填寫姓名', 'error'); hideLoader(); return; }
-      
+
       const newCust = { 客戶編號: `CUS_${Date.now()}`, 客戶姓名: name, 電話: phone, 地址: address, 客戶來源: source, 客戶渠道: '系統新增', 介紹人: '' };
-      
+
       const rowData = syncHeadersAndPrepareData(SHEET.CUSTOMERS, newCust);
       await safeSheetsAppend({
         spreadsheetId: SPREADSHEET_ID,
@@ -4109,8 +4112,8 @@ document.getElementById('adminForm').onsubmit = async (e) => {
       const name = document.getElementById('aim_name').value.trim();
       if (!name) { showToast('請填寫名稱', 'error'); hideLoader(); return; }
       const existing = settings.incomeMainCats.find(c => c.名稱 === name);
-      if(!existing){
-        settings.incomeMainCats.push({ 名稱: name, 次類別:[], 等級:[] });
+      if (!existing) {
+        settings.incomeMainCats.push({ 名稱: name, 次類別: [], 等級: [] });
         await rebuildAndSaveSettings('incomeCats');
       }
       renderIncomeMainCatAdmin();
@@ -4120,15 +4123,15 @@ document.getElementById('adminForm').onsubmit = async (e) => {
       const catType = document.getElementById('aem_type').value;
       const subText = document.getElementById('aem_sub').value;
       if (!name) { showToast('請填寫名稱', 'error'); hideLoader(); return; }
-      
+
       const subs = subText.split('\n').map(s => s.trim()).filter(Boolean).map(s => ({ 名稱: s, 預設金額: '' }));
-      
+
       const existing = settings.expenseMainCats.find(c => c.名稱 === name);
-      if(existing) {
-         existing.類型 = catType;
-         existing.次類別 = subs; // 覆蓋次類別
+      if (existing) {
+        existing.類型 = catType;
+        existing.次類別 = subs; // 覆蓋次類別
       } else {
-         settings.expenseMainCats.push({ 名稱: name, 類型: catType, 次類別: subs });
+        settings.expenseMainCats.push({ 名稱: name, 類型: catType, 次類別: subs });
       }
       await rebuildAndSaveSettings('expenseCats');
       renderExpenseMainCatAdmin();
@@ -4142,7 +4145,7 @@ document.getElementById('adminForm').onsubmit = async (e) => {
   hideLoader();
 };
 
-window.editWorker = function(idx) {
+window.editWorker = function (idx) {
   const w = settings.workers[idx];
   openAdminModal('worker', null, [
     { id: 'aw_name', label: '姓名 * (不可改名)', type: 'text' },
@@ -4155,15 +4158,17 @@ window.editWorker = function(idx) {
   document.getElementById('aw_daily').value = w.預設日薪;
 };
 
-window.editExpenseCat = function(idx) {
+window.editExpenseCat = function (idx) {
   const c = settings.expenseMainCats[idx];
   openAdminModal('expenseMainCat', null, [
     { id: 'aem_name', label: '主類別名稱 *', type: 'text' },
-    { id: 'aem_type', label: '類型 *', type: 'select', options: [
-      { val: 'material', label: '材料/農藥' },
-      { val: 'worker', label: '工人薪資' },
-      { val: 'meal', label: '伙食' },
-    ]},
+    {
+      id: 'aem_type', label: '類型 *', type: 'select', options: [
+        { val: 'material', label: '材料/農藥' },
+        { val: 'worker', label: '工人薪資' },
+        { val: 'meal', label: '伙食' },
+      ]
+    },
     { id: 'aem_sub', label: '次類別（每行一個）', type: 'textarea', placeholder: '骨粉\n海鳥糞' },
   ]);
   document.getElementById('aem_name').value = c.名稱;
@@ -4173,21 +4178,21 @@ window.editExpenseCat = function(idx) {
 };
 
 // 管理頁刪除
-window.deleteUser = function(idx) {
+window.deleteUser = function (idx) {
   confirmAdminDelete(() => {
     usersData.splice(idx, 1);
     rebuildAndSaveSettings('users');
     renderUserListAdmin();
   });
 };
-window.deleteWorker = function(idx) {
+window.deleteWorker = function (idx) {
   confirmAdminDelete(() => {
     settings.workers.splice(idx, 1);
     rebuildAndSaveSettings('workers');
     renderWorkerListAdmin();
   });
 };
-window.deleteIncomeMainCat = function(idx) {
+window.deleteIncomeMainCat = function (idx) {
   confirmAdminDelete(() => {
     settings.incomeMainCats.splice(idx, 1);
     rebuildAndSaveSettings('incomeCats');
@@ -4195,7 +4200,7 @@ window.deleteIncomeMainCat = function(idx) {
     renderIncomeFilterChips();
   });
 };
-window.deleteExpenseMainCat = function(catIdx) {
+window.deleteExpenseMainCat = function (catIdx) {
   confirmAdminDelete(() => {
     settings.expenseMainCats.splice(catIdx, 1);
     rebuildAndSaveSettings('expenseCats');
@@ -4204,7 +4209,7 @@ window.deleteExpenseMainCat = function(catIdx) {
     renderExpenseTable();
   });
 };
-window.deleteExpenseSubCat = function(catIdx, subIdx) {
+window.deleteExpenseSubCat = function (catIdx, subIdx) {
   confirmAdminDelete(() => {
     settings.expenseMainCats[catIdx].次類別.splice(subIdx, 1);
     rebuildAndSaveSettings('expenseCats');
@@ -4213,19 +4218,19 @@ window.deleteExpenseSubCat = function(catIdx, subIdx) {
 };
 
 // 系統初始化按鈕
-let isb = document.getElementById('initSystemBtn'); if(isb) isb.onclick = async () => {
+let isb = document.getElementById('initSystemBtn'); if (isb) isb.onclick = async () => {
   if (!confirm('將把預設類別與範例工人資料寫入試算表，是否確定？')) return;
-  
+
   showLoader('系統初始化中...');
   try {
     await clearSheet(SHEET.INCOME_CATS);
     for (const name of DEFAULT_INCOME_CATS) {
       await appendToSheet(SHEET.INCOME_CATS, [name, '', '', '', '']);
     }
-    
+
     await clearSheet(SHEET.EXPENSE_CATS);
     for (const c of DEFAULT_EXPENSE_CATS) {
-      if(c.次類別.length === 0) {
+      if (c.次類別.length === 0) {
         await appendToSheet(SHEET.EXPENSE_CATS, [c.名稱, '', c.類型, '']);
       } else {
         for (const sub of c.次類別) {
@@ -4233,7 +4238,7 @@ let isb = document.getElementById('initSystemBtn'); if(isb) isb.onclick = async 
         }
       }
     }
-    
+
     await clearSheet(SHEET.WORKERS);
     const demoWorkers = [
       { 姓名: '阿明', 預設時薪: '190', 預設日薪: '1500' },
@@ -4242,7 +4247,7 @@ let isb = document.getElementById('initSystemBtn'); if(isb) isb.onclick = async 
     for (const w of demoWorkers) {
       await appendToSheet(SHEET.WORKERS, [w.姓名, w.預設時薪, w.預設日薪]);
     }
-    
+
     showToast('✓ 初始化完成，正在重新載入資料...');
     await fetchSettings();
     renderAll();
@@ -4273,17 +4278,17 @@ async function rebuildAndSaveSettings(target) {
     } else if (target === 'incomeCats') {
       await clearSheet(SHEET.INCOME_CATS);
       for (const c of settings.incomeMainCats) {
-        await appendToSheet(SHEET.INCOME_CATS, [c.名稱, '', (c.次類別||[]).join(','), '', (c.等級||[]).join(',')]);
+        await appendToSheet(SHEET.INCOME_CATS, [c.名稱, '', (c.次類別 || []).join(','), '', (c.等級 || []).join(',')]);
       }
     } else if (target === 'expenseCats') {
       await clearSheet(SHEET.EXPENSE_CATS);
       for (const c of settings.expenseMainCats) {
-        if(c.次類別.length === 0) {
-           await appendToSheet(SHEET.EXPENSE_CATS, [c.名稱, '', c.類型, '']);
+        if (c.次類別.length === 0) {
+          await appendToSheet(SHEET.EXPENSE_CATS, [c.名稱, '', c.類型, '']);
         } else {
-           for (const sub of c.次類別) {
-             await appendToSheet(SHEET.EXPENSE_CATS, [c.名稱, sub.名稱, c.類型, sub.預設金額]);
-           }
+          for (const sub of c.次類別) {
+            await appendToSheet(SHEET.EXPENSE_CATS, [c.名稱, sub.名稱, c.類型, sub.預設金額]);
+          }
         }
       }
     }
@@ -4323,7 +4328,7 @@ function now() {
 
 // Modal 點外部關閉
 ['incomeModal', 'expenseModal', 'copyModal', 'confirmModal', 'adminModal'].forEach(id => {
-  document.getElementById(id)?.addEventListener('click', function(e) {
+  document.getElementById(id)?.addEventListener('click', function (e) {
     if (e.target === this) this.style.display = 'none';
   });
 });
@@ -4333,76 +4338,76 @@ function now() {
 // ============================================================
 const HISTORICAL_DATA_2025 = {
   "expenses": [
-    {"日期":"2024-11-01","主類別":"什支備註","次類別":"龍虎330包","工人姓名":"","數量":"330","單位":"項","單價":"200","總額":"66000","已支付":true},
-    {"日期":"2024-11-20","主類別":"肥料","次類別":"上午施甜柿有機肥330包","工人姓名":"","數量":"32","單位":"項","單價":"150","總額":"4800","已支付":true},
-    {"日期":"2024-12-06","主類別":"農藥","次類別":"8K噴除草劑27缸","工人姓名":"","數量":"33","單位":"項","單價":"150","總額":"4950","已支付":true},
-    {"日期":"2024-12-07","主類別":"農藥","次類別":"8K噴除草劑13缸","工人姓名":"","數量":"10","單位":"項","單價":"150","總額":"1500","已支付":true},
-    {"日期":"2025-01-08","主類別":"什支備註","次類別":"矽藻土","工人姓名":"","數量":"2","單位":"項","單價":"1250","總額":"2500","已支付":true},
-    {"日期":"2025-01-08","主類別":"什支備註","次類別":"大生粉","工人姓名":"","數量":"1","單位":"項","單價":"4200","總額":"4200","已支付":true},
-    {"日期":"2024-12-01","主類別":"肥料","次類別":"肥料車困於陡坡，請怪手脫困費用","工人姓名":"","數量":"1","單位":"項","單價":"4000","總額":"4000","已支付":true},
-    {"日期":"2025-02-14","主類別":"工人薪資","次類別":"撿枝","工人姓名":"其他工人","數量":"9","單位":"項","單價":"150","總額":"1350","已支付":true},
-    {"日期":"2025-02-15","主類別":"工人薪資","次類別":"撿枝","工人姓名":"其他工人","數量":"6","單位":"項","單價":"150","總額":"900","已支付":true},
-    {"日期":"2025-02-20","主類別":"肥料","次類別":"白肥","工人姓名":"","數量":"35","單位":"項","單價":"550","總額":"19250","已支付":true},
-    {"日期":"2025-02-22","主類別":"工人薪資","次類別":"撿枝","工人姓名":"其他工人","數量":"8","單位":"項","單價":"150","總額":"1200","已支付":true},
-    {"日期":"2025-02-24","主類別":"包裝材料","次類別":"白鐵線(猴網電)","工人姓名":"","數量":"1","單位":"項","單價":"130","總額":"130","已支付":true},
-    {"日期":"2025-02-24","主類別":"包裝材料","次類別":"束帶(猴網電)","工人姓名":"","數量":"1","單位":"項","單價":"140","總額":"140","已支付":true},
-    {"日期":"2025-02-24","主類別":"包裝材料","次類別":"包梨鐵線(猴網電)","工人姓名":"","數量":"1","單位":"項","單價":"75","總額":"75","已支付":true},
-    {"日期":"2025-02-24","主類別":"什支備註","次類別":"92汽油","工人姓名":"","數量":"1","單位":"項","單價":"600","總額":"600","已支付":true},
-    {"日期":"2025-02-24","主類別":"工人薪資","次類別":"撿枝","工人姓名":"其他工人","數量":"18","單位":"項","單價":"150","總額":"2700","已支付":true},
-    {"日期":"2025-02-25","主類別":"工人薪資","次類別":"撿枝","工人姓名":"其他工人","數量":"8","單位":"項","單價":"150","總額":"1200","已支付":true},
-    {"日期":"2025-03-11","主類別":"農藥","次類別":"(甜柿清園32缸)馬拉松","工人姓名":"","數量":"5","單位":"項","單價":"380","總額":"1900","已支付":true},
-    {"日期":"2025-03-11","主類別":"什支備註","次類別":"安息香酸16","工人姓名":"","數量":"16","單位":"項","單價":"60","總額":"960","已支付":true},
-    {"日期":"2025-03-11","主類別":"什支備註","次類別":"硫磺粉(巴斯夫)","工人姓名":"","數量":"1","單位":"項","單價":"2500","總額":"2500","已支付":true},
-    {"日期":"2025-03-11","主類別":"農藥","次類別":"百克敏","工人姓名":"","數量":"3","單位":"項","單價":"300","總額":"900","職位":true,"已支付":true},
-    {"日期":"2025-03-11","主類別":"什支備註","次類別":"百利普芬","工人姓名":"","數量":"4","單位":"項","單價":"700","總額":"2800","已支付":true},
-    {"日期":"2025-03-11","主類別":"什支備註","次類別":"亞磷酸","工人姓名":"","數量":"1","單位":"項","單價":"12000","總額":"12000","已支付":true},
-    {"日期":"2025-03-11","主類別":"什支備註","次類別":"微量元素","工人姓名":"","數量":"2","單位":"項","單價":"6000","總額":"12000","已支付":true},
-    {"日期":"2025-03-14","主類別":"肥料","次類別":"下白肥","工人姓名":"","數量":"8","單位":"項","單價":"150","總額":"1200","已支付":true},
-    {"日期":"2025-04-01","主類別":"什支備註","次類別":"撲滅寧","工人姓名":"","數量":"2","單位":"項","單價":"800","總額":"1600","已支付":true},
-    {"日期":"2025-04-01","主類別":"農藥","次類別":"待克利","工人姓名":"","數量":"2","單位":"項","單價":"600","總額":"1200","已支付":true},
-    {"日期":"2025-04-01","主類別":"什支備註","次類別":"大喜精","工人姓名":"","數量":"4","單位":"項","單價":"280","總額":"1120","已支付":true},
-    {"日期":"2025-04-01","主類別":"什支備註","次類別":"大生粉","工人姓名":"","數量":"6","單位":"項","單價":"450","總額":"2700","已支付":true},
-    {"日期":"2025-02-01","主類別":"什支備註","次類別":"阿義除草","工人姓名":"","數量":"1","單位":"項","單價":"20000","總額":"20000","已支付":true},
-    {"日期":"2025-05-01","主類別":"什支備註","次類別":"阿義除草","工人姓名":"","數量":"1","單位":"項","單價":"20000","總額":"20000","已支付":true},
-    {"日期":"2025-04-24","主類別":"菜錢","次類別":"阿義斷水","工人姓名":"","數量":"1","單位":"項","單價":"8000","總額":"8000","已支付":true},
-    {"日期":"2025-01-01","主類別":"什支備註","次類別":"56200+49000","工人姓名":"","數量":"1","單位":"項","單價":"105200","總額":"105200","已支付":true},
-    {"日期":"2025-04-17","主類別":"什支備註","次類別":"高磷鉀","工人姓名":"","數量":"45","單位":"項","單價":"700","總額":"31500","已支付":true},
-    {"日期":"2025-04-17","主類別":"什支備註","次類別":"甜蜜鉀","工人姓名":"","數量":"60","單位":"項","單價":"650","總額":"39000","已支付":true},
-    {"日期":"2025-05-01","主類別":"什支備註","次類別":"信生(道理)","工人姓名":"","數量":"12","單位":"項","單價":"380","總額":"4560","已支付":true},
-    {"日期":"2025-05-01","主類別":"什支備註","次類別":"撲克拉","工人姓名":"","數量":"2","單位":"項","單價":"450","總額":"900","已支付":true},
-    {"日期":"2025-05-01","主類別":"什支備註","次類別":"賽洛寧(大勝)","工人姓名":"","數量":"4","單位":"項","單價":"400","總額":"1600","已支付":true},
-    {"日期":"2025-05-01","主類別":"農藥","次類別":"馬拉松","工人姓名":"","數量":"4","單位":"項","單價":"400","總額":"1600","已支付":true},
-    {"日期":"2025-05-01","主類別":"什支備註","次類別":"信生(日產)","工人姓名":"","數量":"12","單位":"項","單價":"250","總額":"3000","已支付":true},
-    {"日期":"2025-05-01","主類別":"農藥","次類別":"待克利","工人姓名":"","數量":"2","單位":"項","單價":"600","總額":"1200","已支付":true},
-    {"日期":"2025-05-01","主類別":"什支備註","次類別":"賽速洛寧(日產)","工人姓名":"","數量":"4","單位":"項","單價":"650","總額":"2600","已支付":true},
-    {"日期":"2025-05-01","主類別":"什支備註","次類別":"阿巴丁","工人姓名":"","數量":"2","單位":"項","單價":"400","總額":"800","已支付":true},
-    {"日期":"2025-05-01","主類別":"什支備註","次類別":"得芬諾","工人姓名":"","數量":"4","單位":"項","單價":"450","總額":"1800","已支付":true},
-    {"日期":"2025-05-01","主類別":"什支備註","次類別":"大生粉","工人姓名":"","數量":"1","單位":"項","單價":"4200","總額":"4200","已支付":true},
-    {"日期":"2025-06-09","主類別":"什支備註","次類別":"丁基加保扶","工人姓名":"","數量":"4","單位":"項","單價":"700","總額":"2800","已支付":true}
+    { "日期": "2024-11-01", "主類別": "什支備註", "次類別": "龍虎330包", "工人姓名": "", "數量": "330", "單位": "項", "單價": "200", "總額": "66000", "已支付": true },
+    { "日期": "2024-11-20", "主類別": "肥料", "次類別": "上午施甜柿有機肥330包", "工人姓名": "", "數量": "32", "單位": "項", "單價": "150", "總額": "4800", "已支付": true },
+    { "日期": "2024-12-06", "主類別": "農藥", "次類別": "8K噴除草劑27缸", "工人姓名": "", "數量": "33", "單位": "項", "單價": "150", "總額": "4950", "已支付": true },
+    { "日期": "2024-12-07", "主類別": "農藥", "次類別": "8K噴除草劑13缸", "工人姓名": "", "數量": "10", "單位": "項", "單價": "150", "總額": "1500", "已支付": true },
+    { "日期": "2025-01-08", "主類別": "什支備註", "次類別": "矽藻土", "工人姓名": "", "數量": "2", "單位": "項", "單價": "1250", "總額": "2500", "已支付": true },
+    { "日期": "2025-01-08", "主類別": "什支備註", "次類別": "大生粉", "工人姓名": "", "數量": "1", "單位": "項", "單價": "4200", "總額": "4200", "已支付": true },
+    { "日期": "2024-12-01", "主類別": "肥料", "次類別": "肥料車困於陡坡，請怪手脫困費用", "工人姓名": "", "數量": "1", "單位": "項", "單價": "4000", "總額": "4000", "已支付": true },
+    { "日期": "2025-02-14", "主類別": "工人薪資", "次類別": "撿枝", "工人姓名": "其他工人", "數量": "9", "單位": "項", "單價": "150", "總額": "1350", "已支付": true },
+    { "日期": "2025-02-15", "主類別": "工人薪資", "次類別": "撿枝", "工人姓名": "其他工人", "數量": "6", "單位": "項", "單價": "150", "總額": "900", "已支付": true },
+    { "日期": "2025-02-20", "主類別": "肥料", "次類別": "白肥", "工人姓名": "", "數量": "35", "單位": "項", "單價": "550", "總額": "19250", "已支付": true },
+    { "日期": "2025-02-22", "主類別": "工人薪資", "次類別": "撿枝", "工人姓名": "其他工人", "數量": "8", "單位": "項", "單價": "150", "總額": "1200", "已支付": true },
+    { "日期": "2025-02-24", "主類別": "包裝材料", "次類別": "白鐵線(猴網電)", "工人姓名": "", "數量": "1", "單位": "項", "單價": "130", "總額": "130", "已支付": true },
+    { "日期": "2025-02-24", "主類別": "包裝材料", "次類別": "束帶(猴網電)", "工人姓名": "", "數量": "1", "單位": "項", "單價": "140", "總額": "140", "已支付": true },
+    { "日期": "2025-02-24", "主類別": "包裝材料", "次類別": "包梨鐵線(猴網電)", "工人姓名": "", "數量": "1", "單位": "項", "單價": "75", "總額": "75", "已支付": true },
+    { "日期": "2025-02-24", "主類別": "什支備註", "次類別": "92汽油", "工人姓名": "", "數量": "1", "單位": "項", "單價": "600", "總額": "600", "已支付": true },
+    { "日期": "2025-02-24", "主類別": "工人薪資", "次類別": "撿枝", "工人姓名": "其他工人", "數量": "18", "單位": "項", "單價": "150", "總額": "2700", "已支付": true },
+    { "日期": "2025-02-25", "主類別": "工人薪資", "次類別": "撿枝", "工人姓名": "其他工人", "數量": "8", "單位": "項", "單價": "150", "總額": "1200", "已支付": true },
+    { "日期": "2025-03-11", "主類別": "農藥", "次類別": "(甜柿清園32缸)馬拉松", "工人姓名": "", "數量": "5", "單位": "項", "單價": "380", "總額": "1900", "已支付": true },
+    { "日期": "2025-03-11", "主類別": "什支備註", "次類別": "安息香酸16", "工人姓名": "", "數量": "16", "單位": "項", "單價": "60", "總額": "960", "已支付": true },
+    { "日期": "2025-03-11", "主類別": "什支備註", "次類別": "硫磺粉(巴斯夫)", "工人姓名": "", "數量": "1", "單位": "項", "單價": "2500", "總額": "2500", "已支付": true },
+    { "日期": "2025-03-11", "主類別": "農藥", "次類別": "百克敏", "工人姓名": "", "數量": "3", "單位": "項", "單價": "300", "總額": "900", "職位": true, "已支付": true },
+    { "日期": "2025-03-11", "主類別": "什支備註", "次類別": "百利普芬", "工人姓名": "", "數量": "4", "單位": "項", "單價": "700", "總額": "2800", "已支付": true },
+    { "日期": "2025-03-11", "主類別": "什支備註", "次類別": "亞磷酸", "工人姓名": "", "數量": "1", "單位": "項", "單價": "12000", "總額": "12000", "已支付": true },
+    { "日期": "2025-03-11", "主類別": "什支備註", "次類別": "微量元素", "工人姓名": "", "數量": "2", "單位": "項", "單價": "6000", "總額": "12000", "已支付": true },
+    { "日期": "2025-03-14", "主類別": "肥料", "次類別": "下白肥", "工人姓名": "", "數量": "8", "單位": "項", "單價": "150", "總額": "1200", "已支付": true },
+    { "日期": "2025-04-01", "主類別": "什支備註", "次類別": "撲滅寧", "工人姓名": "", "數量": "2", "單位": "項", "單價": "800", "總額": "1600", "已支付": true },
+    { "日期": "2025-04-01", "主類別": "農藥", "次類別": "待克利", "工人姓名": "", "數量": "2", "單位": "項", "單價": "600", "總額": "1200", "已支付": true },
+    { "日期": "2025-04-01", "主類別": "什支備註", "次類別": "大喜精", "工人姓名": "", "數量": "4", "單位": "項", "單價": "280", "總額": "1120", "已支付": true },
+    { "日期": "2025-04-01", "主類別": "什支備註", "次類別": "大生粉", "工人姓名": "", "數量": "6", "單位": "項", "單價": "450", "總額": "2700", "已支付": true },
+    { "日期": "2025-02-01", "主類別": "什支備註", "次類別": "阿義除草", "工人姓名": "", "數量": "1", "單位": "項", "單價": "20000", "總額": "20000", "已支付": true },
+    { "日期": "2025-05-01", "主類別": "什支備註", "次類別": "阿義除草", "工人姓名": "", "數量": "1", "單位": "項", "單價": "20000", "總額": "20000", "已支付": true },
+    { "日期": "2025-04-24", "主類別": "菜錢", "次類別": "阿義斷水", "工人姓名": "", "數量": "1", "單位": "項", "單價": "8000", "總額": "8000", "已支付": true },
+    { "日期": "2025-01-01", "主類別": "什支備註", "次類別": "56200+49000", "工人姓名": "", "數量": "1", "單位": "項", "單價": "105200", "總額": "105200", "已支付": true },
+    { "日期": "2025-04-17", "主類別": "什支備註", "次類別": "高磷鉀", "工人姓名": "", "數量": "45", "單位": "項", "單價": "700", "總額": "31500", "已支付": true },
+    { "日期": "2025-04-17", "主類別": "什支備註", "次類別": "甜蜜鉀", "工人姓名": "", "數量": "60", "單位": "項", "單價": "650", "總額": "39000", "已支付": true },
+    { "日期": "2025-05-01", "主類別": "什支備註", "次類別": "信生(道理)", "工人姓名": "", "數量": "12", "單位": "項", "單價": "380", "總額": "4560", "已支付": true },
+    { "日期": "2025-05-01", "主類別": "什支備註", "次類別": "撲克拉", "工人姓名": "", "數量": "2", "單位": "項", "單價": "450", "總額": "900", "已支付": true },
+    { "日期": "2025-05-01", "主類別": "什支備註", "次類別": "賽洛寧(大勝)", "工人姓名": "", "數量": "4", "單位": "項", "單價": "400", "總額": "1600", "已支付": true },
+    { "日期": "2025-05-01", "主類別": "農藥", "次類別": "馬拉松", "工人姓名": "", "數量": "4", "單位": "項", "單價": "400", "總額": "1600", "已支付": true },
+    { "日期": "2025-05-01", "主類別": "什支備註", "次類別": "信生(日產)", "工人姓名": "", "數量": "12", "單位": "項", "單價": "250", "總額": "3000", "已支付": true },
+    { "日期": "2025-05-01", "主類別": "農藥", "次類別": "待克利", "工人姓名": "", "數量": "2", "單位": "項", "單價": "600", "總額": "1200", "已支付": true },
+    { "日期": "2025-05-01", "主類別": "什支備註", "次類別": "賽速洛寧(日產)", "工人姓名": "", "數量": "4", "單位": "項", "單價": "650", "總額": "2600", "已支付": true },
+    { "日期": "2025-05-01", "主類別": "什支備註", "次類別": "阿巴丁", "工人姓名": "", "數量": "2", "單位": "項", "單價": "400", "總額": "800", "已支付": true },
+    { "日期": "2025-05-01", "主類別": "什支備註", "次類別": "得芬諾", "工人姓名": "", "數量": "4", "單位": "項", "單價": "450", "總額": "1800", "已支付": true },
+    { "日期": "2025-05-01", "主類別": "什支備註", "次類別": "大生粉", "工人姓名": "", "數量": "1", "單位": "項", "單價": "4200", "總額": "4200", "已支付": true },
+    { "日期": "2025-06-09", "主類別": "什支備註", "次類別": "丁基加保扶", "工人姓名": "", "數量": "4", "單位": "項", "單價": "700", "總額": "2800", "已支付": true }
   ],
   "income": [
-    {"日期":"2025-09-26","主類別":"甜柿","其他備註":"市場拍賣大數據匯入","總重":"136","箱數":"12","總價":"13404","價格確認":true},
-    {"日期":"2025-09-27","主類別":"甜柿","其他備註":"市場拍賣大數據匯入","總重":"160","箱數":"15","總價":"16392","價格確認":true},
-    {"日期":"2025-09-30","主類別":"甜柿","其他備註":"市場拍賣大數據匯入","總重":"420","箱數":"35","總價":"43286","價格確認":true},
-    {"日期":"2025-10-03","主類別":"甜柿","其他備註":"市場拍賣大數據匯入","總重":"349","箱數":"29","總價":"40640","價格確認":true},
-    {"日期":"2025-10-04","主類別":"甜柿","其他備註":"市場拍賣大數據匯入","總重":"494","箱數":"41","總價":"53370","價格確認":true},
-    {"日期":"2025-10-09","主類別":"甜柿","其他備註":"市場拍賣大數據匯入","總重":"558","箱數":"46","總價":"50703","價格確認":true}
+    { "日期": "2025-09-26", "主類別": "甜柿", "其他備註": "市場拍賣大數據匯入", "總重": "136", "箱數": "12", "總價": "13404", "價格確認": true },
+    { "日期": "2025-09-27", "主類別": "甜柿", "其他備註": "市場拍賣大數據匯入", "總重": "160", "箱數": "15", "總價": "16392", "價格確認": true },
+    { "日期": "2025-09-30", "主類別": "甜柿", "其他備註": "市場拍賣大數據匯入", "總重": "420", "箱數": "35", "總價": "43286", "價格確認": true },
+    { "日期": "2025-10-03", "主類別": "甜柿", "其他備註": "市場拍賣大數據匯入", "總重": "349", "箱數": "29", "總價": "40640", "價格確認": true },
+    { "日期": "2025-10-04", "主類別": "甜柿", "其他備註": "市場拍賣大數據匯入", "總重": "494", "箱數": "41", "總價": "53370", "價格確認": true },
+    { "日期": "2025-10-09", "主類別": "甜柿", "其他備註": "市場拍賣大數據匯入", "總重": "558", "箱數": "46", "總價": "50703", "價格確認": true }
   ]
 };
 
 async function importHistoricalData2025() {
   if (!confirm('確定要匯入 2025 年度歷史資料嗎？這將會新增多筆紀錄到試算表中。')) return;
-  
+
   showLoader('匯入中...');
   try {
     const expRows = HISTORICAL_DATA_2025.expenses.map(r => {
       const id = 'H2025-' + Math.random().toString(36).substr(2, 6);
-      return [id, r.日期, r.主類別, r.次類別, r.工人姓名, 'hourly', r.數量, r.單位, r.單價, r.總額, 'FALSE', r.已支付?'TRUE':'FALSE', '2025 匯入', now(), now()];
+      return [id, r.日期, r.主類別, r.次類別, r.工人姓名, 'hourly', r.數量, r.單位, r.單價, r.總額, 'FALSE', r.已支付 ? 'TRUE' : 'FALSE', '2025 匯入', now(), now()];
     });
-    
+
     const incRows = HISTORICAL_DATA_2025.income.map(r => {
       const id = 'H2025I-' + Math.random().toString(36).substr(2, 6);
-      return [id, r.日期, r.主類別, r.其他備註, '{}', r.總重, r.箱數, r.總價, '0', '0', '', r.價格確認?'TRUE':'FALSE', now(), now()];
+      return [id, r.日期, r.主類別, r.其他備註, '{}', r.總重, r.箱數, r.總價, '0', '0', '', r.價格確認 ? 'TRUE' : 'FALSE', now(), now()];
     });
 
     if (expRows.length > 0) {
@@ -4413,7 +4418,7 @@ async function importHistoricalData2025() {
         resource: { values: expRows }
       });
     }
-    
+
     if (incRows.length > 0) {
       await gapi.client.sheets.spreadsheets.values.append({
         spreadsheetId: SPREADSHEET_ID,
@@ -4458,7 +4463,7 @@ function renderBalancePage() {
   // 1. 取得過濾後的資料
   const incData = getFilteredByPeriod(incomeData, '日期', currentBalancePeriod);
   const expData = getFilteredByPeriod(expenseData, '日期', currentBalancePeriod);
-  
+
   // 訂單也需要過濾
   let orderDataFiltered = [...ordersData];
   if (currentBalancePeriod !== 'all') {
@@ -4480,7 +4485,7 @@ function renderBalancePage() {
     if (r.付款狀態 !== '已付款') marketUnpaid += (parseFloat(r.總價) || 0);
     actualKG += (parseFloat(r.總重) || 0) * 0.6; // 假設總重是台斤 -> KG
   });
-  
+
   // 訂單依狀態分組計算
   let salesIncome = 0;
   let salesByStatus = {}; // { '未指定': 金額, '預定出貨': 金額, '已出貨': 金額, ... }
@@ -4496,11 +4501,11 @@ function renderBalancePage() {
   });
 
   const totalIncome = marketIncome + salesIncome;
-  
+
   let totalExpense = 0;
   let bagCount = 0;
   let lossBagCount = 0;
-  
+
   expData.forEach(r => {
     totalExpense += calcExpenseTotal(r);
     // 從支出項目提取套袋與損耗袋，這裡用次類別字串比對
@@ -4540,29 +4545,29 @@ function renderBalancePage() {
 
   // 3. 結餘與收入看板
   const netEl = document.getElementById('balanceNetAmount');
-  if(netEl) {
+  if (netEl) {
     netEl.textContent = `$${netBalance.toLocaleString()}`;
     netEl.style.color = netBalance >= 0 ? 'var(--green-dark)' : 'var(--red)';
   }
-  
-  if(document.getElementById('balanceMarketIncome')) {
+
+  if (document.getElementById('balanceMarketIncome')) {
     document.getElementById('balanceMarketIncome').textContent = `$${marketIncome.toLocaleString()}`;
     document.getElementById('balanceSalesIncome').textContent = `$${salesIncome.toLocaleString()}`;
     document.getElementById('balanceTotalExpense').textContent = `$${totalExpense.toLocaleString()}`;
   } else {
     // 兼容舊版 ID
-    if(document.getElementById('balanceTotalIncome')) document.getElementById('balanceTotalIncome').textContent = `$${totalIncome.toLocaleString()}`;
-    if(document.getElementById('balanceTotalExpense')) document.getElementById('balanceTotalExpense').textContent = `$${totalExpense.toLocaleString()}`;
+    if (document.getElementById('balanceTotalIncome')) document.getElementById('balanceTotalIncome').textContent = `$${totalIncome.toLocaleString()}`;
+    if (document.getElementById('balanceTotalExpense')) document.getElementById('balanceTotalExpense').textContent = `$${totalExpense.toLocaleString()}`;
   }
-  
+
   // 4. 生產與損耗看板計算 (假設一袋平均 0.35 kg)
   // 這些數值需要根據實際果園參數調整，此處設為預設預估
-  const expectedKG = bagCount * 0.35; 
+  const expectedKG = bagCount * 0.35;
   const lossExpectedKG = lossBagCount * 0.35;
   const actualLossKG = Math.max(0, expectedKG - actualKG);
   const lossPercent = expectedKG > 0 ? ((actualLossKG / expectedKG) * 100).toFixed(1) + '%' : '0%';
 
-  if(document.getElementById('balanceBagCount')) {
+  if (document.getElementById('balanceBagCount')) {
     document.getElementById('balanceBagCount').textContent = bagCount.toLocaleString();
     const lossBagEl = document.getElementById('balanceLossBagCount');
     if (lossBagEl) lossBagEl.textContent = lossBagCount.toLocaleString();
@@ -4593,15 +4598,15 @@ function renderBalanceChart(income, expense) {
 
   // 若都為 0 則顯示灰底
   if (income === 0 && expense === 0) {
-     balanceChartInstance = new Chart(ctx, {
-       type: 'doughnut',
-       data: {
-         labels: ['無資料'],
-         datasets: [{ data: [1], backgroundColor: ['#e2e8f0'], borderWidth: 0 }]
-       },
-       options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { enabled: false } }, cutout: '75%' }
-     });
-     return;
+    balanceChartInstance = new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels: ['無資料'],
+        datasets: [{ data: [1], backgroundColor: ['#e2e8f0'], borderWidth: 0 }]
+      },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { enabled: false } }, cutout: '75%' }
+    });
+    return;
   }
 
   balanceChartInstance = new Chart(ctx, {
@@ -4623,7 +4628,7 @@ function renderBalanceChart(income, expense) {
         legend: { position: 'bottom', labels: { usePointStyle: true, padding: 20 } },
         tooltip: {
           callbacks: {
-            label: function(context) {
+            label: function (context) {
               let label = context.label || '';
               if (label) { label += ': '; }
               if (context.parsed !== null) {
@@ -4644,36 +4649,36 @@ function renderBalanceMonthlyTable(incData, expData, orderDataFiltered = []) {
 
   // 聚合到月份
   const monthlyMap = {};
-  
+
   // 處理市場收入
   incData.forEach(r => {
-    if(!r.日期) return;
+    if (!r.日期) return;
     const month = r.日期.substring(0, 7); // YYYY-MM
-    if(!monthlyMap[month]) monthlyMap[month] = { market: 0, sales: 0, expense: 0, orderCount: 0 };
+    if (!monthlyMap[month]) monthlyMap[month] = { market: 0, sales: 0, expense: 0, orderCount: 0 };
     monthlyMap[month].market += (parseFloat(r.總價) || 0);
   });
 
   // 處理客戶銷售收入
   orderDataFiltered.forEach(r => {
     const d = r.到貨日期 || r.下定日期;
-    if(!d) return;
+    if (!d) return;
     const month = d.substring(0, 7); // YYYY-MM
-    if(!monthlyMap[month]) monthlyMap[month] = { market: 0, sales: 0, expense: 0, orderCount: 0 };
+    if (!monthlyMap[month]) monthlyMap[month] = { market: 0, sales: 0, expense: 0, orderCount: 0 };
     monthlyMap[month].sales += (parseFloat(r.總價) || 0);
     monthlyMap[month].orderCount++;
   });
 
   // 處理支出
   expData.forEach(r => {
-    if(!r.日期) return;
+    if (!r.日期) return;
     const month = r.日期.substring(0, 7); // YYYY-MM
-    if(!monthlyMap[month]) monthlyMap[month] = { market: 0, sales: 0, expense: 0, orderCount: 0 };
+    if (!monthlyMap[month]) monthlyMap[month] = { market: 0, sales: 0, expense: 0, orderCount: 0 };
     monthlyMap[month].expense += calcExpenseTotal(r);
   });
 
   // 排序 (由新到舊)
-  const months = Object.keys(monthlyMap).sort((a,b) => b.localeCompare(a));
-  
+  const months = Object.keys(monthlyMap).sort((a, b) => b.localeCompare(a));
+
   tbody.innerHTML = '';
   if (months.length === 0) {
     tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);">無資料</td></tr>';
@@ -4688,7 +4693,7 @@ function renderBalanceMonthlyTable(incData, expData, orderDataFiltered = []) {
     tr.innerHTML = `
       <td><strong>${m}</strong></td>
       <td style="color:var(--green-dark);">$${stat.market.toLocaleString()}</td>
-      <td style="color:var(--green-dark);">$${stat.sales.toLocaleString()}${stat.orderCount>0?` <small style="color:var(--text-muted);font-size:0.7rem">(${stat.orderCount}筆)</small>`:''}</td>
+      <td style="color:var(--green-dark);">$${stat.sales.toLocaleString()}${stat.orderCount > 0 ? ` <small style="color:var(--text-muted);font-size:0.7rem">(${stat.orderCount}筆)</small>` : ''}</td>
       <td style="color:var(--red);">$${stat.expense.toLocaleString()}</td>
       <td style="font-weight:bold; color:${net >= 0 ? 'var(--green-dark)' : 'var(--red)'};">$${net.toLocaleString()}</td>
     `;
@@ -4737,11 +4742,11 @@ function initModalTypeSwitchers() {
       // 取得目前的日期
       const date = document.getElementById('expenseDate').value;
       const recordId = document.getElementById('expenseRecordId').value;
-      
+
       // 重新開啟 Modal 並指定類型（這會觸發 UI 更新）
       openExpenseModal(recordId ? expenseData.find(r => r.id === recordId) : null, type);
       if (date) document.getElementById('expenseDate').value = date;
-      
+
       // 確保切換器狀態正確
       const toggle = document.querySelector(`input[name="expenseTypeToggle"][value="${e.target.value}"]`);
       if (toggle) toggle.checked = true;
@@ -4757,14 +4762,14 @@ function initAllEventListeners() {
 
   initFAB();
   initModalTypeSwitchers();
-  
+
   document.getElementById('closeIncomeModal')?.addEventListener('click', closeIncomeModal);
   document.getElementById('cancelIncomeBtn')?.addEventListener('click', closeIncomeModal);
-  
+
   // 3. 支出 Modal 關閉
   document.getElementById('closeExpenseModal')?.addEventListener('click', closeExpenseModal);
   document.getElementById('cancelExpenseBtn')?.addEventListener('click', closeExpenseModal);
-  
+
   // 4. 訂單 Modal 關閉
   document.getElementById('closeOrderModal')?.addEventListener('click', closeOrderModal);
   document.getElementById('cancelOrderBtn')?.addEventListener('click', closeOrderModal);
@@ -4795,21 +4800,21 @@ document.getElementById('confirmCancel')?.addEventListener('click', () => {
 let multiSelectMode = { active: false, type: null };
 let selectedIds = new Set();
 
-window.toggleMultiSelect = function(type) {
+window.toggleMultiSelect = function (type) {
   if (multiSelectMode.active && multiSelectMode.type === type) {
     cancelMultiSelect();
     return;
   }
-  
+
   multiSelectMode.active = true;
   multiSelectMode.type = type;
   selectedIds.clear();
-  
+
   // 顯示批量工具列
   const bar = document.getElementById('bulkActionBar');
   if (bar) bar.classList.add('active');
   updateBulkCount();
-  
+
   // 在所有紀錄項目上添加 Checkbox 或點擊選取樣式
   document.querySelectorAll('.record-item').forEach(item => {
     if (item.dataset.type === type || (type === 'salary' && item.dataset.type === 'expense')) {
@@ -4833,20 +4838,20 @@ window.toggleMultiSelect = function(type) {
   });
 };
 
-window.cancelMultiSelect = function() {
+window.cancelMultiSelect = function () {
   multiSelectMode.active = false;
   multiSelectMode.type = null;
   selectedIds.clear();
-  
+
   const bar = document.getElementById('bulkActionBar');
   if (bar) bar.classList.remove('active');
-  
+
   document.querySelectorAll('.record-item').forEach(item => {
     item.classList.remove('multi-select-ready', 'selected');
     // 恢復原始點擊 (如果有)
-    item.onclick = null; 
+    item.onclick = null;
   });
-  
+
   // 重新渲染表格以恢復原始事件
   if (currentTab === 'revenue') renderIncomeTable();
   if (currentTab === 'expense') renderExpenseTable();
@@ -4857,22 +4862,22 @@ function updateBulkCount() {
   if (countEl) countEl.textContent = selectedIds.size;
 }
 
-window.handleBulkSettle = async function() {
+window.handleBulkSettle = async function () {
   if (selectedIds.size === 0) {
     showToast('請先選擇要處理的項目', 'warning');
     return;
   }
-  
+
   const type = multiSelectMode.type;
   const idsToUpdate = Array.from(selectedIds);
-  
+
   showLoader('批次更新中...');
   try {
     // 根據類型決定更新哪個欄位
     let field = '';
     let newValue = '';
     let targetSheet = '';
-    
+
     if (type === 'income') {
       field = '對帳狀態';
       newValue = 'OK';
@@ -4896,14 +4901,14 @@ window.handleBulkSettle = async function() {
     for (const id of idsToUpdate) {
       await updateRecordInSheet(targetSheet, id, field, newValue);
     }
-    
+
     showToast(`✓ 已成功處理 ${idsToUpdate.length} 筆項目`);
     cancelMultiSelect();
-    
+
     // 重新載入數據
     if (type === 'income' || type === 'order') await fetchIncome();
     if (type === 'salary' || type === 'cost') await fetchExpense();
-    
+
     renderIncomeTable();
     renderExpenseTable();
     renderCompositeIncomeCard();
@@ -4930,11 +4935,11 @@ async function updateRecordInSheet(sheetName, id, field, value) {
   if (sheetName === SHEET.MARKET_INCOME) {
     if (field === '對帳狀態') col = 'P'; // 假設 P 欄
   } else if (sheetName === SHEET.EXPENSE_SALARY) {
-    if (field === '已支付') col = 'O'; 
+    if (field === '已支付') col = 'O';
   } else if (sheetName === SHEET.EXPENSE_COST) {
     if (field === '已支付') col = 'H';
   }
-  
+
   await gapi.client.sheets.spreadsheets.values.update({
     spreadsheetId: SPREADSHEET_ID,
     range: `${sheetName}!${col}${rowIdx}`,
@@ -4948,9 +4953,9 @@ async function updateRecordInSheet(sheetName, id, field, value) {
 // ============================================================
 let adminEditMode = false;
 
-window.toggleAdminEdit = function(btn) {
+window.toggleAdminEdit = function (btn) {
   adminEditMode = !adminEditMode;
-  
+
   // 切換圖示顏色或內容
   if (btn) {
     btn.classList.toggle('active', adminEditMode);
@@ -4975,16 +4980,16 @@ window.toggleAdminEdit = function(btn) {
 // ============================================================
 // 4. 通用導航與資料獲取
 // ============================================================
-window.switchTab = function(tabName) {
+window.switchTab = function (tabName) {
   currentTab = tabName;
   document.querySelectorAll('.tab-page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-  
+
   const page = document.getElementById('page-' + tabName);
   const btn = document.querySelector(`.tab-btn[data-tab="${tabName}"]`);
   if (page) page.classList.add('active');
   if (btn) btn.classList.add('active');
-  
+
   if (tabName === 'revenue') { renderCompositeIncomeCard(); renderIncomeTable(); }
   if (tabName === 'expense') { renderCompositeExpenseCard(); renderExpenseTable(); }
   if (tabName === 'balance') { renderBalancePage(); }
@@ -5004,10 +5009,10 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
 // ============================================================
 
 // --- FAB 控制 ---
-window.onload_fab = function() { 
+window.onload_fab = function () {
   const fabMain = document.getElementById('fabMain');
   const fabMenu = document.getElementById('fabMenu');
-  
+
   if (fabMain) {
     fabMain.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -5033,12 +5038,12 @@ window.onload_fab = function() {
 // 立即執行綁定
 setTimeout(window.onload_fab, 1000);
 
-window.handleFabAction = function(type) {
+window.handleFabAction = function (type) {
   const fabMain = document.getElementById('fabMain');
   const fabMenu = document.getElementById('fabMenu');
   if (fabMain) fabMain.classList.remove('active');
   if (fabMenu) fabMenu.classList.remove('active');
-  
+
   if (type === 'income') {
     openIncomeModal();
   } else if (type === 'expense') {
@@ -5047,10 +5052,10 @@ window.handleFabAction = function(type) {
 };
 
 // --- Modal 控制 ---
-window.openIncomeModal = function() {
+window.openIncomeModal = function () {
   const modal = document.getElementById('incomeModal');
   if (modal) modal.style.display = 'flex';
-  
+
   // 隱藏 FAB
   const fabWrap = document.getElementById('fabContainer');
   if (fabWrap) fabWrap.style.display = 'none';
@@ -5071,11 +5076,11 @@ window.openIncomeModal = function() {
     settings.incomeMainCats.forEach(cat => {
       mainCatSelect.innerHTML += `<option value="${cat.名稱}">${cat.名稱}</option>`;
     });
-    
+
     // 綁定聯動事件
     mainCatSelect.onchange = () => {
       const selectedMainCat = mainCatSelect.value;
-      
+
       // 如果是水蜜桃，自動帶入等級
       const gradesContainer = document.getElementById('incomeGradesContainer');
       if (gradesContainer) {
@@ -5095,8 +5100,8 @@ window.openIncomeModal = function() {
             `;
           });
         } else {
-           // 預設一筆空資料
-           gradesContainer.innerHTML = `
+          // 預設一筆空資料
+          gradesContainer.innerHTML = `
               <div class="grade-row" style="display:flex; gap:10px; margin-bottom:10px;">
                 <input type="text" placeholder="等級" class="grade-name" style="width:60px;">
                 <input type="number" placeholder="箱數" class="grade-boxes" style="width:80px;">
@@ -5112,19 +5117,19 @@ window.openIncomeModal = function() {
   }
 };
 
-window.closeIncomeModal = function() {
+window.closeIncomeModal = function () {
   const modal = document.getElementById('incomeModal');
   if (modal) modal.style.display = 'none';
-  
+
   // 恢復 FAB
   const fabWrap = document.getElementById('fabContainer');
   if (fabWrap) fabWrap.style.display = 'flex';
 };
 
-window.openExpenseModal = function() {
+window.openExpenseModal = function () {
   const modal = document.getElementById('expenseModal');
   if (modal) modal.style.display = 'flex';
-  
+
   // 隱藏 FAB
   const fabWrap = document.getElementById('fabContainer');
   if (fabWrap) fabWrap.style.display = 'none';
@@ -5144,41 +5149,41 @@ window.openExpenseModal = function() {
     mainCatSelect.innerHTML = '<option value="">請選擇</option>';
     mainCatSelect.innerHTML += '<option value="工人薪資">工人薪資</option>';
     mainCatSelect.innerHTML += '<option value="資材成本">資材成本</option>';
-    
+
     mainCatSelect.onchange = () => {
       const type = mainCatSelect.value;
       const workerFields = document.getElementById('expenseWorkerFields');
       const materialFields = document.getElementById('expenseMaterialFields');
-      
+
       if (type === '工人薪資') {
-        if(workerFields) workerFields.style.display = 'block';
-        if(materialFields) materialFields.style.display = 'none';
-        
+        if (workerFields) workerFields.style.display = 'block';
+        if (materialFields) materialFields.style.display = 'none';
+
         // 預設薪資 200, 預設時間 7:00-12:00, 13:00-16:00
         const wageInput = document.getElementById('workerWage');
         if (wageInput) wageInput.value = '200';
-        
+
         const amIn = document.getElementById('timeAmIn');
         const amOut = document.getElementById('timeAmOut');
         const pmIn = document.getElementById('timePmIn');
         const pmOut = document.getElementById('timePmOut');
-        
-        if(amIn) amIn.value = '07:00';
-        if(amOut) amOut.value = '12:00';
-        if(pmIn) pmIn.value = '13:00';
-        if(pmOut) pmOut.value = '16:00';
+
+        if (amIn) amIn.value = '07:00';
+        if (amOut) amOut.value = '12:00';
+        if (pmIn) pmIn.value = '13:00';
+        if (pmOut) pmOut.value = '16:00';
       } else {
-        if(workerFields) workerFields.style.display = 'none';
-        if(materialFields) materialFields.style.display = 'block';
+        if (workerFields) workerFields.style.display = 'none';
+        if (materialFields) materialFields.style.display = 'block';
       }
     };
   }
 };
 
-window.closeExpenseModal = function() {
+window.closeExpenseModal = function () {
   const modal = document.getElementById('expenseModal');
   if (modal) modal.style.display = 'none';
-  
+
   // 恢復 FAB
   const fabWrap = document.getElementById('fabContainer');
   if (fabWrap) fabWrap.style.display = 'flex';
@@ -5188,6 +5193,6 @@ window.closeExpenseModal = function() {
 setTimeout(() => {
   const btnIn = document.getElementById('cancelIncomeBtn');
   const btnEx = document.getElementById('cancelExpenseBtn');
-  if(btnIn && !btnIn.onclick) btnIn.onclick = closeIncomeModal;
-  if(btnEx && !btnEx.onclick) btnEx.onclick = closeExpenseModal;
+  if (btnIn && !btnIn.onclick) btnIn.onclick = closeIncomeModal;
+  if (btnEx && !btnEx.onclick) btnEx.onclick = closeExpenseModal;
 }, 1500);
